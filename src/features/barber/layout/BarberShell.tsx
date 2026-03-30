@@ -50,6 +50,10 @@ export default function BarberShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const firstName = name.split(" ")[0] || "";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Buenos días" : hour < 20 ? "Buenas tardes" : "Buenas noches";
+
   async function handleLogout() {
     setLoggingOut(true);
     await fetch("/api/auth/logout", { method: "POST" });
@@ -61,36 +65,39 @@ export default function BarberShell({
       {/* ── Top bar ── */}
       <header className="sticky top-0 z-30 bg-[#1a1412] text-white">
         <div className="mx-auto max-w-2xl px-4 py-3 flex items-center justify-between">
-          {/* Brand */}
-          <div className="text-base font-extrabold tracking-tight">
-            Mar<span className="text-[#c87941]">Brava</span>
+          {/* Brand + greeting */}
+          <div>
+            <div className="text-base font-extrabold tracking-tight">
+              Mar<span className="text-[#c87941]">Brava</span>
+            </div>
+            <p className="text-[11px] text-white/40 hidden sm:block">{greeting}, {firstName}</p>
           </div>
 
           {/* View tabs */}
-          <div className="flex items-center gap-1 rounded-lg bg-white/10 p-0.5">
+          <div className="flex items-center gap-0.5 rounded-lg bg-white/10 p-0.5">
             <button
               onClick={() => onViewChange("list")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition",
                 view === "list"
-                  ? "bg-white text-stone-800"
+                  ? "bg-white text-stone-800 shadow-sm"
                   : "text-white/60 hover:text-white"
               )}
             >
               <IconList className="shrink-0" />
-              Lista
+              <span className="hidden sm:inline">Lista</span>
             </button>
             <button
               onClick={() => onViewChange("calendar")}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition",
                 view === "calendar"
-                  ? "bg-white text-stone-800"
+                  ? "bg-white text-stone-800 shadow-sm"
                   : "text-white/60 hover:text-white"
               )}
             >
               <IconCalendar className="shrink-0" />
-              Calendario
+              <span className="hidden sm:inline">Calendario</span>
             </button>
           </div>
 
@@ -98,20 +105,24 @@ export default function BarberShell({
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-1.5 rounded-full bg-white/10 pl-1 pr-2.5 py-1 hover:bg-white/15 transition"
+              className="flex items-center gap-2 rounded-full bg-white/10 pl-1 pr-3 py-1 hover:bg-white/15 transition"
             >
               <div className="grid h-7 w-7 place-items-center rounded-full bg-[#c87941] text-xs font-bold shrink-0">
                 {initials || "?"}
               </div>
               <span className="text-xs font-medium text-white/80 hidden sm:block">
-                {name.split(" ")[0] || ""}
+                {firstName}
               </span>
             </button>
 
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 z-20 w-44 rounded-xl border border-[#e8e2dc] bg-white shadow-lg overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 z-20 w-48 rounded-xl border border-[#e8e2dc] bg-white shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#e8e2dc]">
+                    <p className="text-sm font-semibold text-stone-800">{name}</p>
+                    <p className="text-[11px] text-stone-400">Barbero</p>
+                  </div>
                   <button
                     onClick={handleLogout}
                     disabled={loggingOut}
@@ -131,17 +142,17 @@ export default function BarberShell({
       </header>
 
       {/* ── Content ── */}
-      <main className="flex-1 mx-auto w-full max-w-2xl px-4 pt-4 pb-2 overflow-hidden">
+      <main className="flex-1 mx-auto w-full max-w-2xl px-4 pt-4 pb-16 lg:pb-4 overflow-hidden">
         {children}
       </main>
 
       {/* ── Bottom nav (mobile) ── */}
-      <nav className="sticky bottom-0 border-t border-[#e8e2dc] bg-white lg:hidden">
-        <div className="mx-auto max-w-2xl flex items-center justify-around py-1.5">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-[#e8e2dc] bg-white/95 backdrop-blur-sm lg:hidden z-30">
+        <div className="mx-auto max-w-2xl flex items-center justify-around py-2">
           <button
             onClick={() => onViewChange("list")}
             className={cn(
-              "flex flex-col items-center gap-0.5 px-5 py-1 text-[10px] font-medium transition",
+              "flex flex-col items-center gap-0.5 px-6 py-1 text-[10px] font-medium transition",
               view === "list" ? "text-[#c87941]" : "text-stone-400"
             )}
           >
@@ -151,7 +162,7 @@ export default function BarberShell({
           <button
             onClick={() => onViewChange("calendar")}
             className={cn(
-              "flex flex-col items-center gap-0.5 px-5 py-1 text-[10px] font-medium transition",
+              "flex flex-col items-center gap-0.5 px-6 py-1 text-[10px] font-medium transition",
               view === "calendar" ? "text-[#c87941]" : "text-stone-400"
             )}
           >

@@ -225,11 +225,39 @@ export default function ServicesPage() {
       )}
 
       {/* List */}
-      {loading && <div className="text-center text-stone-400 py-8">Cargando...</div>}
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl border border-[#e8e2dc] bg-white p-4 animate-pulse">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 bg-stone-100 rounded w-40" />
+                  <div className="h-3 bg-stone-100 rounded w-24" />
+                </div>
+                <div className="h-7 w-20 bg-stone-100 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {/* Empty state */}
       {!loading && services.length === 0 && (
-        <div className="text-center text-stone-400 py-12">
-          No hay servicios. Crea el primero.
+        <div className="rounded-2xl border border-[#e8e2dc] bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-stone-50">
+            <svg width="32" height="32" fill="none" stroke="#c87941" strokeWidth="1.5" viewBox="0 0 24 24">
+              <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
+              <path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12" />
+            </svg>
+          </div>
+          <p className="text-lg font-bold text-stone-800">Crea tu primer servicio</p>
+          <p className="text-sm text-stone-400 mt-1 mb-5 max-w-xs mx-auto">
+            Define los cortes, barba y otros servicios con su precio y duración.
+          </p>
+          <button onClick={openNew} className="btn-primary">
+            + Nuevo servicio
+          </button>
         </div>
       )}
 
@@ -260,9 +288,12 @@ export default function ServicesPage() {
                   {svc.description && (
                     <p className="text-sm text-stone-500 mt-0.5">{svc.description}</p>
                   )}
-                  <div className="flex items-center gap-4 mt-2 text-sm text-stone-500">
-                    <span>{svc.durationMin} min</span>
-                    <span className="font-semibold text-stone-800">{formatPrice(svc.price)}</span>
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className="flex items-center gap-1 text-xs text-stone-500">
+                      <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                      {svc.durationMin} min
+                    </span>
+                    <span className="text-sm font-bold text-stone-800">{formatPrice(svc.price)}</span>
                   </div>
                 </div>
 
