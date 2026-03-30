@@ -17,8 +17,8 @@ export default function SlotActionMenu({
   onReserve: () => void;
   onBlock: () => void;
 }) {
-  const MENU_W = 224; // w-56
-  const MENU_H = 120; // aprox (header + 2 items)
+  const MENU_W = 224;
+  const MENU_H = 120;
 
   const [vp, setVp] = useState({ w: 1024, h: 768 });
 
@@ -43,46 +43,45 @@ export default function SlotActionMenu({
   return (
     <div className="fixed inset-0 z-[60]" onClick={onClose}>
       <div
-        className="absolute w-56 rounded-lg bg-white shadow-lg border text-black"
+        className="absolute w-56 rounded-xl border border-[#e8e2dc] bg-white shadow-xl text-stone-900"
         style={{ left: pos.x, top: pos.y }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-3 py-2 border-b">
-          <div className="flex items-center gap-2 font-medium">
-            <span className="text-lg leading-none">＋</span>
-            <span>Agregar</span>
-          </div>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#e8e2dc]">
+          <span className="text-sm font-semibold text-stone-800">Agregar</span>
           <button
-            className="text-gray-500 hover:text-black"
+            className="grid h-6 w-6 place-items-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition"
             onClick={onClose}
             type="button"
             aria-label="Cerrar"
           >
-            ✕
+            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3L3 9M3 3l6 6" /></svg>
           </button>
         </div>
 
-        <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-          onClick={() => {
-            onReserve();
-            onClose();
-          }}
-          type="button"
-        >
-          <span>📅</span> <span>Reserva</span>
-        </button>
+        <div className="py-1">
+          <button
+            className="w-full text-left px-4 py-2.5 hover:bg-[#c87941]/5 flex items-center gap-3 text-sm transition"
+            onClick={() => { onReserve(); onClose(); }}
+            type="button"
+          >
+            <svg className="h-4 w-4 text-[#c87941]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+            <span>Reserva</span>
+          </button>
 
-        <button
-          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
-          onClick={() => {
-            onBlock();
-            onClose();
-          }}
-          type="button"
-        >
-          <span>🚫</span> <span>Bloquear horario</span>
-        </button>
+          <button
+            className="w-full text-left px-4 py-2.5 hover:bg-stone-50 flex items-center gap-3 text-sm transition"
+            onClick={() => { onBlock(); onClose(); }}
+            type="button"
+          >
+            <svg className="h-4 w-4 text-stone-400" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" /><path d="M4.93 4.93l14.14 14.14" />
+            </svg>
+            <span>Bloquear horario</span>
+          </button>
+        </div>
       </div>
     </div>
   );

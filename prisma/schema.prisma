@@ -7,11 +7,130 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ──────────────────────────────────────────────
+
 enum Role {
   CLIENT
   BARBER
   ADMIN
+  RECEPTIONIST
 }
+
+enum AppointmentStatus {
+  RESERVED
+  CONFIRMED
+  ARRIVED
+  IN_PROGRESS
+  DONE
+  CANCELED
+  NO_SHOW
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT_CARD
+  CREDIT_CARD
+  TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  REFUNDED
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationEvent {
+  APPOINTMENT_CREATED
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CANCELED
+  APPOINTMENT_CONFIRMED
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUSTMENT
+}
+
+// ─── Organization ───────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  phone     String?
+  email     String?
+  timezone  String   @default("America/Santiago")
+  currency  String   @default("CLP")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches              Branch[]
+  services              Service[]
+  serviceCategories     ServiceCategory[]
+  products              Product[]
+  loyaltyConfig         LoyaltyConfig?
+  notificationTemplates NotificationTemplate[]
+  users                 User[]
+}
+
+// ─── Branch ─────────────────────────────────────────────
+
+model Branch {
+  id        String  @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  latitude  Float?
+  longitude Float?
+  orgId     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization   @relation(fields: [orgId], references: [id])
+  barbers        Barber[]
+  appointments   Appointment[]
+  workingHours   WorkingHours[]
+  stockMovements StockMovement[]
+}
+
+// ─── WorkingHours ───────────────────────────────────────
+
+model WorkingHours {
+  id        String  @id @default(cuid())
+  dayOfWeek Int     // 0=domingo, 6=sábado
+  openTime  String  // "09:00"
+  closeTime String  // "20:00"
+  isOpen    Boolean @default(true)
+  branchId  String
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, dayOfWeek])
+}
+
+// ─── User ───────────────────────────────────────────────
 
 model User {
   id        String   @id @default(cuid())
@@ -20,6 +139,268 @@ model User {
   phone     String?
   password  String
   role      Role     @default(CLIENT)
+  avatar    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  orgId  String?
+  org    Organization? @relation(fields: [orgId], references: [id])
+
+  barber Barber?
+  client Client?
+
+  @@index([orgId])
+}
+
+// ─── Client ─────────────────────────────────────────────
+
+model Client {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  birthDate     DateTime?
+  notes         String?
+  loyaltyPoints Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user                User                 @relation(fields: [userId], references: [id])
+  appointments        Appointment[]
+  loyaltyTransactions LoyaltyTransaction[]
+}
+
+// ─── Barber ─────────────────────────────────────────────
+
+model Barber {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  branchId        String
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionValue Float          @default(0)
+  color           String?        // color en calendario
+  active          Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id])
+  branch          Branch           @relation(fields: [branchId], references: [id])
+  appointments    Appointment[]
+  blockTimes      BlockTime[]
+  barberSchedules BarberSchedule[]
+  services        BarberService[]
+}
+
+// ─── BarberSchedule ─────────────────────────────────────
+
+model BarberSchedule {
+  id        String  @id @default(cuid())
+  dayOfWeek Int
+  startTime String  // "09:00"
+  endTime   String  // "18:00"
+  isWorking Boolean @default(true)
+  barberId  String
+
+  barber Barber @relation(fields: [barberId], references: [id])
+
+  @@unique([barberId, dayOfWeek])
+}
+
+// ─── ServiceCategory ────────────────────────────────────
+
+model ServiceCategory {
+  id    String @id @default(cuid())
+  name  String
+  order Int    @default(0)
+  orgId String
+
+  org      Organization @relation(fields: [orgId], references: [id])
+  services Service[]
+}
+
+// ─── Service ────────────────────────────────────────────
+
+model Service {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  durationMin Int
+  price       Int     // CLP sin decimales
+  active      Boolean @default(true)
+  order       Int     @default(0)
+  categoryId  String?
+  orgId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category     ServiceCategory? @relation(fields: [categoryId], references: [id])
+  org          Organization     @relation(fields: [orgId], references: [id])
+  appointments Appointment[]
+  barbers      BarberService[]
+}
+
+// ─── BarberService ──────────────────────────────────────
+
+model BarberService {
+  barberId       String
+  serviceId      String
+  customPrice    Int? // precio personalizado, null = usa precio del servicio
+  customDuration Int? // duración personalizada en minutos
+
+  barber  Barber  @relation(fields: [barberId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@id([barberId, serviceId])
+}
+
+// ─── Appointment ────────────────────────────────────────
+
+model Appointment {
+  id           String            @id @default(cuid())
+  start        DateTime
+  end          DateTime
+  status       AppointmentStatus @default(RESERVED)
+  notePublic   String?
+  noteInternal String?
+  price        Int
+  cancelReason String?
+  barberId     String
+  serviceId    String
+  clientId     String
+  branchId     String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  barber        Barber         @relation(fields: [barberId], references: [id])
+  service       Service        @relation(fields: [serviceId], references: [id])
+  client        Client         @relation(fields: [clientId], references: [id])
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  payment       Payment?
+  notifications Notification[]
+
+  @@index([barberId, start])
+  @@index([branchId, start])
+  @@index([clientId])
+}
+
+// ─── BlockTime ──────────────────────────────────────────
+
+model BlockTime {
+  id       String   @id @default(cuid())
+  reason   String   @default("")
+  start    DateTime
+  end      DateTime
+  allDay   Boolean  @default(false)
+  barberId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  barber Barber @relation(fields: [barberId], references: [id])
+
+  @@index([barberId, start])
+}
+
+// ─── Payment ────────────────────────────────────────────
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Int
+  tip           Int           @default(0)
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  appointmentId String        @unique
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// ─── Product ────────────────────────────────────────────
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  sku         String?
+  price       Int
+  cost        Int     @default(0)
+  stock       Int     @default(0)
+  minStock    Int     @default(0)
+  active      Boolean @default(true)
+  orgId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org            Organization    @relation(fields: [orgId], references: [id])
+  stockMovements StockMovement[]
+}
+
+// ─── StockMovement ──────────────────────────────────────
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  type      StockMovementType
+  quantity  Int
+  note      String?
+  productId String
+  branchId  String
+  createdAt DateTime          @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+}
+
+// ─── NotificationTemplate ───────────────────────────────
+
+model NotificationTemplate {
+  id      String            @id @default(cuid())
+  event   NotificationEvent
+  channel NotificationType
+  subject String?
+  body    String
+  active  Boolean           @default(true)
+  orgId   String
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, event, channel])
+}
+
+// ─── Notification ───────────────────────────────────────
+
+model Notification {
+  id            String            @id @default(cuid())
+  type          NotificationType
+  event         NotificationEvent
+  recipient     String
+  sentAt        DateTime?
+  error         String?
+  appointmentId String
+  createdAt     DateTime          @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// ─── LoyaltyConfig ─────────────────────────────────────
+
+model LoyaltyConfig {
+  id           String  @id @default(cuid())
+  pointsPerCLP Float   @default(0.01)
+  clpPerPoint  Float   @default(100)
+  active       Boolean @default(false)
+  orgId        String  @unique
+
+  org Organization @relation(fields: [orgId], references: [id])
+}
+
+// ─── LoyaltyTransaction ────────────────────────────────
+
+model LoyaltyTransaction {
+  id        String                 @id @default(cuid())
+  type      LoyaltyTransactionType
+  points    Int
+  note      String?
+  clientId  String
+  createdAt DateTime               @default(now())
+
+  client Client @relation(fields: [clientId], references: [id])
 }

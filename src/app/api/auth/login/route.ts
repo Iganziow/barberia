@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import {
@@ -7,15 +6,11 @@ import {
   getCookieOptions,
   signSessionToken,
 } from "@/lib/auth";
-
-const BodySchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
+import { LoginSchema } from "@/lib/validations/auth";
 
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
-  const parsed = BodySchema.safeParse(json);
+  const parsed = LoginSchema.safeParse(json);
 
   if (!parsed.success) {
     return NextResponse.json({ message: "Datos inválidos." }, { status: 400 });
@@ -25,7 +20,16 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true, password: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      password: true,
+      role: true,
+      orgId: true,
+      // Fallback: resolve org via barber → branch
+      barber: { select: { branch: { select: { orgId: true } } } },
+    },
   });
 
   if (!user) {
@@ -43,11 +47,25 @@ export async function POST(req: Request) {
     );
   }
 
+  // Resolve orgId: direct → barber's branch → error
+  const orgId =
+    user.orgId ??
+    user.barber?.branch?.orgId ??
+    null;
+
+  if (!orgId && (user.role === "ADMIN" || user.role === "BARBER")) {
+    return NextResponse.json(
+      { message: "Usuario sin organización asignada." },
+      { status: 403 }
+    );
+  }
+
   const token = await signSessionToken({
     sub: user.id,
     role: user.role,
     email: user.email,
     name: user.name,
+    orgId: orgId ?? "",
   });
 
   const res = NextResponse.json({

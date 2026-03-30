@@ -1,7 +1,14 @@
 @import "tailwindcss";
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f6;
+  --foreground: #1c1917;
+  --accent: #c87941;
+  --accent-hover: #b56a35;
+  --accent-gold: #d4a34a;
+  --sidebar-bg: #1a1412;
+  --surface: #faf8f6;
+  --border: #e8e2dc;
 }
 
 @theme inline {
@@ -11,15 +18,176 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── FullCalendar warm theme ── */
+.fc .fc-button-primary {
+  background-color: var(--accent) !important;
+  border-color: var(--accent-hover) !important;
+  border-radius: 0.5rem !important;
+  font-weight: 500 !important;
+  text-transform: capitalize !important;
+  font-size: 0.8rem !important;
+  padding: 0.35rem 0.75rem !important;
+}
+.fc .fc-button-primary:hover {
+  background-color: var(--accent-hover) !important;
+}
+.fc .fc-button-primary:disabled {
+  background-color: var(--accent) !important;
+  opacity: 0.5 !important;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background-color: #8b5420 !important;
+}
+.fc .fc-today-button {
+  background-color: transparent !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.fc .fc-today-button:hover {
+  background-color: var(--accent) !important;
+  color: white !important;
+}
+.fc .fc-col-header-cell {
+  background-color: var(--surface);
+  font-weight: 500;
+  color: #78716c;
+  font-size: 0.8rem;
+}
+.fc .fc-timegrid-slot {
+  border-color: var(--border) !important;
+}
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th {
+  border-color: var(--border) !important;
+}
+.fc .fc-toolbar-title {
+  font-weight: 700 !important;
+  font-size: 1.05rem !important;
+  color: #1c1917 !important;
+}
+.fc .fc-event {
+  border-radius: 5px !important;
+  border-left-width: 3px !important;
+  border-top-width: 1px !important;
+  border-right-width: 1px !important;
+  border-bottom-width: 1px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  transition: box-shadow 0.15s, transform 0.1s !important;
+  overflow: hidden !important;
+}
+.fc .fc-event:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.13) !important;
+  transform: translateY(-1px);
+  z-index: 10 !important;
+}
+.fc .fc-timegrid-event .fc-event-main {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--accent) !important;
+  border-width: 2px !important;
+}
+.fc .fc-timegrid-now-indicator-arrow {
+  border-top-color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+}
+.fc .fc-day-today {
+  background-color: rgba(200, 121, 65, 0.035) !important;
+}
+.fc .fc-day-today .fc-col-header-cell-cushion {
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+}
+.fc .fc-toolbar {
+  gap: 0.5rem !important;
+  flex-wrap: wrap !important;
+}
+.fc .fc-col-header-cell-cushion {
+  padding: 6px 4px !important;
+  text-decoration: none !important;
+}
+.fc .fc-timegrid-slot-label-cushion {
+  font-size: 0.72rem !important;
+  color: #a8a29e !important;
+  padding-right: 6px !important;
+}
+.fc .fc-scrollgrid {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+/* Clip events strictly inside their column */
+.fc .fc-timegrid-col-events {
+  margin: 0 2px !important;
+}
+
+/* ── Shared form classes ── */
+.input-field {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: white;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #1c1917;
+}
+.input-field:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(200, 121, 65, 0.15);
+}
+.input-field::placeholder {
+  color: #a8a29e;
+}
+.field-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #78716c;
+  margin-bottom: 0.35rem;
+}
+.btn-primary {
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: white;
+  color: #57534e;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.btn-secondary:hover {
+  background: #faf8f6;
+}
+
+/* Smooth transitions */
+select,
+input,
+textarea,
+button {
+  transition: border-color 0.15s, box-shadow 0.15s;
 }

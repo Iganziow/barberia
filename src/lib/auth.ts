@@ -1,18 +1,24 @@
 import { SignJWT, jwtVerify } from "jose";
 
-export type JwtRole = "CLIENT" | "BARBER" | "ADMIN";
+export type JwtRole = "CLIENT" | "BARBER" | "ADMIN" | "RECEPTIONIST";
 
 export type JwtPayload = {
   sub: string; // userId
   role: JwtRole;
   email: string;
   name: string;
+  orgId: string;
 };
 
-const secret = process.env.JWT_SECRET;
-if (!secret) throw new Error("JWT_SECRET is missing in environment variables.");
-
+const secret = process.env.JWT_SECRET ?? "";
 const key = new TextEncoder().encode(secret);
+
+function ensureSecret() {
+  if (!secret) throw new Error("JWT_SECRET is missing in environment variables.");
+  if (process.env.NODE_ENV === "production" && secret.length < 32) {
+    throw new Error("JWT_SECRET must be at least 32 characters in production.");
+  }
+}
 
 export const AUTH_COOKIE_NAME = "bb_session";
 
@@ -27,7 +33,7 @@ export function getCookieOptions() {
 }
 
 export async function signSessionToken(payload: JwtPayload) {
-  // 7 días (puedes bajar a 1 día y agregar refresh después)
+  ensureSecret();
   const expiresIn = "7d";
 
   return new SignJWT(payload)
@@ -39,6 +45,7 @@ export async function signSessionToken(payload: JwtPayload) {
 }
 
 export async function verifySessionToken(token: string) {
+  ensureSecret();
   const { payload } = await jwtVerify(token, key);
   return payload as unknown as JwtPayload & { exp: number; iat: number };
 }

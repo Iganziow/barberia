@@ -1,0 +1,475 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+
+type Service = { id: string; name: string; durationMin: number; price: number; category: string | null };
+type BarberAvail = { id: string; name: string; color: string | null; availableSlots: number };
+type Slot = { start: string; end: string };
+type Step = "service" | "barber" | "datetime" | "confirm";
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(price);
+}
+
+function formatSlotTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(date: string) {
+  return new Date(date + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function getDateOptions() {
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    dates.push(d.toISOString().split("T")[0]);
+  }
+  return dates;
+}
+
+const STEPS: { key: Step; label: string }[] = [
+  { key: "service", label: "Servicio" },
+  { key: "barber", label: "Profesional" },
+  { key: "datetime", label: "Horario" },
+  { key: "confirm", label: "Confirmar" },
+];
+
+export default function BookingPage() {
+  const router = useRouter();
+  const { slug } = useParams<{ slug: string }>();
+
+  useEffect(() => {
+    document.cookie = `bb_org=${slug};path=/;max-age=${60 * 60 * 24 * 30}`;
+  }, [slug]);
+
+  const [step, setStep] = useState<Step>("service");
+  const [branchId, setBranchId] = useState("");
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [selectedBarber, setSelectedBarber] = useState<BarberAvail | null>(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [services, setServices] = useState<Service[]>([]);
+  const [barbers, setBarbers] = useState<BarberAvail[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`/api/book/services?slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => setServices(d.services || []))
+      .catch(() => {});
+  }, [slug]);
+
+  useEffect(() => {
+    fetch(`/api/book/branches?slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.branches?.[0]) setBranchId(d.branches[0].id); })
+      .catch(() => {});
+  }, [slug]);
+
+  // Computed values for multi-service
+  const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
+  const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const primaryService = selectedServices[0] || null;
+
+  function toggleService(svc: Service) {
+    setSelectedServices((prev) => {
+      const exists = prev.find((s) => s.id === svc.id);
+      if (exists) return prev.filter((s) => s.id !== svc.id);
+      if (prev.length >= 2) return prev; // max 2
+      return [...prev, svc];
+    });
+  }
+
+  function confirmServices() {
+    if (selectedServices.length === 0) return;
+    setSelectedBarber(null);
+    setSelectedSlot(null);
+    setSelectedDate("");
+    setStep("barber");
+  }
+
+  function loadBarbers(serviceId: string, date: string, branch: string) {
+    setLoading(true);
+    fetch(`/api/book/availability?serviceId=${serviceId}&date=${date}&branchId=${branch}&slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => setBarbers(d.barbers || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  function loadSlots(serviceId: string, date: string, barber: string) {
+    setLoading(true);
+    fetch(`/api/book/availability?serviceId=${serviceId}&date=${date}&barberId=${barber}&slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => setSlots(d.slots || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
+
+  function handleSelectDate(date: string) {
+    setSelectedDate(date);
+    setSelectedBarber(null);
+    setSelectedSlot(null);
+    if (primaryService && branchId) loadBarbers(primaryService.id, date, branchId);
+  }
+
+  function handleSelectBarber(barber: BarberAvail) {
+    setSelectedBarber(barber);
+    setSelectedSlot(null);
+    setStep("datetime");
+    if (primaryService && selectedDate) loadSlots(primaryService.id, selectedDate, barber.id);
+  }
+
+  function handleSelectSlot(slot: Slot) {
+    setSelectedSlot(slot);
+    setStep("confirm");
+  }
+
+  async function handleSubmit() {
+    if (selectedServices.length === 0 || !selectedBarber || !selectedSlot || !clientName.trim() || !clientPhone.trim()) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/book?slug=${slug}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: primaryService!.id,
+          barberId: selectedBarber.id,
+          branchId,
+          start: selectedSlot.start,
+          end: selectedSlot.end,
+          clientName: clientName.trim(),
+          clientPhone: clientPhone.trim(),
+          clientEmail: clientEmail.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message || "Error al reservar"); setSubmitting(false); return; }
+      router.push(`/${slug}/book/confirmation?id=${data.booking.id}`);
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
+      setSubmitting(false);
+    }
+  }
+
+  const dateOptions = getDateOptions();
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
+
+  return (
+    <div className="min-h-screen bg-[#faf8f6]">
+      {/* Header */}
+      <header className="bg-[#1a1412] text-white">
+        <div className="mx-auto max-w-lg px-4 py-4 flex items-center justify-between">
+          <Link href={`/${slug}`} className="text-lg font-extrabold tracking-tight">
+            Mar<span className="text-[#c87941]">Brava</span>
+          </Link>
+          <span className="text-xs text-white/40">Reservar hora</span>
+        </div>
+      </header>
+
+      {/* Progress bar */}
+      <div className="mx-auto max-w-lg px-4 pt-4 pb-2">
+        <div className="flex items-center gap-1">
+          {STEPS.map((s, i) => (
+            <div key={s.key} className="flex items-center flex-1">
+              <div className="flex-1">
+                <div className={`h-1 rounded-full transition-all ${
+                  i <= stepIndex ? "bg-[#c87941]" : "bg-stone-200"
+                }`} />
+                <p className={`text-[10px] mt-1 font-medium ${
+                  i === stepIndex ? "text-[#c87941]" : i < stepIndex ? "text-stone-500" : "text-stone-300"
+                }`}>
+                  {s.label}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-lg px-4 pb-12">
+        {/* Step 1: Service selection (1-2 services) */}
+        {step === "service" && (
+          <div className="space-y-3 pt-2">
+            <div>
+              <h2 className="text-base font-bold text-stone-900">Elige tus servicios</h2>
+              <p className="text-xs text-stone-400 mt-0.5">Puedes seleccionar hasta 2 servicios</p>
+            </div>
+            {services.length === 0 && (
+              <p className="text-sm text-stone-400 py-8 text-center">Cargando servicios...</p>
+            )}
+            {services.map((svc) => {
+              const isSelected = selectedServices.some((s) => s.id === svc.id);
+              const isDisabled = !isSelected && selectedServices.length >= 2;
+              return (
+                <button
+                  key={svc.id}
+                  onClick={() => toggleService(svc)}
+                  disabled={isDisabled}
+                  className={`w-full rounded-xl border p-4 text-left transition ${
+                    isSelected
+                      ? "border-[#c87941] bg-[#c87941]/5 ring-1 ring-[#c87941]/20"
+                      : "border-[#e8e2dc] bg-white hover:border-[#c87941]/40"
+                  } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${
+                      isSelected ? "border-[#c87941] bg-[#c87941]" : "border-stone-300"
+                    }`}>
+                      {isSelected && (
+                        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-stone-800">{svc.name}</p>
+                      <p className="text-xs text-stone-400 mt-0.5">{svc.durationMin} min</p>
+                    </div>
+                    <p className="font-bold text-[#c87941] text-lg shrink-0">{formatPrice(svc.price)}</p>
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Summary + Continue */}
+            {selectedServices.length > 0 && (
+              <div className="sticky bottom-0 bg-[#faf8f6] pt-3 pb-2 border-t border-[#e8e2dc] -mx-4 px-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm text-stone-600">
+                      {selectedServices.length} servicio{selectedServices.length > 1 ? "s" : ""} · {totalDuration} min
+                    </p>
+                    <p className="text-lg font-bold text-[#c87941]">{formatPrice(totalPrice)}</p>
+                  </div>
+                  <button
+                    onClick={confirmServices}
+                    className="rounded-xl bg-[#c87941] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-lg shadow-[#c87941]/20"
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Date + Barber */}
+        {step === "barber" && selectedServices.length > 0 && (
+          <div className="space-y-4 pt-2">
+            <button onClick={() => setStep("service")} className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium">
+              ← Cambiar servicios
+            </button>
+
+            <div className="rounded-xl border border-[#c87941]/20 bg-[#c87941]/5 px-4 py-2.5">
+              {selectedServices.map((svc) => (
+                <div key={svc.id} className="flex justify-between items-center py-0.5">
+                  <span className="text-sm text-stone-800">{svc.name}</span>
+                  <span className="text-xs text-stone-500">{formatPrice(svc.price)}</span>
+                </div>
+              ))}
+              {selectedServices.length > 1 && (
+                <div className="flex justify-between items-center pt-1 mt-1 border-t border-[#c87941]/10">
+                  <span className="text-xs font-medium text-stone-600">Total · {totalDuration} min</span>
+                  <span className="text-sm font-bold text-[#c87941]">{formatPrice(totalPrice)}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-base font-bold text-stone-900 mb-3">Elige una fecha</h2>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                {dateOptions.map((date) => {
+                  const d = new Date(date + "T12:00:00");
+                  const isSelected = date === selectedDate;
+                  const dayName = d.toLocaleDateString("es-CL", { weekday: "short" });
+                  const dayNum = d.getDate();
+                  const isToday = date === new Date().toISOString().split("T")[0];
+
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => handleSelectDate(date)}
+                      className={`flex-shrink-0 w-14 rounded-xl border p-2 text-center transition ${
+                        isSelected
+                          ? "border-[#c87941] bg-[#c87941] text-white"
+                          : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
+                      }`}
+                    >
+                      <p className={`text-[10px] uppercase ${isSelected ? "text-white/70" : "text-stone-400"}`}>
+                        {isToday ? "Hoy" : dayName}
+                      </p>
+                      <p className="text-lg font-bold leading-tight">{dayNum}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {selectedDate && (
+              <div>
+                <h2 className="text-base font-bold text-stone-900 mb-3">Elige un profesional</h2>
+                {loading ? (
+                  <p className="text-stone-400 text-sm py-4 text-center">Cargando disponibilidad...</p>
+                ) : barbers.length === 0 ? (
+                  <p className="text-stone-500 text-sm py-4 text-center">No hay disponibilidad para esta fecha</p>
+                ) : (
+                  <div className="space-y-2">
+                    {barbers.map((b) => {
+                      const initials = b.name.split(" ").map((w) => w[0]).join("").slice(0, 2);
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => handleSelectBarber(b)}
+                          disabled={b.availableSlots === 0}
+                          className="w-full rounded-xl border border-[#e8e2dc] bg-white p-3.5 text-left hover:border-[#c87941]/30 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                              style={{ backgroundColor: b.color || "#c87941" }}
+                            >
+                              {initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-stone-800 text-sm">{b.name}</p>
+                              <p className="text-xs text-stone-400">
+                                {b.availableSlots > 0
+                                  ? `${b.availableSlots} horario${b.availableSlots !== 1 ? "s" : ""} disponible${b.availableSlots !== 1 ? "s" : ""}`
+                                  : "Sin disponibilidad"}
+                              </p>
+                            </div>
+                            {b.availableSlots > 0 && (
+                              <svg className="h-4 w-4 text-stone-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 3: Time slot */}
+        {step === "datetime" && primaryService && selectedBarber && selectedDate && (
+          <div className="space-y-4 pt-2">
+            <button onClick={() => setStep("barber")} className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium">
+              ← Cambiar profesional
+            </button>
+
+            <div className="rounded-xl border border-[#e8e2dc] bg-white px-4 py-3">
+              <p className="text-sm font-semibold text-stone-800">
+                {selectedServices.map((s) => s.name).join(" + ")} con {selectedBarber.name}
+              </p>
+              <p className="text-xs text-stone-400 mt-0.5 capitalize">{formatDate(selectedDate)}</p>
+            </div>
+
+            <h2 className="text-base font-bold text-stone-900">Elige un horario</h2>
+
+            {loading ? (
+              <p className="text-stone-400 text-sm py-4 text-center">Cargando horarios...</p>
+            ) : slots.length === 0 ? (
+              <p className="text-stone-500 text-sm py-4 text-center">No hay horarios disponibles</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {slots.map((slot) => (
+                  <button
+                    key={slot.start}
+                    onClick={() => handleSelectSlot(slot)}
+                    className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-2.5 text-center text-sm font-medium text-stone-700 hover:border-[#c87941] hover:bg-[#c87941]/5 hover:text-[#c87941] transition"
+                  >
+                    {formatSlotTime(slot.start)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Confirm */}
+        {step === "confirm" && primaryService && selectedBarber && selectedSlot && (
+          <div className="space-y-4 pt-2">
+            <button onClick={() => setStep("datetime")} className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium">
+              ← Cambiar horario
+            </button>
+
+            {/* Summary card */}
+            <div className="rounded-xl border border-[#e8e2dc] bg-white overflow-hidden">
+              <div className="bg-[#1a1412] px-4 py-3">
+                <p className="text-xs font-medium text-white/50 uppercase tracking-wide">Resumen de tu reserva</p>
+              </div>
+              <div className="p-4 space-y-2.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Servicio{selectedServices.length > 1 ? "s" : ""}</span>
+                  <span className="font-medium text-stone-800 text-right">{selectedServices.map((s) => s.name).join(" + ")}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Profesional</span>
+                  <span className="font-medium text-stone-800">{selectedBarber.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Fecha</span>
+                  <span className="font-medium text-stone-800 capitalize">{formatDate(selectedDate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Hora</span>
+                  <span className="font-medium text-stone-800">{formatSlotTime(selectedSlot.start)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Duración</span>
+                  <span className="font-medium text-stone-800">{totalDuration} min</span>
+                </div>
+                <div className="flex justify-between border-t border-[#e8e2dc] pt-2.5">
+                  <span className="text-stone-500">Total</span>
+                  <span className="text-lg font-bold text-[#c87941]">{formatPrice(totalPrice)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Client info */}
+            <div className="rounded-xl border border-[#e8e2dc] bg-white p-4 space-y-3">
+              <h2 className="text-sm font-bold text-stone-800">Tus datos</h2>
+              <div>
+                <label className="field-label">Nombre completo *</label>
+                <input className="input-field" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Tu nombre" />
+              </div>
+              <div>
+                <label className="field-label">Teléfono *</label>
+                <input className="input-field" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="+56 9 1234 5678" type="tel" />
+              </div>
+              <div>
+                <label className="field-label">Email (opcional)</label>
+                <input className="input-field" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="tu@email.cl" type="email" />
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !clientName.trim() || !clientPhone.trim()}
+              className="w-full rounded-xl bg-[#c87941] px-4 py-3 text-sm font-semibold text-white hover:bg-[#b56a35] disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-[#c87941]/20"
+            >
+              {submitting ? "Reservando..." : "Confirmar reserva"}
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

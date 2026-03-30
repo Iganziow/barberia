@@ -1,31 +1,22 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Modal from "@/components/ui/modal";
-import type { AgendaEvent } from "./AgendaCalendar";
+import type {
+  AgendaEvent,
+  BarberOption,
+  ServiceOption,
+  ClientOption,
+} from "@/types/agenda";
 import { hasOverlap } from "./agendaOverlap";
 
-type Service = { id: string; name: string; durationMin: number; price: number };
 type Status = "RESERVED" | "CONFIRMED" | "ARRIVED" | "DONE" | "CANCELED";
-
-type BarberOption = { id: string; name: string };
-
-const MOCK_SERVICES: Service[] = [
-  { id: "svc-1", name: "Corte de Cabello", durationMin: 60, price: 15000 },
-  { id: "svc-2", name: "Barba", durationMin: 30, price: 8000 },
-];
-
-const MOCK_BARBERS: BarberOption[] = [
-  { id: "barber-1", name: "daniel Silva" },
-  { id: "barber-2", name: "Juan Pérez" },
-];
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
 function toLocalDateInput(d: Date) {
-  // yyyy-mm-dd en hora local
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
@@ -42,7 +33,6 @@ function hoursOptions(min = 0, max = 23) {
 }
 
 function buildISOFromParts(dateStr: string, hour: number, minute: number) {
-  // construir ISO desde local (sin depender de UTC)
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, (m ?? 1) - 1, d ?? 1, hour, minute, 0, 0);
   return dt.toISOString();
@@ -59,6 +49,8 @@ export default function NewReservationModal({
   onClose,
   startISO,
   barberId,
+  barbers,
+  services,
   existingEvents,
   onCreate,
 }: {
@@ -66,9 +58,12 @@ export default function NewReservationModal({
   onClose: () => void;
   startISO: string | null;
   barberId: string;
+  barbers: BarberOption[];
+  services: ServiceOption[];
   existingEvents: AgendaEvent[];
   onCreate: (data: {
-    customerName: string;
+    clientId: string;
+    clientName: string;
     serviceId: string;
     startISO: string;
     endISO: string;
@@ -77,18 +72,32 @@ export default function NewReservationModal({
     price: number;
     notePublic?: string;
     noteInternal?: string;
-    repeat?: { enabled: boolean };
   }) => void;
 }) {
-  // --- estado base ---
-  const [status, setStatus] = useState<Status>("RESERVED");
-  const [customerQuery, setCustomerQuery] = useState("");
-  const [serviceId, setServiceId] = useState(MOCK_SERVICES[0].id);
+  const defaultService = services[0];
 
-  // profesional: por ahora permitimos cambiar en UI (admin)
+  const [status, setStatus] = useState<Status>("RESERVED");
+  const [serviceId, setServiceId] = useState(defaultService?.id ?? "");
   const [selectedBarberId, setSelectedBarberId] = useState(barberId);
 
-  // fecha/hora (tipo AgendaPro)
+  // Client search
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientResults, setClientResults] = useState<ClientOption[]>([]);
+  const [selectedClient, setSelectedClient] = useState<ClientOption | null>(
+    null
+  );
+  const [showResults, setShowResults] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  // New client inline form
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [clientError, setClientError] = useState("");
+
+  // Date/time
   const [dateStr, setDateStr] = useState<string>(() => {
     const d = startISO ? new Date(startISO) : new Date();
     return toLocalDateInput(d);
@@ -99,58 +108,128 @@ export default function NewReservationModal({
   });
   const [startMinute, setStartMinute] = useState<number>(() => {
     const d = startISO ? new Date(startISO) : new Date();
-    // redondeo a 5 min para que sea más "agenda"
-    const m = d.getMinutes();
-    return Math.floor(m / 5) * 5;
+    return Math.floor(d.getMinutes() / 5) * 5;
   });
 
-  // repeater placeholder (luego lo hacemos real)
-  const [repeatEnabled, setRepeatEnabled] = useState(false);
-
-  // info adicional
-  const [extraOpen, setExtraOpen] = useState(false);
-  const [price, setPrice] = useState<number>(() => MOCK_SERVICES[0].price);
+  // Extra info
+  const [price, setPrice] = useState<number>(defaultService?.price ?? 0);
   const [notePublic, setNotePublic] = useState("");
   const [noteInternal, setNoteInternal] = useState("");
 
-  // Cuando se abre con otro slot, precargar fecha/hora
   useEffect(() => {
-    if (!open) return;
-    if (!startISO) return;
-
+    if (!open || !startISO) return;
     const d = new Date(startISO);
     setDateStr(toLocalDateInput(d));
     setStartHour(d.getHours());
     setStartMinute(Math.floor(d.getMinutes() / 5) * 5);
   }, [open, startISO]);
 
-  // si cambia barberId desde afuera
   useEffect(() => {
     setSelectedBarberId(barberId);
   }, [barberId]);
 
+  useEffect(() => {
+    if (defaultService && !serviceId) {
+      setServiceId(defaultService.id);
+      setPrice(defaultService.price);
+    }
+  }, [defaultService, serviceId]);
+
   const service = useMemo(
-    () => MOCK_SERVICES.find((s) => s.id === serviceId)!,
-    [serviceId]
+    () => services.find((s) => s.id === serviceId),
+    [services, serviceId]
   );
 
-  // Mantener precio por defecto por servicio (pero editable)
   useEffect(() => {
-    setPrice(service.price);
-  }, [serviceId]); // intencional: al cambiar servicio, resetea precio
+    if (service) setPrice(service.price);
+  }, [service]);
 
-  // ISO calculados desde los selects (local -> iso)
+  // Client search with debounce
+  const searchClients = useCallback((query: string) => {
+    if (query.length < 2) {
+      setClientResults([]);
+      setShowResults(false);
+      return;
+    }
+    setSearching(true);
+    fetch(`/api/admin/clients?q=${encodeURIComponent(query)}`)
+      .then((r) => (r.ok ? r.json() : { clients: [] }))
+      .then((data) => {
+        setClientResults(data.clients || []);
+        setShowResults(true);
+      })
+      .catch(() => setClientResults([]))
+      .finally(() => setSearching(false));
+  }, []);
+
+  useEffect(() => {
+    if (selectedClient) return; // don't search if already selected
+    const timer = setTimeout(() => searchClients(clientQuery), 300);
+    return () => clearTimeout(timer);
+  }, [clientQuery, selectedClient, searchClients]);
+
+  function selectClient(client: ClientOption) {
+    setSelectedClient(client);
+    setClientQuery(client.name);
+    setShowResults(false);
+  }
+
+  function clearClient() {
+    setSelectedClient(null);
+    setClientQuery("");
+    setClientResults([]);
+  }
+
+  async function handleCreateClient() {
+    if (!newClientName.trim()) return;
+    setCreatingClient(true);
+    setClientError("");
+
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newClientName.trim(),
+          phone: newClientPhone.trim() || undefined,
+          email: newClientEmail.trim() || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const client: ClientOption = {
+          id: data.client.id,
+          name: data.client.name,
+          email: data.client.email,
+          phone: data.client.phone,
+        };
+        selectClient(client);
+        setShowNewClient(false);
+        setNewClientName("");
+        setNewClientPhone("");
+        setNewClientEmail("");
+      } else {
+        const err = await res.json().catch(() => ({ message: "Error al crear cliente" }));
+        setClientError(err.message || "Error al crear cliente");
+      }
+    } catch {
+      setClientError("Error de conexión");
+    } finally {
+      setCreatingClient(false);
+    }
+  }
+
   const computedStartISO = useMemo(() => {
     if (!dateStr) return "";
     return buildISOFromParts(dateStr, startHour, startMinute);
   }, [dateStr, startHour, startMinute]);
 
   const computedEndISO = useMemo(() => {
-    if (!computedStartISO) return "";
+    if (!computedStartISO || !service) return "";
     return addMinutesISO(computedStartISO, service.durationMin);
-  }, [computedStartISO, service.durationMin]);
+  }, [computedStartISO, service]);
 
-  // solapamiento
   const overlap = useMemo(() => {
     if (!computedStartISO || !computedEndISO) {
       return { ok: true, conflicts: [] as AgendaEvent[] };
@@ -163,7 +242,7 @@ export default function NewReservationModal({
   }, [existingEvents, computedStartISO, computedEndISO, selectedBarberId]);
 
   const canSave =
-    customerQuery.trim().length > 0 &&
+    !!selectedClient &&
     !!serviceId &&
     !!selectedBarberId &&
     !!computedStartISO &&
@@ -172,30 +251,28 @@ export default function NewReservationModal({
 
   function handleClose() {
     onClose();
-    // no reseteo todo para que sea cómodo; si quieres, lo hacemos “reset on close”
   }
 
   function handleSave() {
-    if (!canSave) return;
+    if (!canSave || !selectedClient) return;
 
     onCreate({
-      customerName: customerQuery.trim(),
+      clientId: selectedClient.id,
+      clientName: selectedClient.name,
       serviceId,
       startISO: computedStartISO,
       endISO: computedEndISO,
       barberId: selectedBarberId,
       status,
-      price: Number.isFinite(price) ? price : service.price,
-      notePublic: notePublic.trim() ? notePublic.trim() : undefined,
-      noteInternal: noteInternal.trim() ? noteInternal.trim() : undefined,
-      repeat: { enabled: repeatEnabled },
+      price: Number.isFinite(price) && price > 0 ? price : (service?.price ?? 0),
+      notePublic: notePublic.trim() || undefined,
+      noteInternal: noteInternal.trim() || undefined,
     });
 
-    setCustomerQuery("");
+    // Reset
+    clearClient();
     setNotePublic("");
     setNoteInternal("");
-    setExtraOpen(false);
-    setRepeatEnabled(false);
     setStatus("RESERVED");
     handleClose();
   }
@@ -206,285 +283,140 @@ export default function NewReservationModal({
       title="Nueva reserva"
       onClose={handleClose}
       footer={
-        <div className="flex items-center justify-between gap-3">
-          <button
-            className="px-4 py-2 rounded-md border text-black bg-white hover:bg-gray-50"
-            onClick={handleClose}
-            type="button"
-          >
-            Cancelar
-          </button>
-
-          <div className="flex items-center gap-2">
-            <button
-              className="px-4 py-2 rounded-md border text-violet-700 bg-white hover:bg-violet-50"
-              type="button"
-              onClick={() => {
-                // placeholder
-                alert("TODO: Agregar otra reserva (flujo AgendaPro)");
-              }}
-            >
-              Agregar otra reserva
-            </button>
-
-            <button
-              className="px-4 py-2 rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
-              onClick={handleSave}
-              disabled={!canSave}
-              type="button"
-            >
-              Guardar reserva
-            </button>
-          </div>
+        <div className="flex justify-end gap-2">
+          <button className="btn-secondary" onClick={handleClose} type="button">Cancelar</button>
+          <button className="btn-primary" onClick={handleSave} disabled={!canSave} type="button">Guardar reserva</button>
         </div>
       }
     >
-      <div className="text-black">
-        {/* Header interno tipo AgendaPro: estado arriba a la derecha */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-sm text-gray-600">
-            {/* Aquí podríamos mostrar sucursal / etc */}
-          </div>
+      <div className="space-y-4">
+        {/* Status */}
+        <div className="flex justify-end">
+          <select className="input-field w-auto" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
+            <option value="RESERVED">Reservado</option>
+            <option value="CONFIRMED">Confirmado</option>
+            <option value="ARRIVED">Llegó</option>
+            <option value="DONE">Realizado</option>
+            <option value="CANCELED">Cancelado</option>
+          </select>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-3 w-3 rounded-full bg-sky-400" />
-            <select
-              className="border rounded-md px-3 py-2 bg-white text-black"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as Status)}
-            >
-              <option value="RESERVED">Reservado</option>
-              <option value="CONFIRMED">Confirmado</option>
-              <option value="ARRIVED">Llegó</option>
-              <option value="DONE">Realizado</option>
-              <option value="CANCELED">Cancelado</option>
+        {/* Date & Time — single row */}
+        <div>
+          <label className="field-label">Fecha y hora</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input type="date" className="input-field w-auto" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
+            <select className="input-field w-[70px]" value={startHour} onChange={(e) => setStartHour(Number(e.target.value))}>
+              {hoursOptions(0, 23).map((h) => <option key={h} value={h}>{pad2(h)}</option>)}
             </select>
+            <span className="text-stone-400 font-bold">:</span>
+            <select className="input-field w-[70px]" value={startMinute} onChange={(e) => setStartMinute(Number(e.target.value))}>
+              {minutesOptions(5).map((m) => <option key={m} value={m}>{pad2(m)}</option>)}
+            </select>
+            <span className="text-stone-400 text-sm">a</span>
+            <span className="rounded-lg border border-[#e8e2dc] bg-stone-50 px-3 py-2 text-sm text-stone-500">
+              {computedEndISO ? new Date(computedEndISO).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+            </span>
           </div>
         </div>
 
-        {/* Card principal */}
-        <div className="mt-4 rounded-xl border bg-white p-4">
-          {/* Fecha / Hora */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto]">
-            <div>
-              <label className="block text-sm font-semibold mb-2">Fecha</label>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-9 h-9 rounded-md border bg-white text-gray-600">
-                  📅
-                </span>
-                <input
-                  type="date"
-                  className="w-full border rounded-md px-3 py-2 bg-white text-black"
-                  value={dateStr}
-                  onChange={(e) => setDateStr(e.target.value)}
-                />
+        {/* Client */}
+        <div>
+          <label className="field-label">Cliente</label>
+          {selectedClient ? (
+            <div className="flex items-center justify-between rounded-lg border border-[#c87941]/20 bg-[#c87941]/5 px-3 py-2">
+              <div className="text-sm">
+                <span className="font-medium text-stone-900">{selectedClient.name}</span>
+                {selectedClient.phone && <span className="ml-2 text-[#c87941]">{selectedClient.phone}</span>}
               </div>
+              <button type="button" className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium" onClick={clearClient}>Cambiar</button>
             </div>
-
-            <div className="lg:justify-self-end">
-              <label className="block text-sm font-semibold mb-2">Hora</label>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {/* inicio */}
-                <select
-                  className="border rounded-md px-3 py-2 bg-white text-black"
-                  value={startHour}
-                  onChange={(e) => setStartHour(Number(e.target.value))}
-                >
-                  {hoursOptions(0, 23).map((h) => (
-                    <option key={h} value={h}>
-                      {pad2(h)}
-                    </option>
+          ) : (
+            <div className="relative">
+              <input className="input-field" value={clientQuery} onChange={(e) => { setClientQuery(e.target.value); setSelectedClient(null); }} onFocus={() => { if (clientResults.length > 0) setShowResults(true); }} placeholder="Buscar por nombre, teléfono o email..." />
+              {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">Buscando...</div>}
+              {showResults && clientResults.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-[#e8e2dc] bg-white shadow-lg max-h-48 overflow-y-auto">
+                  {clientResults.map((c) => (
+                    <button key={c.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#c87941]/5 flex items-center justify-between text-sm" onClick={() => selectClient(c)}>
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-stone-400">{c.phone || c.email || ""}</span>
+                    </button>
                   ))}
-                </select>
-
-                <span className="text-gray-600 font-semibold">:</span>
-
-                <select
-                  className="border rounded-md px-3 py-2 bg-white text-black"
-                  value={startMinute}
-                  onChange={(e) => setStartMinute(Number(e.target.value))}
-                >
-                  {minutesOptions(5).map((m) => (
-                    <option key={m} value={m}>
-                      {pad2(m)}
-                    </option>
-                  ))}
-                </select>
-
-                <span className="text-gray-600">a</span>
-
-                {/* fin (calculado) */}
-                <input
-                  className="w-[120px] border rounded-md px-3 py-2 bg-gray-50 text-black"
-                  value={new Date(computedEndISO || computedStartISO).toLocaleTimeString(
-                    "es-CL",
-                    { hour: "2-digit", minute: "2-digit" }
-                  )}
-                  disabled
-                />
-
-                <button
-                  type="button"
-                  className="ml-2 inline-flex items-center gap-2 text-sm text-gray-700 hover:text-black"
-                  onClick={() => setRepeatEnabled((v) => !v)}
-                >
-                  <span className="inline-block">🔁</span>
-                  <span className="underline">Repetir</span>
-                </button>
-              </div>
-
-              {repeatEnabled && (
-                <div className="mt-2 text-sm text-gray-600">
-                  (Placeholder) Luego agregamos frecuencia / fin / repeticiones.
+                </div>
+              )}
+              {showResults && clientResults.length === 0 && clientQuery.length >= 2 && !searching && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-[#e8e2dc] bg-white shadow-lg p-3">
+                  <p className="text-sm text-stone-400 mb-2">Sin resultados para &quot;{clientQuery}&quot;</p>
+                  <button type="button" className="text-sm font-medium text-[#c87941] hover:text-[#b56a35]" onClick={() => { setNewClientName(clientQuery); setShowNewClient(true); setShowResults(false); }}>+ Crear nuevo cliente</button>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Cliente */}
-          <div className="mt-5">
-            <label className="block text-sm font-semibold mb-2">Cliente</label>
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-              <input
-                className="w-full border rounded-md px-3 py-2 bg-white text-black placeholder-gray-400"
-                value={customerQuery}
-                onChange={(e) => setCustomerQuery(e.target.value)}
-                placeholder="Busca por nombre, apellido, rut, email"
-              />
-              <button
-                type="button"
-                className="whitespace-nowrap px-4 py-2 rounded-md border bg-white hover:bg-violet-50 text-violet-700"
-                onClick={() => alert("TODO: abrir modal Nuevo cliente")}
-              >
-                ➕ Nuevo cliente
-              </button>
-            </div>
-          </div>
-
-          {/* Profesional */}
-          <div className="mt-5">
-            <label className="block text-sm font-semibold mb-2">
-              Profesional
-            </label>
-            <div className="flex items-center gap-2">
-              <select
-                className="w-full border rounded-md px-3 py-2 bg-white text-black"
-                value={selectedBarberId}
-                onChange={(e) => setSelectedBarberId(e.target.value)}
-              >
-                {MOCK_BARBERS.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                className="h-10 w-10 rounded-md border bg-white hover:bg-gray-50"
-                title="Bloquear agenda (placeholder)"
-                onClick={() => alert("TODO: acción rápida (ej. bloquear)")}
-              >
-                🔒
-              </button>
-            </div>
-          </div>
-
-          {/* Servicio */}
-          <div className="mt-5">
-            <label className="block text-sm font-semibold mb-2">Servicios</label>
-            <select
-              className="w-full border rounded-md px-3 py-2 bg-white text-black"
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-            >
-              {MOCK_SERVICES.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-
-            <div className="mt-2 text-sm text-gray-600">
-              Duración: <span className="font-medium text-black">{service.durationMin} min</span>
-            </div>
-          </div>
-
-          {/* Solapamiento */}
-          {!overlap.ok && (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <p className="font-semibold">Horario no disponible</p>
-              <p className="mt-1">
-                Se solapa con {overlap.conflicts.length} evento(s) existentes para
-                este profesional.
-              </p>
+          )}
+          {!selectedClient && !showNewClient && (
+            <button type="button" className="mt-1.5 text-xs font-medium text-[#c87941] hover:text-[#b56a35]" onClick={() => { setShowNewClient(true); setShowResults(false); }}>+ Nuevo cliente</button>
+          )}
+          {showNewClient && (
+            <div className="mt-2 rounded-lg border border-[#c87941]/20 bg-[#c87941]/5 p-3 space-y-2">
+              <p className="text-xs font-semibold text-stone-700">Nuevo cliente</p>
+              <input className="input-field" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder="Nombre completo *" />
+              <input className="input-field" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} placeholder="Teléfono" />
+              <input type="email" className="input-field" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} placeholder="Email (opcional)" />
+              <div className="flex gap-2 pt-1">
+                <button type="button" className="btn-secondary text-xs" onClick={() => setShowNewClient(false)}>Cancelar</button>
+                <button type="button" className="btn-primary text-xs" disabled={!newClientName.trim() || creatingClient} onClick={handleCreateClient}>{creatingClient ? "Creando..." : "Crear"}</button>
+              </div>
+              {clientError && <p className="text-xs text-red-500 mt-1">{clientError}</p>}
             </div>
           )}
         </div>
 
-        {/* Información adicional (acordeón) */}
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => setExtraOpen((v) => !v)}
-            className="w-full rounded-xl border bg-white px-4 py-3 flex items-center justify-between hover:bg-gray-50"
-          >
-            <span className="font-semibold text-gray-800">
-              Información adicional
-            </span>
-            <span className="text-gray-700">{extraOpen ? "▴" : "▾"}</span>
-          </button>
-
-          {/* OJO con espacios: usamos contenedor con transición + padding interno controlado */}
-          <div
-            className={[
-              "overflow-hidden transition-[max-height,opacity] duration-200",
-              extraOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0",
-            ].join(" ")}
-          >
-            <div className="mt-3 rounded-xl border bg-white p-4">
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-semibold mb-2">
-                    Precio
-                  </label>
-                  <input
-                    type="number"
-                    className="w-full border rounded-md px-3 py-2 bg-white text-black"
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                    placeholder="Ej: 15000"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <label className="block text-sm font-semibold mb-2">
-                  Notas compartidas con el cliente
-                </label>
-                <textarea
-                  className="w-full border rounded-md px-3 py-2 bg-white text-black min-h-[90px]"
-                  value={notePublic}
-                  onChange={(e) => setNotePublic(e.target.value)}
-                  placeholder="Ej: llegar 5 min antes..."
-                />
-              </div>
-
-              <div className="mt-4">
-                <label className="block text-sm font-semibold mb-2">
-                  Nota interna
-                </label>
-                <textarea
-                  className="w-full border rounded-md px-3 py-2 bg-white text-black min-h-[90px]"
-                  value={noteInternal}
-                  onChange={(e) => setNoteInternal(e.target.value)}
-                  placeholder="Solo equipo..."
-                />
-              </div>
-            </div>
+        {/* Barber + Service — side by side */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="field-label">Profesional</label>
+            <select className="input-field" value={selectedBarberId} onChange={(e) => setSelectedBarberId(e.target.value)}>
+              {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="field-label">Servicio</label>
+            <select className="input-field" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+              {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            {service && <p className="mt-1 text-xs text-stone-400">{service.durationMin} min</p>}
           </div>
         </div>
+
+        {/* Overlap warning */}
+        {!overlap.ok && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="font-semibold">Horario no disponible</p>
+            <p className="mt-1">Se solapa con {overlap.conflicts.length} evento(s) existentes.</p>
+          </div>
+        )}
+
+        {/* Extra info - collapsible */}
+        <details className="group">
+          <summary className="flex cursor-pointer items-center justify-between rounded-lg border border-[#e8e2dc] bg-white px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 list-none">
+            Información adicional
+            <svg className="h-4 w-4 text-stone-400 transition group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
+          </summary>
+          <div className="mt-2 space-y-3">
+            <div>
+              <label className="field-label">Precio</label>
+              <input type="number" className="input-field" value={price} onChange={(e) => setPrice(Number(e.target.value))} placeholder="Ej: 15000" />
+            </div>
+            <div>
+              <label className="field-label">Nota pública</label>
+              <textarea className="input-field min-h-[70px]" value={notePublic} onChange={(e) => setNotePublic(e.target.value)} placeholder="Visible para el cliente..." />
+            </div>
+            <div>
+              <label className="field-label">Nota interna</label>
+              <textarea className="input-field min-h-[70px]" value={noteInternal} onChange={(e) => setNoteInternal(e.target.value)} placeholder="Solo equipo..." />
+            </div>
+          </div>
+        </details>
       </div>
     </Modal>
   );

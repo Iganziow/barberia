@@ -2,40 +2,35 @@
 
 import { useMemo, useState } from "react";
 import AgendaFilters from "./AgendaFilters";
-import AgendaCalendar, { AgendaEvent } from "./AgendaCalendar";
+import AgendaCalendar from "./AgendaCalendar";
 import NewReservationModal from "./NewReservationModal";
 import BlockTimeModal from "./BlockTimeModal";
 import SlotActionMenu from "./SlotActionMenu";
-
-const INITIAL_EVENTS: AgendaEvent[] = [
-  {
-    id: "apt-1",
-    title: "Juan Pérez\nCorte de Cabello",
-    start: "2025-12-31T13:00:00",
-    end: "2025-12-31T14:00:00",
-    kind: "APPOINTMENT",
-    barberId: "barber-1",
-    status: "ACTIVE",
-  },
-  {
-    id: "blk-1",
-    title: "Bloqueado",
-    start: "2025-12-30T10:00:00",
-    end: "2025-12-30T11:00:00",
-    kind: "BLOCK",
-    barberId: "barber-1",
-    status: "ACTIVE",
-  },
-];
+import AppointmentDetailModal from "./AppointmentDetailModal";
+import { useBarbers } from "@/hooks/use-barbers";
+import { useServices } from "@/hooks/use-services";
+import { useBranches } from "@/hooks/use-branches";
+import { useAgendaEvents } from "@/hooks/use-agenda-events";
+import PageTip from "@/components/ui/PageTip";
 
 export default function AdminAgenda() {
   // filtros
-  const [branchId, setBranchId] = useState("branch-1");
-  const [barberId, setBarberId] = useState("barber-1");
+  const [branchId, setBranchId] = useState("");
+  const [barberId, setBarberId] = useState("");
   const [status, setStatus] = useState<"ACTIVE" | "ALL">("ACTIVE");
 
-  // eventos
-  const [events, setEvents] = useState<AgendaEvent[]>(INITIAL_EVENTS);
+  // datos reales desde API
+  const { branches } = useBranches();
+
+  // Derive effective branchId — auto-selects first branch if none set
+  const effectiveBranchId = branchId || (branches.length > 0 ? branches[0].id : "");
+
+  const { barbers } = useBarbers(effectiveBranchId || undefined);
+  const { services } = useServices();
+  const { events, refetch } = useAgendaEvents({
+    branchId: effectiveBranchId || undefined,
+    barberId: barberId || undefined,
+  });
 
   // modal reserva
   const [newOpen, setNewOpen] = useState(false);
@@ -45,7 +40,11 @@ export default function AdminAgenda() {
   const [blockOpen, setBlockOpen] = useState(false);
   const [blockStartISO, setBlockStartISO] = useState<string | null>(null);
 
-  // menú contextual slot (Reserva / Bloquear)
+  // modal detalle cita
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailEventId, setDetailEventId] = useState<string | null>(null);
+
+  // menú contextual slot
   const [slotMenuOpen, setSlotMenuOpen] = useState(false);
   const [slotMenuPos, setSlotMenuPos] = useState({ x: 240, y: 160 });
   const [slotISO, setSlotISO] = useState<string | null>(null);
@@ -58,124 +57,179 @@ export default function AdminAgenda() {
     });
   }, [events, barberId, status]);
 
-  return (
-    <div className="space-y-5">
-      {/* ✅ ÚNICO header del módulo Agenda */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-            Agenda
-          </h1>
-          <p className="text-sm text-gray-500">
-            Vista semanal tipo AgendaPro
-          </p>
-        </div>
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-        {/* ✅ Botón principal */}
-        <div className="flex items-center gap-2">
+  function showToast(message: string, type: "success" | "error" = "success") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  }
+
+  async function handleCreateAppointment(data: {
+    clientId: string;
+    clientName: string;
+    serviceId: string;
+    startISO: string;
+    endISO: string;
+    barberId: string;
+    status: string;
+    price: number;
+    notePublic?: string;
+    noteInternal?: string;
+  }) {
+    try {
+      const res = await fetch("/api/admin/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start: data.startISO,
+          end: data.endISO,
+          barberId: data.barberId,
+          serviceId: data.serviceId,
+          clientId: data.clientId,
+          branchId: effectiveBranchId,
+          price: data.price,
+          notePublic: data.notePublic,
+          noteInternal: data.noteInternal,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Error al crear reserva" }));
+        showToast(err.message || "Error al crear reserva", "error");
+        return;
+      }
+      showToast("Reserva creada");
+      refetch();
+    } catch {
+      showToast("Error de conexión al crear reserva", "error");
+    }
+  }
+
+  async function handleCreateBlocks(
+    blocks: Array<{
+      reason: string;
+      startISO: string;
+      endISO: string;
+      barberId: string;
+    }>
+  ) {
+    try {
+      const results = await Promise.all(
+        blocks.map((b) =>
+          fetch("/api/admin/block-times", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              reason: b.reason,
+              start: b.startISO,
+              end: b.endISO,
+              barberId: b.barberId,
+            }),
+          })
+        )
+      );
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) {
+        showToast(`${failed} bloqueo(s) no se pudieron crear`, "error");
+      } else {
+        showToast(`${blocks.length} bloqueo(s) creado(s)`);
+      }
+      refetch();
+    } catch {
+      showToast("Error de conexión al crear bloqueos", "error");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header row: title + filters + new button */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-stone-900">Agenda</h1>
+          <p className="text-sm text-stone-500">Visualiza y gestiona las reservas del día</p>
+        </div>
+        <div className="flex items-center gap-2" data-tour-id="new-button">
           <button
-            className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+            className="rounded-lg bg-[#c87941] px-4 py-2 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-sm"
             onClick={() => {
-              // “Nuevo” abre el menú en un lugar seguro (no al borde)
               const x = Math.min(window.innerWidth - 240, window.innerWidth - 260);
-              const y = 140; // cerca del header, fijo
-              setSlotMenuPos({ x, y });
+              setSlotMenuPos({ x, y: 140 });
               setSlotISO(new Date().toISOString());
               setSlotMenuOpen(true);
             }}
           >
-            Nuevo <span className="opacity-90">▾</span>
+            + Nueva reserva
           </button>
         </div>
       </div>
 
-      {/* Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr]">
-        {/* Panel izquierdo */}
-        <section className="rounded-2xl border bg-white shadow-sm h-fit overflow-hidden">
-          <div className="border-b px-5 py-4">
-            <div className="text-sm font-semibold text-gray-900">Filtros</div>
-            <div className="text-xs text-gray-500">
-              Sucursal / Profesional / Estado
-            </div>
-          </div>
+      <PageTip id="agenda" text="Haz clic en un horario vacío del calendario para crear una reserva rápida. También puedes usar el botón '+ Nueva reserva'." />
 
-          <div className="p-5">
-            <AgendaFilters
-              branchId={branchId}
-              barberId={barberId}
-              status={status}
-              onChangeBranch={setBranchId}
-              onChangeBarber={setBarberId}
-              onChangeStatus={setStatus}
-            />
-          </div>
-        </section>
+      {/* Filters inline */}
+      <AgendaFilters
+        branches={branches}
+        barbers={barbers}
+        branchId={effectiveBranchId}
+        barberId={barberId}
+        status={status}
+        onChangeBranch={setBranchId}
+        onChangeBarber={setBarberId}
+        onChangeStatus={setStatus}
+      />
 
-        {/* Calendario */}
-        <section className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-          <div className="p-3">
-            <AgendaCalendar
-              events={filteredEvents}
-              onSelectSlot={({ isoStart, x, y }) => {
-                setSlotISO(isoStart);
-                setSlotMenuPos({ x, y });
-                setSlotMenuOpen(true);
-              }}
-              onClickEvent={(eventId) => {
-                alert(`TODO: detalle de evento ${eventId}`);
-              }}
-            />
-          </div>
-        </section>
-      </div>
+      {/* Calendar */}
+      <section className="rounded-xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden" data-tour-id="agenda-calendar">
+        <div className="p-3">
+          <AgendaCalendar
+            events={filteredEvents}
+            onSelectSlot={({ isoStart, x, y }) => {
+              setSlotISO(isoStart);
+              setSlotMenuPos({ x, y });
+              setSlotMenuOpen(true);
+            }}
+            onClickEvent={(eventId) => {
+              const ev = events.find((e) => e.id === eventId);
+              if (ev?.kind === "APPOINTMENT") {
+                setDetailEventId(eventId);
+                setDetailOpen(true);
+              }
+            }}
+          />
+        </div>
+      </section>
 
-      {/* Modales */}
       <NewReservationModal
         open={newOpen}
         onClose={() => setNewOpen(false)}
         startISO={selectedStartISO}
-        barberId={barberId}
+        barberId={barberId || (barbers[0]?.id ?? "")}
+        barbers={barbers}
+        services={services}
         existingEvents={events}
-        onCreate={({ customerName, startISO, endISO, barberId }) => {
-          setEvents((prev) => [
-            ...prev,
-            {
-              id: `apt-${Date.now()}`,
-              title: `${customerName}\nReserva`,
-              start: startISO,
-              end: endISO,
-              kind: "APPOINTMENT",
-              barberId,
-              status: "ACTIVE",
-            },
-          ]);
-        }}
+        onCreate={handleCreateAppointment}
       />
 
-      <BlockTimeModal
-        open={blockOpen}
-        onClose={() => setBlockOpen(false)}
-        startISO={blockStartISO}
-        defaultBarberId={barberId}
-        existingEvents={events}
-        onCreateMany={(blocks) => {
-          setEvents((prev) => [
-            ...prev,
-            ...blocks.map((b) => ({
-              id: `blk-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-              title: b.reason,
-              start: b.startISO,
-              end: b.endISO,
-              kind: "BLOCK" as const,
-              barberId: b.barberId,
-              status: "ACTIVE" as const,
-            })),
-          ]);
+      {blockOpen && (
+        <BlockTimeModal
+          open={blockOpen}
+          onClose={() => setBlockOpen(false)}
+          startISO={blockStartISO}
+          defaultBarberId={barberId || (barbers[0]?.id ?? "")}
+          barbers={barbers}
+          existingEvents={events}
+          onCreateMany={handleCreateBlocks}
+        />
+      )}
+
+      <AppointmentDetailModal
+        open={detailOpen}
+        appointmentId={detailEventId}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailEventId(null);
         }}
+        onStatusChange={refetch}
       />
 
-      {/* Menú contextual */}
       <SlotActionMenu
         open={slotMenuOpen}
         x={slotMenuPos.x}
@@ -190,6 +244,17 @@ export default function AdminAgenda() {
           setBlockOpen(true);
         }}
       />
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2.5 text-sm font-medium shadow-lg transition-all ${
+          toast.type === "error"
+            ? "bg-red-600 text-white"
+            : "bg-stone-800 text-white"
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

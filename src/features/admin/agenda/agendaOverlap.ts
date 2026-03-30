@@ -1,4 +1,4 @@
-import type { AgendaEvent } from "./AgendaCalendar";
+import type { AgendaEvent } from "@/types/agenda";
 
 export type OverlapResult = {
   ok: boolean;

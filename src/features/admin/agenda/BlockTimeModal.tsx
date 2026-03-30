@@ -1,17 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Modal from "@/components/ui/modal";
-import type { AgendaEvent } from "./AgendaCalendar";
+import type { AgendaEvent, BarberOption } from "@/types/agenda";
 import { hasOverlap } from "./agendaOverlap";
-
-type BarberOption = { id: string; name: string };
-
-// ✅ por ahora mock, luego lo conectamos a DB
-const MOCK_BARBERS: BarberOption[] = [
-  { id: "barber-1", name: "daniel Silva" },
-  { id: "barber-2", name: "Juan Pérez" },
-];
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -45,6 +37,7 @@ export default function BlockTimeModal({
   onClose,
   startISO,
   defaultBarberId,
+  barbers,
   existingEvents,
   onCreateMany,
 }: {
@@ -52,7 +45,8 @@ export default function BlockTimeModal({
   onClose: () => void;
   startISO: string | null;
   defaultBarberId: string;
-  existingEvents: AgendaEvent[]; // ✅ nuevo
+  barbers: BarberOption[];
+  existingEvents: AgendaEvent[];
   onCreateMany: (blocks: Array<{
     reason: string;
     startISO: string;
@@ -60,73 +54,25 @@ export default function BlockTimeModal({
     barberId: string;
   }>) => void;
 }) {
-  // motivo
-  const [reason, setReason] = useState("");
+  // Compute initial values from props
+  const initStart = startISO ? new Date(startISO) : (() => { const n = new Date(); n.setMinutes(0, 0, 0); return n; })();
+  const initEnd = new Date(initStart);
+  initEnd.setHours(initStart.getHours() + 1);
 
-  // profesional seleccionado
+  const [reason, setReason] = useState("Bloqueado");
   const [barberId, setBarberId] = useState(defaultBarberId);
-
-  // inicio/fin (fecha + hora)
-  const [startDate, setStartDate] = useState<string>("");
-  const [startH, setStartH] = useState<number>(9);
-  const [startM, setStartM] = useState<number>(0);
-
-  const [endDate, setEndDate] = useState<string>("");
-  const [endH, setEndH] = useState<number>(10);
-  const [endM, setEndM] = useState<number>(0);
-
-  // repetir
+  const [startDate, setStartDate] = useState(toDateInputValue(initStart));
+  const [startH, setStartH] = useState(initStart.getHours());
+  const [startM, setStartM] = useState(startISO ? initStart.getMinutes() : 0);
+  const [endDate, setEndDate] = useState(toDateInputValue(initEnd));
+  const [endH, setEndH] = useState(initEnd.getHours());
+  const [endM, setEndM] = useState(startISO ? initEnd.getMinutes() : 0);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [freq, setFreq] = useState<RepeatFrequency>("DAILY");
-  const [everyN, setEveryN] = useState<number>(1);
+  const [everyN, setEveryN] = useState(1);
   const [endMode, setEndMode] = useState<RepeatEndMode>("COUNT");
-  const [endCount, setEndCount] = useState<number>(5);
-  const [untilDate, setUntilDate] = useState<string>("");
-
-  // al abrir modal, precargar desde startISO
-  useEffect(() => {
-    if (!open) return;
-    setReason("Bloqueado");
-    setBarberId(defaultBarberId);
-
-    if (startISO) {
-      const s = new Date(startISO);
-      const e = new Date(s);
-      e.setHours(s.getHours() + 1);
-
-      setStartDate(toDateInputValue(s));
-      setStartH(s.getHours());
-      setStartM(s.getMinutes());
-
-      setEndDate(toDateInputValue(e));
-      setEndH(e.getHours());
-      setEndM(e.getMinutes());
-
-      setUntilDate(toDateInputValue(addDays(s, 14)));
-    } else {
-      const now = new Date();
-      const s = new Date(now);
-      s.setMinutes(0, 0, 0);
-      const e = new Date(s);
-      e.setHours(s.getHours() + 1);
-
-      setStartDate(toDateInputValue(s));
-      setStartH(s.getHours());
-      setStartM(0);
-
-      setEndDate(toDateInputValue(e));
-      setEndH(e.getHours());
-      setEndM(0);
-
-      setUntilDate(toDateInputValue(addDays(s, 14)));
-    }
-
-    setRepeatEnabled(false);
-    setFreq("DAILY");
-    setEveryN(1);
-    setEndMode("COUNT");
-    setEndCount(5);
-  }, [open, startISO, defaultBarberId]);
+  const [endCount, setEndCount] = useState(5);
+  const [untilDate, setUntilDate] = useState(toDateInputValue(addDays(initStart, 14)));
 
   const startDT = useMemo(() => {
     if (!startDate) return null;
@@ -144,19 +90,13 @@ export default function BlockTimeModal({
     return endDT.getTime() > startDT.getTime();
   }, [startDT, endDT, reason]);
 
-  function buildOccurrences(): Array<{ start: Date; end: Date }> {
+  const occurrences = useMemo(() => {
     if (!startDT || !endDT) return [];
-    const occurrences: Array<{ start: Date; end: Date }> = [];
-
+    const result: Array<{ start: Date; end: Date }> = [];
     const durationMs = endDT.getTime() - startDT.getTime();
 
-    // primera ocurrencia
-    occurrences.push({
-      start: startDT,
-      end: new Date(startDT.getTime() + durationMs),
-    });
-
-    if (!repeatEnabled) return occurrences;
+    result.push({ start: startDT, end: new Date(startDT.getTime() + durationMs) });
+    if (!repeatEnabled) return result;
 
     let nextStart = new Date(startDT);
     const step = () => {
@@ -166,80 +106,46 @@ export default function BlockTimeModal({
 
     if (endMode === "COUNT") {
       const total = Math.max(1, endCount);
-      while (occurrences.length < total) {
+      while (result.length < total) {
         step();
-        occurrences.push({
-          start: new Date(nextStart),
-          end: new Date(nextStart.getTime() + durationMs),
-        });
+        result.push({ start: new Date(nextStart), end: new Date(nextStart.getTime() + durationMs) });
       }
-      return occurrences;
+      return result;
     }
 
-    // UNTIL
     const until = untilDate ? new Date(untilDate + "T23:59:59") : null;
-    if (!until) return occurrences;
+    if (!until) return result;
 
-    while (true) {
+    while (result.length < 200) {
       step();
       if (nextStart.getTime() > until.getTime()) break;
-
-      occurrences.push({
-        start: new Date(nextStart),
-        end: new Date(nextStart.getTime() + durationMs),
-      });
-
-      if (occurrences.length > 200) break;
+      result.push({ start: new Date(nextStart), end: new Date(nextStart.getTime() + durationMs) });
     }
-    return occurrences;
-  }
+    return result;
+  }, [startDT, endDT, repeatEnabled, freq, everyN, endMode, endCount, untilDate]);
 
-  // ✅ VALIDACIÓN SOLAPAMIENTO (incluye repeticiones)
   const overlap = useMemo(() => {
-    if (!isValid) return { ok: true, conflicts: [] as AgendaEvent[] };
+    if (!isValid || occurrences.length === 0) return { ok: true, conflicts: [] as AgendaEvent[] };
 
-    const occs = buildOccurrences();
     const all: AgendaEvent[] = [];
-
-    for (const occ of occs) {
+    for (const occ of occurrences) {
       const res = hasOverlap(existingEvents, {
         startISO: occ.start.toISOString(),
         endISO: occ.end.toISOString(),
         barberId,
       });
-
       if (!res.ok) all.push(...res.conflicts);
     }
 
-    // dedupe por id para no inflar
     const uniq = Array.from(new Map(all.map((e) => [e.id, e])).values());
-
     return { ok: uniq.length === 0, conflicts: uniq };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    existingEvents,
-    isValid,
-    barberId,
-    reason,
-    startDate,
-    startH,
-    startM,
-    endDate,
-    endH,
-    endM,
-    repeatEnabled,
-    freq,
-    everyN,
-    endMode,
-    endCount,
-    untilDate,
-  ]);
+  }, [existingEvents, isValid, barberId, occurrences]);
 
   function handleCreate() {
     if (!isValid || !startDT || !endDT) return;
     if (!overlap.ok) return;
 
-    const blocks = buildOccurrences().map((occ) => ({
+    const blocks = occurrences.map((occ) => ({
       reason: reason.trim(),
       startISO: occ.start.toISOString(),
       endISO: occ.end.toISOString(),
@@ -257,257 +163,106 @@ export default function BlockTimeModal({
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
-          <button
-            className="px-4 py-2 rounded border text-black bg-white hover:bg-gray-50"
-            onClick={onClose}
-            type="button"
-          >
-            Cancelar
-          </button>
-          <button
-            className="px-4 py-2 rounded bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
-            onClick={handleCreate}
-            disabled={!isValid || !overlap.ok}
-            type="button"
-          >
-            Bloquear
-          </button>
+          <button className="btn-secondary" onClick={onClose} type="button">Cancelar</button>
+          <button className="btn-primary" onClick={handleCreate} disabled={!isValid || !overlap.ok} type="button">Bloquear</button>
         </div>
       }
     >
-      <div className="space-y-5 text-black">
-        {/* Motivo */}
-        <div>
-          <label className="block text-sm font-medium mb-1 text-black">
-            Motivo/Etiqueta
-          </label>
-          <input
-            className="w-full border rounded-md px-3 py-2 text-black placeholder-gray-400 bg-white"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Ej: Colación / Reunión / Personal"
-          />
-        </div>
-
-        {/* Profesional */}
-        <div>
-          <label className="block text-sm font-medium mb-1 text-black">
-            Profesional
-          </label>
-          <select
-            className="w-full border rounded-md px-3 py-2 text-black bg-white"
-            value={barberId}
-            onChange={(e) => setBarberId(e.target.value)}
-          >
-            {MOCK_BARBERS.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Inicio/Fin */}
-        <div className="rounded-lg border p-4 space-y-4 bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px] gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-black">
-                Fecha de inicio
-              </label>
-              <input
-                type="date"
-                className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1 text-black">
-                Hora
-              </label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                value={startH}
-                onChange={(e) => setStartH(Number(e.target.value))}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {pad2(i)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1 text-black">
-                Min
-              </label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                value={startM}
-                onChange={(e) => setStartM(Number(e.target.value))}
-              >
-                {[0, 15, 30, 45].map((m) => (
-                  <option key={m} value={m}>
-                    {pad2(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="space-y-4">
+        {/* Motivo + Profesional side by side */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="field-label">Motivo</label>
+            <input className="input-field" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: Colación / Reunión" />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px] gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-black">
-                Fecha de fin
-              </label>
-              <input
-                type="date"
-                className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1 text-black">
-                Hora
-              </label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                value={endH}
-                onChange={(e) => setEndH(Number(e.target.value))}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {pad2(i)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1 text-black">
-                Min
-              </label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                value={endM}
-                onChange={(e) => setEndM(Number(e.target.value))}
-              >
-                {[0, 15, 30, 45].map((m) => (
-                  <option key={m} value={m}>
-                    {pad2(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="field-label">Profesional</label>
+            <select className="input-field" value={barberId} onChange={(e) => setBarberId(e.target.value)}>
+              {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
           </div>
-
-          {!isValid && (
-            <p className="text-sm text-red-600">
-              Revisa que el fin sea mayor al inicio y que el motivo no esté vacío.
-            </p>
-          )}
-
-          {!overlap.ok && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <p className="font-medium">No se puede bloquear</p>
-              <p className="mt-1">
-                El bloqueo se solapa con {overlap.conflicts.length} evento(s) existentes.
-              </p>
-            </div>
-          )}
         </div>
+
+        {/* Inicio */}
+        <div>
+          <label className="field-label">Inicio</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input type="date" className="input-field w-auto" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <select className="input-field w-[70px]" value={startH} onChange={(e) => setStartH(Number(e.target.value))}>
+              {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{pad2(i)}</option>)}
+            </select>
+            <span className="text-stone-400 font-bold">:</span>
+            <select className="input-field w-[70px]" value={startM} onChange={(e) => setStartM(Number(e.target.value))}>
+              {[0, 15, 30, 45].map((m) => <option key={m} value={m}>{pad2(m)}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Fin */}
+        <div>
+          <label className="field-label">Fin</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input type="date" className="input-field w-auto" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <select className="input-field w-[70px]" value={endH} onChange={(e) => setEndH(Number(e.target.value))}>
+              {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{pad2(i)}</option>)}
+            </select>
+            <span className="text-stone-400 font-bold">:</span>
+            <select className="input-field w-[70px]" value={endM} onChange={(e) => setEndM(Number(e.target.value))}>
+              {[0, 15, 30, 45].map((m) => <option key={m} value={m}>{pad2(m)}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {!isValid && <p className="text-sm text-red-600">Revisa que el fin sea mayor al inicio y que el motivo no esté vacío.</p>}
+
+        {!overlap.ok && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="font-medium">Se solapa con {overlap.conflicts.length} evento(s) existentes.</p>
+          </div>
+        )}
 
         {/* Repetir */}
-        <div className="space-y-3">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-black">
-            <input
-              type="checkbox"
-              checked={repeatEnabled}
-              onChange={(e) => setRepeatEnabled(e.target.checked)}
-            />
+        <details className="group">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-stone-700 list-none">
+            <input type="checkbox" checked={repeatEnabled} onChange={(e) => setRepeatEnabled(e.target.checked)} className="rounded" />
             Repetir bloqueo
-          </label>
-
+          </summary>
           {repeatEnabled && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-1 text-black">
-                  Repetir
-                </label>
-                <select
-                  className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                  value={freq}
-                  onChange={(e) => setFreq(e.target.value as RepeatFrequency)}
-                >
-                  <option value="DAILY">Diariamente</option>
-                  <option value="WEEKLY">Semanalmente</option>
+                <label className="field-label">Frecuencia</label>
+                <select className="input-field" value={freq} onChange={(e) => setFreq(e.target.value as RepeatFrequency)}>
+                  <option value="DAILY">Diario</option>
+                  <option value="WEEKLY">Semanal</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1 text-black">
-                  Cada
-                </label>
+                <label className="field-label">Cada</label>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    className="w-24 border rounded-md px-3 py-2 text-black bg-white"
-                    value={everyN}
-                    onChange={(e) => setEveryN(Number(e.target.value))}
-                  />
-                  <span className="text-sm text-gray-700">
-                    {freq === "DAILY" ? "día(s)" : "semana(s)"}
-                  </span>
+                  <input type="number" min={1} className="input-field w-16" value={everyN} onChange={(e) => setEveryN(Number(e.target.value))} />
+                  <span className="text-xs text-stone-400">{freq === "DAILY" ? "día(s)" : "sem."}</span>
                 </div>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1 text-black">
-                  Finaliza
-                </label>
-                <select
-                  className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                  value={endMode}
-                  onChange={(e) => setEndMode(e.target.value as RepeatEndMode)}
-                >
+                <label className="field-label">Termina</label>
+                <select className="input-field" value={endMode} onChange={(e) => setEndMode(e.target.value as RepeatEndMode)}>
                   <option value="COUNT">Después de</option>
                   <option value="UNTIL">El día</option>
                 </select>
               </div>
-
-              {endMode === "COUNT" ? (
-                <div className="md:col-span-3">
+              <div className="col-span-3">
+                {endMode === "COUNT" ? (
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      className="w-28 border rounded-md px-3 py-2 text-black bg-white"
-                      value={endCount}
-                      onChange={(e) => setEndCount(Number(e.target.value))}
-                    />
-                    <span className="text-sm text-gray-700">repeticiones</span>
+                    <input type="number" min={1} className="input-field w-20" value={endCount} onChange={(e) => setEndCount(Number(e.target.value))} />
+                    <span className="text-xs text-stone-400">repeticiones (incluye original)</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Incluye el bloqueo original.</p>
-                </div>
-              ) : (
-                <div className="md:col-span-3">
-                  <input
-                    type="date"
-                    className="w-full border rounded-md px-3 py-2 text-black bg-white"
-                    value={untilDate}
-                    onChange={(e) => setUntilDate(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Incluye el bloqueo original.</p>
-                </div>
-              )}
+                ) : (
+                  <input type="date" className="input-field" value={untilDate} onChange={(e) => setUntilDate(e.target.value)} />
+                )}
+              </div>
             </div>
           )}
-        </div>
+        </details>
       </div>
     </Modal>
   );
