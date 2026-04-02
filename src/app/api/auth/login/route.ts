@@ -9,6 +9,7 @@ import {
 import { LoginSchema } from "@/lib/validations/auth";
 
 export async function POST(req: Request) {
+  try {
   const json = await req.json().catch(() => null);
   const parsed = LoginSchema.safeParse(json);
 
@@ -79,4 +80,8 @@ export async function POST(req: Request) {
   });
 
   return res;
+  } catch (err) {
+    console.error("POST /api/auth/login failed:", err);
+    return NextResponse.json({ message: "Error interno" }, { status: 500 });
+  }
 }

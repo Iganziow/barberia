@@ -9,9 +9,19 @@ export async function GET(
 ) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
+  const orgId = auth.payload.orgId;
 
   try {
     const { id } = await params;
+
+    // Verify barber belongs to org
+    const barber = await prisma.barber.findFirst({
+      where: { id, branch: { orgId } },
+      select: { id: true },
+    });
+    if (!barber) {
+      return NextResponse.json({ message: "Barbero no encontrado" }, { status: 404 });
+    }
 
     const barberServices = await prisma.barberService.findMany({
       where: { barberId: id },
@@ -44,9 +54,20 @@ export async function PUT(
 ) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
+  const orgId = auth.payload.orgId;
 
   try {
     const { id } = await params;
+
+    // Verify barber belongs to org
+    const barber = await prisma.barber.findFirst({
+      where: { id, branch: { orgId } },
+      select: { id: true },
+    });
+    if (!barber) {
+      return NextResponse.json({ message: "Barbero no encontrado" }, { status: 404 });
+    }
+
     const body = await req.json().catch(() => null);
 
     if (!body?.services || !Array.isArray(body.services)) {

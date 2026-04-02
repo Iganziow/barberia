@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
+import { prisma } from "@/lib/prisma";
 import {
   getBlockTimes,
   createBlockTime,
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
+  const orgId = auth.payload.orgId;
 
   try {
     const json = await req.json().catch(() => null);
@@ -55,6 +57,15 @@ export async function POST(req: Request) {
         { message: "Datos inválidos.", errors: parsed.error.flatten() },
         { status: 400 }
       );
+    }
+
+    // Verify barber belongs to org
+    const barber = await prisma.barber.findFirst({
+      where: { id: parsed.data.barberId, branch: { orgId } },
+      select: { id: true },
+    });
+    if (!barber) {
+      return NextResponse.json({ message: "Barbero no encontrado" }, { status: 404 });
     }
 
     const block = await createBlockTime(parsed.data);

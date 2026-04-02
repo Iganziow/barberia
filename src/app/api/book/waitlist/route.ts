@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
+import { prisma } from "@/lib/prisma";
 import { addToWaitlist } from "@/lib/services/waitlist.service";
 import { CreateWaitlistSchema } from "@/lib/validations/waitlist";
 
 export async function POST(req: Request) {
   try {
-    await getOrgIdFromHeaders(req); // Ensure tenant context
+    const orgId = await getOrgIdFromHeaders(req);
 
     const json = await req.json().catch(() => null);
     const parsed = CreateWaitlistSchema.safeParse(json);
@@ -15,6 +16,15 @@ export async function POST(req: Request) {
         { message: "Datos inválidos", errors: parsed.error.flatten() },
         { status: 400 }
       );
+    }
+
+    // Verify branch belongs to org
+    const branch = await prisma.branch.findFirst({
+      where: { id: parsed.data.branchId, orgId },
+      select: { id: true },
+    });
+    if (!branch) {
+      return NextResponse.json({ message: "Sucursal no encontrada" }, { status: 404 });
     }
 
     const result = await addToWaitlist(parsed.data);
