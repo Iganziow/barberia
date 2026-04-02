@@ -81,66 +81,105 @@ export async function getDashboardStats(period: string, orgId: string, branchId?
 
 export async function getBarberStats(period: string, orgId: string, branchId?: string) {
   const { from, to } = getDateRange(period);
+  const branchFilter = branchId ? { branchId } : { branch: { orgId } };
 
-  const barbers = await prisma.barber.findMany({
-    where: { active: true, branch: { orgId }, ...(branchId ? { branchId } : {}) },
-    include: { user: { select: { name: true } } },
-  });
+  const [barbers, allCounts, doneCounts, revenueGroups] = await Promise.all([
+    prisma.barber.findMany({
+      where: { active: true, branch: { orgId }, ...(branchId ? { branchId } : {}) },
+      include: { user: { select: { name: true } } },
+    }),
+    prisma.appointment.groupBy({
+      by: ["barberId"],
+      where: { ...branchFilter, start: { gte: from, lte: to } },
+      _count: { id: true },
+    }),
+    prisma.appointment.groupBy({
+      by: ["barberId"],
+      where: { ...branchFilter, start: { gte: from, lte: to }, status: AppointmentStatus.DONE },
+      _count: { id: true },
+    }),
+    prisma.appointment.groupBy({
+      by: ["barberId"],
+      where: { ...branchFilter, start: { gte: from, lte: to }, status: AppointmentStatus.DONE },
+      _sum: { price: true },
+    }),
+  ]);
 
-  const stats = await Promise.all(
-    barbers.map(async (barber) => {
-      const where = { barberId: barber.id, start: { gte: from, lte: to } };
-      const [total, completed, revenue] = await Promise.all([
-        prisma.appointment.count({ where }),
-        prisma.appointment.count({ where: { ...where, status: AppointmentStatus.DONE } }),
-        prisma.appointment.aggregate({ where: { ...where, status: AppointmentStatus.DONE }, _sum: { price: true } }),
-      ]);
-      return { id: barber.id, name: barber.user.name, color: barber.color, appointments: total, completed, revenue: revenue._sum.price ?? 0 };
-    })
-  );
+  const countMap = new Map(allCounts.map((c) => [c.barberId, c._count.id]));
+  const doneMap = new Map(doneCounts.map((c) => [c.barberId, c._count.id]));
+  const revMap = new Map(revenueGroups.map((r) => [r.barberId, r._sum.price ?? 0]));
 
-  return stats.sort((a, b) => b.revenue - a.revenue);
+  return barbers
+    .map((b) => ({
+      id: b.id,
+      name: b.user.name,
+      color: b.color,
+      appointments: countMap.get(b.id) ?? 0,
+      completed: doneMap.get(b.id) ?? 0,
+      revenue: revMap.get(b.id) ?? 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 export async function getServiceStats(period: string, orgId: string, branchId?: string) {
   const { from, to } = getDateRange(period);
+  const branchFilter = branchId ? { branchId } : {};
 
-  const services = await prisma.service.findMany({ where: { active: true, orgId } });
+  const [services, allCounts, revenueGroups] = await Promise.all([
+    prisma.service.findMany({ where: { active: true, orgId } }),
+    prisma.appointment.groupBy({
+      by: ["serviceId"],
+      where: { branch: { orgId }, ...branchFilter, start: { gte: from, lte: to } },
+      _count: { id: true },
+    }),
+    prisma.appointment.groupBy({
+      by: ["serviceId"],
+      where: { branch: { orgId }, ...branchFilter, start: { gte: from, lte: to }, status: AppointmentStatus.DONE },
+      _sum: { price: true },
+    }),
+  ]);
 
-  const stats = await Promise.all(
-    services.map(async (service) => {
-      const where = { serviceId: service.id, start: { gte: from, lte: to }, ...(branchId ? { branchId } : {}) };
-      const [total, revenue] = await Promise.all([
-        prisma.appointment.count({ where }),
-        prisma.appointment.aggregate({ where: { ...where, status: AppointmentStatus.DONE }, _sum: { price: true } }),
-      ]);
-      return { id: service.id, name: service.name, count: total, revenue: revenue._sum.price ?? 0 };
-    })
-  );
+  const countMap = new Map(allCounts.map((c) => [c.serviceId, c._count.id]));
+  const revMap = new Map(revenueGroups.map((r) => [r.serviceId, r._sum.price ?? 0]));
 
-  return stats.sort((a, b) => b.count - a.count);
+  return services
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      count: countMap.get(s.id) ?? 0,
+      revenue: revMap.get(s.id) ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 export async function getCommissionReport(period: string, orgId: string, branchId?: string) {
   const { from, to } = getDateRange(period);
+  const branchFilter = branchId ? { branchId } : { branch: { orgId } };
 
-  const barbers = await prisma.barber.findMany({
-    where: { active: true, branch: { orgId }, ...(branchId ? { branchId } : {}) },
-    include: { user: { select: { name: true } } },
-  });
+  const [barbers, doneGroups, revenueGroups] = await Promise.all([
+    prisma.barber.findMany({
+      where: { active: true, branch: { orgId }, ...(branchId ? { branchId } : {}) },
+      include: { user: { select: { name: true } } },
+    }),
+    prisma.appointment.groupBy({
+      by: ["barberId"],
+      where: { ...branchFilter, start: { gte: from, lte: to }, status: AppointmentStatus.DONE },
+      _count: { id: true },
+    }),
+    prisma.appointment.groupBy({
+      by: ["barberId"],
+      where: { ...branchFilter, start: { gte: from, lte: to }, status: AppointmentStatus.DONE },
+      _sum: { price: true },
+    }),
+  ]);
 
-  const rows = await Promise.all(
-    barbers.map(async (barber) => {
-      const where = {
-        barberId: barber.id,
-        start: { gte: from, lte: to },
-        status: AppointmentStatus.DONE,
-      };
-      const [completed, revenueAgg] = await Promise.all([
-        prisma.appointment.count({ where }),
-        prisma.appointment.aggregate({ where, _sum: { price: true } }),
-      ]);
-      const revenue = revenueAgg._sum.price ?? 0;
+  const doneMap = new Map(doneGroups.map((c) => [c.barberId, c._count.id]));
+  const revMap = new Map(revenueGroups.map((r) => [r.barberId, r._sum.price ?? 0]));
+
+  return barbers
+    .map((barber) => {
+      const completed = doneMap.get(barber.id) ?? 0;
+      const revenue = revMap.get(barber.id) ?? 0;
       const commission =
         barber.commissionType === CommissionType.PERCENTAGE
           ? Math.round(revenue * (barber.commissionValue / 100))
@@ -155,9 +194,7 @@ export async function getCommissionReport(period: string, orgId: string, branchI
         commission,
       };
     })
-  );
-
-  return rows.sort((a, b) => b.revenue - a.revenue);
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 export async function getDailyRevenue(period: string, orgId: string, branchId?: string) {

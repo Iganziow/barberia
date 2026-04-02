@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatCLP } from "@/lib/format";
 
 type ServiceRow = {
   id: string;
@@ -15,14 +16,6 @@ type ServiceRow = {
 };
 
 type Category = { id: string; name: string };
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(price);
-}
 
 export default function ServicesPage() {
   const [services, setServices] = useState<ServiceRow[]>([]);
@@ -293,7 +286,7 @@ export default function ServicesPage() {
                       <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                       {svc.durationMin} min
                     </span>
-                    <span className="text-sm font-bold text-stone-800">{formatPrice(svc.price)}</span>
+                    <span className="text-sm font-bold text-stone-800">{formatCLP(svc.price)}</span>
                   </div>
                 </div>
 

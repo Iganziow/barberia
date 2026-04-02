@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PageTip from "@/components/ui/PageTip";
 import InfoTip from "@/components/ui/InfoTip";
+import { formatCLP } from "@/lib/format";
 
 type CommissionRow = {
   id: string;
@@ -61,14 +62,6 @@ const TABS = [
   { value: "commissions", label: "Liquidaciones" },
 ];
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(price);
-}
-
 function StatCard({
   label,
   value,
@@ -113,7 +106,7 @@ function BarChart({
             />
           </div>
           <span className="w-20 text-right text-sm font-medium text-stone-700">
-            {formatPrice(item.value)}
+            {formatCLP(item.value)}
           </span>
         </div>
       ))}
@@ -257,17 +250,17 @@ export default function ReportsDashboard() {
                           <p className="text-[11px] text-stone-400">
                             {c.commissionType === "PERCENTAGE"
                               ? `${c.commissionValue}%`
-                              : `${formatPrice(c.commissionValue)} fijo/cita`}
+                              : `${formatCLP(c.commissionValue)} fijo/cita`}
                           </p>
                         </td>
                         <td className="py-3 pr-4 text-right text-stone-600">{c.completed}</td>
-                        <td className="py-3 pr-4 text-right text-stone-600">{formatPrice(c.revenue)}</td>
+                        <td className="py-3 pr-4 text-right text-stone-600">{formatCLP(c.revenue)}</td>
                         <td className="py-3 pr-4 text-right text-stone-400 text-xs">
                           {c.commissionType === "PERCENTAGE"
-                            ? `${c.commissionValue}% × ${formatPrice(c.revenue)}`
-                            : `${formatPrice(c.commissionValue)} × ${c.completed} citas`}
+                            ? `${c.commissionValue}% × ${formatCLP(c.revenue)}`
+                            : `${formatCLP(c.commissionValue)} × ${c.completed} citas`}
                         </td>
-                        <td className="py-3 text-right font-bold text-stone-900">{formatPrice(c.commission)}</td>
+                        <td className="py-3 text-right font-bold text-stone-900">{formatCLP(c.commission)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -278,11 +271,11 @@ export default function ReportsDashboard() {
                         {commissions.reduce((s, c) => s + c.completed, 0)}
                       </td>
                       <td className="pt-3 text-right font-semibold text-stone-700">
-                        {formatPrice(commissions.reduce((s, c) => s + c.revenue, 0))}
+                        {formatCLP(commissions.reduce((s, c) => s + c.revenue, 0))}
                       </td>
                       <td />
                       <td className="pt-3 text-right font-bold text-[#c87941] text-base">
-                        {formatPrice(commissions.reduce((s, c) => s + c.commission, 0))}
+                        {formatCLP(commissions.reduce((s, c) => s + c.commission, 0))}
                       </td>
                     </tr>
                   </tfoot>
@@ -297,8 +290,8 @@ export default function ReportsDashboard() {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Ingresos" value={formatPrice(d.revenue.total)} sub={`${formatPrice(d.revenue.paid)} cobrado`} borderColor="#22c55e" />
-            <StatCard label="Por cobrar" value={formatPrice(d.revenue.pending)} borderColor="#f59e0b" />
+            <StatCard label="Ingresos" value={formatCLP(d.revenue.total)} sub={`${formatCLP(d.revenue.paid)} cobrado`} borderColor="#22c55e" />
+            <StatCard label="Por cobrar" value={formatCLP(d.revenue.pending)} borderColor="#f59e0b" />
             <StatCard label="Citas totales" value={String(d.appointments.total)} sub={`${d.appointments.completed} completadas`} borderColor="#c87941" />
             <StatCard label="Cancelaciones" value={String(d.appointments.canceled + d.appointments.noShow)} sub={`${d.appointments.canceled} canceladas, ${d.appointments.noShow} no show`} borderColor="#ef4444" />
           </div>
@@ -313,7 +306,7 @@ export default function ReportsDashboard() {
                   {(data?.barbers || []).map((b) => (
                     <div key={b.id} className="flex justify-between text-sm">
                       <span className="text-stone-500">{b.name}: {b.appointments} citas ({b.completed} completadas)</span>
-                      <span className="font-medium text-stone-700">{formatPrice(b.revenue)}</span>
+                      <span className="font-medium text-stone-700">{formatCLP(b.revenue)}</span>
                     </div>
                   ))}
                 </div>
@@ -328,7 +321,7 @@ export default function ReportsDashboard() {
                   {(data?.services || []).map((s) => (
                     <div key={s.id} className="flex justify-between text-sm">
                       <span className="text-stone-500">{s.name}: {s.count} citas</span>
-                      <span className="font-medium text-stone-700">{formatPrice(s.revenue)}</span>
+                      <span className="font-medium text-stone-700">{formatCLP(s.revenue)}</span>
                     </div>
                   ))}
                 </div>
@@ -348,8 +341,8 @@ export default function ReportsDashboard() {
                   const label = dt.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
                   return (
                     <div key={day.date} className="flex-1 flex flex-col items-center justify-end gap-1 group">
-                      <span className="text-[10px] text-stone-500 sm:opacity-0 sm:group-hover:opacity-100 transition">{formatPrice(day.revenue)}</span>
-                      <div className="w-full bg-[#c87941] rounded-t hover:bg-[#b56a35] transition cursor-default" style={{ height: `${height}%` }} title={`${label}: ${formatPrice(day.revenue)}`} />
+                      <span className="text-[10px] text-stone-500 sm:opacity-0 sm:group-hover:opacity-100 transition">{formatCLP(day.revenue)}</span>
+                      <div className="w-full bg-[#c87941] rounded-t hover:bg-[#b56a35] transition cursor-default" style={{ height: `${height}%` }} title={`${label}: ${formatCLP(day.revenue)}`} />
                       <span className="text-[10px] text-stone-400 truncate w-full text-center">{label}</span>
                     </div>
                   );

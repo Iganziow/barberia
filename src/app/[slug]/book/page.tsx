@@ -3,16 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { formatCLP } from "@/lib/format";
 
 type Service = { id: string; name: string; durationMin: number; price: number; category: string | null };
 type BarberAvail = { id: string; name: string; color: string | null; availableSlots: number };
 type Slot = { start: string; end: string };
 type Step = "service" | "barber" | "datetime" | "confirm";
 type HeatmapDay = { date: string; totalSlots: number; availableSlots: number; level: string; waitlistCount: number };
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(price);
-}
 
 function formatSlotTime(iso: string) {
   return new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
@@ -275,7 +272,7 @@ export default function BookingPage() {
                       <p className="font-semibold text-stone-800">{svc.name}</p>
                       <p className="text-xs text-stone-400 mt-0.5">{svc.durationMin} min</p>
                     </div>
-                    <p className="font-bold text-[#c87941] text-lg shrink-0">{formatPrice(svc.price)}</p>
+                    <p className="font-bold text-[#c87941] text-lg shrink-0">{formatCLP(svc.price)}</p>
                   </div>
                 </button>
               );
@@ -289,7 +286,7 @@ export default function BookingPage() {
                     <p className="text-sm text-stone-600">
                       {selectedServices.length} servicio{selectedServices.length > 1 ? "s" : ""} · {totalDuration} min
                     </p>
-                    <p className="text-lg font-bold text-[#c87941]">{formatPrice(totalPrice)}</p>
+                    <p className="text-lg font-bold text-[#c87941]">{formatCLP(totalPrice)}</p>
                   </div>
                   <button
                     onClick={confirmServices}
@@ -314,13 +311,13 @@ export default function BookingPage() {
               {selectedServices.map((svc) => (
                 <div key={svc.id} className="flex justify-between items-center py-0.5">
                   <span className="text-sm text-stone-800">{svc.name}</span>
-                  <span className="text-xs text-stone-500">{formatPrice(svc.price)}</span>
+                  <span className="text-xs text-stone-500">{formatCLP(svc.price)}</span>
                 </div>
               ))}
               {selectedServices.length > 1 && (
                 <div className="flex justify-between items-center pt-1 mt-1 border-t border-[#c87941]/10">
                   <span className="text-xs font-medium text-stone-600">Total · {totalDuration} min</span>
-                  <span className="text-sm font-bold text-[#c87941]">{formatPrice(totalPrice)}</span>
+                  <span className="text-sm font-bold text-[#c87941]">{formatCLP(totalPrice)}</span>
                 </div>
               )}
             </div>
@@ -535,7 +532,7 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between border-t border-[#e8e2dc] pt-2.5">
                   <span className="text-stone-500">Total</span>
-                  <span className="text-lg font-bold text-[#c87941]">{formatPrice(totalPrice)}</span>
+                  <span className="text-lg font-bold text-[#c87941]">{formatCLP(totalPrice)}</span>
                 </div>
               </div>
             </div>

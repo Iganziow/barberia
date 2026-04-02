@@ -8,6 +8,9 @@ import type { CalendarEvent } from "@/features/barber/BarberCalendar";
 
 const BarberCalendar = dynamic(() => import("@/features/barber/BarberCalendar"), { ssr: false });
 
+import { formatCLP, formatTime } from "@/lib/format";
+import { STATUS_CONFIG } from "@/lib/constants";
+
 /* ── Types ── */
 type Stats = {
   totalToday: number;
@@ -19,22 +22,11 @@ type Stats = {
 type BarberInfo = { id: string; name: string; color: string | null };
 
 /* ── Helpers ── */
-function formatCLP(n: number) {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
-}
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
-}
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" });
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; text: string }> = {
-  RESERVED: { label: "Pendiente", color: "#3B82F6", bg: "bg-blue-50", text: "text-blue-700" },
-  DONE:     { label: "Completado", color: "#10B981", bg: "bg-emerald-50", text: "text-emerald-700" },
-  NO_SHOW:  { label: "No asistió", color: "#EF4444", bg: "bg-red-50", text: "text-red-600" },
-  CANCELED: { label: "Cancelado", color: "#9CA3AF", bg: "bg-stone-100", text: "text-stone-500" },
-};
+/* STATUS_CONFIG imported from @/lib/constants */
 
 export default function BarberPage() {
   const [barber, setBarber] = useState<BarberInfo | null>(null);

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PageTip from "@/components/ui/PageTip";
 import InfoTip from "@/components/ui/InfoTip";
+import { formatCLP } from "@/lib/format";
 
 type Barber = {
   id: string;
@@ -14,10 +15,6 @@ type Barber = {
 };
 type ServiceOption = { id: string; name: string; durationMin: number; price: number; active: boolean };
 type BarberServiceAssign = { serviceId: string; customPrice: number | null; customDuration: number | null };
-
-function formatPrice(p: number) {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(p);
-}
 
 export default function BarbersPage() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
@@ -171,7 +168,7 @@ export default function BarbersPage() {
                     <p className="text-[11px] text-stone-400">
                       {b.commissionType === "PERCENTAGE"
                         ? `${b.commissionValue}% por servicio`
-                        : `${formatPrice(b.commissionValue)} fijo/cita`}
+                        : `${formatCLP(b.commissionValue)} fijo/cita`}
                     </p>
                   </div>
                 </button>
@@ -247,7 +244,7 @@ export default function BarbersPage() {
                                     />
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-stone-800">{svc.name}</p>
-                                      <p className="text-xs text-stone-400">{svc.durationMin} min — {formatPrice(svc.price)}</p>
+                                      <p className="text-xs text-stone-400">{svc.durationMin} min — {formatCLP(svc.price)}</p>
                                     </div>
                                   </label>
 
@@ -338,8 +335,8 @@ export default function BarbersPage() {
                           />
                           <p className="text-xs text-stone-400 mt-1">
                             {commissionType === "PERCENTAGE"
-                              ? `Por cada cita de ${formatPrice(10000)}, el barbero recibirá ${formatPrice(10000 * Number(commissionValue || 0) / 100)}`
-                              : `El barbero recibe ${formatPrice(Number(commissionValue || 0))} fijo por cada cita completada`}
+                              ? `Por cada cita de ${formatCLP(10000)}, el barbero recibirá ${formatCLP(10000 * Number(commissionValue || 0) / 100)}`
+                              : `El barbero recibe ${formatCLP(Number(commissionValue || 0))} fijo por cada cita completada`}
                           </p>
                         </div>
                       </div>

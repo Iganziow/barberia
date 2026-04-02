@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { formatCLP, formatTime } from "@/lib/format";
+import { STATUS_CONFIG } from "@/lib/constants";
 
 type ClientDetail = {
   id: string;
@@ -29,33 +31,12 @@ type ClientDetail = {
   }>;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  RESERVED: "Reservado",
-  CONFIRMED: "Confirmado",
-  ARRIVED: "Llegó",
-  IN_PROGRESS: "En Progreso",
-  DONE: "Realizado",
-  CANCELED: "Cancelado",
-  NO_SHOW: "No asistió",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  RESERVED: "bg-blue-100 text-blue-700",
-  CONFIRMED: "bg-sky-100 text-sky-700",
-  ARRIVED: "bg-amber-100 text-amber-700",
-  IN_PROGRESS: "bg-violet-100 text-violet-700",
-  DONE: "bg-green-100 text-green-700",
-  CANCELED: "bg-red-100 text-red-700",
-  NO_SHOW: "bg-gray-100 text-gray-700",
-};
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(price);
-}
+const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label])
+);
+const STATUS_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, `${v.bg} ${v.text}`])
+);
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-CL", {
@@ -63,13 +44,6 @@ function formatDate(iso: string) {
     day: "numeric",
     month: "short",
     year: "numeric",
-  });
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-CL", {
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -146,7 +120,7 @@ export default function ClientDetailPage() {
             Total gastado
           </p>
           <p className="mt-1 text-2xl font-bold text-gray-900">
-            {formatPrice(client.stats.totalSpent)}
+            {formatCLP(client.stats.totalSpent)}
           </p>
         </div>
         <div className="rounded-2xl border bg-white p-5">
@@ -227,7 +201,7 @@ export default function ClientDetailPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-sm text-gray-700 text-right">
-                    {formatPrice(apt.price)}
+                    {formatCLP(apt.price)}
                     {apt.payment && (
                       <div className="text-xs text-green-600">Pagado</div>
                     )}

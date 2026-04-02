@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import Link from "next/link";
+import { formatCLP } from "@/lib/format";
 
 type BookingDetail = {
   id: string;
@@ -15,14 +16,6 @@ type BookingDetail = {
   serviceDuration: number;
   clientName: string;
 };
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(price);
-}
 
 export default function ConfirmationPage() {
   return (
@@ -104,7 +97,7 @@ function ConfirmationContent() {
                   <p className="font-bold text-lg text-stone-900">{booking.serviceName}</p>
                   <p className="text-sm text-stone-500">{booking.serviceDuration} min con {booking.barberName}</p>
                 </div>
-                <p className="font-bold text-[#c87941]">{formatPrice(booking.price)}</p>
+                <p className="font-bold text-[#c87941]">{formatCLP(booking.price)}</p>
               </div>
               <div className="border-t border-[#e8e2dc] pt-4">
                 <div className="flex items-center gap-3">

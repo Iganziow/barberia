@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { formatCLP } from "@/lib/format";
 
 type WorkingHour = { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string };
 type Branch = { name: string; address: string; phone: string | null; workingHours: WorkingHour[] };
@@ -10,10 +11,6 @@ type BarberService = { id: string; name: string; description: string | null; dur
 type Barber = { id: string; name: string; color: string | null; workDays: number[]; services: BarberService[] };
 
 const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-
-function formatPrice(p: number) {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(p);
-}
 
 export default function OrgLandingPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -256,7 +253,7 @@ export default function OrgLandingPage() {
                               <p className="text-xs text-stone-400 mt-1">{svc.durationMin} min</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-sm font-bold text-stone-800">{formatPrice(svc.price)}</span>
+                              <span className="text-sm font-bold text-stone-800">{formatCLP(svc.price)}</span>
                               <Link
                                 href={bookUrl}
                                 className="rounded-full bg-[#c87941] px-3.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#b56a35] transition"

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Modal from "@/components/ui/modal";
+import { formatCLP } from "@/lib/format";
+import { STATUS_CONFIG } from "@/lib/constants";
 
 type AppointmentDetail = {
   id: string;
@@ -32,25 +34,13 @@ type AppointmentDetail = {
   createdAt: string;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  RESERVED: "Reservado",
-  CONFIRMED: "Confirmado",
-  ARRIVED: "Llegó",
-  IN_PROGRESS: "En Progreso",
-  DONE: "Realizado",
-  CANCELED: "Cancelado",
-  NO_SHOW: "No asistió",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  RESERVED: "bg-blue-100 text-blue-800",
-  CONFIRMED: "bg-sky-100 text-sky-800",
-  ARRIVED: "bg-amber-100 text-amber-800",
-  IN_PROGRESS: "bg-violet-100 text-violet-800",
-  DONE: "bg-green-100 text-green-800",
-  CANCELED: "bg-red-100 text-red-800",
-  NO_SHOW: "bg-gray-100 text-gray-800",
-};
+// Derive label/color maps from shared config
+const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label])
+);
+const STATUS_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, `${v.bg} ${v.text}`])
+);
 
 // Workflow: which statuses can transition to which
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -73,14 +63,6 @@ function formatDateTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(price);
 }
 
 export default function AppointmentDetailModal({
@@ -237,7 +219,7 @@ export default function AppointmentDetailModal({
                   Precio
                 </p>
                 <p className="font-semibold text-lg">
-                  {formatPrice(apt.price)}
+                  {formatCLP(apt.price)}
                 </p>
               </div>
             </div>
@@ -309,7 +291,7 @@ export default function AppointmentDetailModal({
                 </button>
               </div>
               <div className="flex justify-between text-sm">
-                <span>{formatPrice(apt.payment.amount)}</span>
+                <span>{formatCLP(apt.payment.amount)}</span>
                 <span className="text-green-700 font-medium">
                   {({ CASH: "Efectivo", DEBIT_CARD: "Débito", CREDIT_CARD: "Crédito", TRANSFER: "Transferencia", OTHER: "Otro" } as Record<string, string>)[apt.payment.method] || apt.payment.method}
                 </span>

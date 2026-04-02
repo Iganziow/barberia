@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useQuickStats } from "@/hooks/use-quick-stats";
 import TourOverlay from "@/components/ui/Tour";
+import { formatCLP, formatTime } from "@/lib/format";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -95,14 +96,6 @@ const NAV = [
   { href: "/admin/reports", label: "Reportes", Icon: IconChart, tourId: "nav-reportes" },
   { href: "/admin/profile", label: "Mi Perfil", Icon: IconUser, tourId: "nav-perfil" },
 ];
-
-function formatCLP(n: number) {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
-}
 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
