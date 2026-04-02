@@ -14,7 +14,6 @@ export const GET = withBarber(async (_req, { userId }) => {
 
   if (!barber) throw AppError.notFound("Barbero no encontrado");
 
-  // Today's stats
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
@@ -28,12 +27,16 @@ export const GET = withBarber(async (_req, { userId }) => {
     select: { status: true, price: true },
   });
 
-  const totalToday = todayAppointments.length;
-  const doneToday = todayAppointments.filter((a) => a.status === "DONE").length;
-  const revenueToday = todayAppointments
-    .filter((a) => a.status === "DONE")
-    .reduce((sum, a) => sum + a.price, 0);
-  const pendingToday = todayAppointments.filter((a) => a.status === "RESERVED").length;
+  // Single pass to compute all stats
+  const stats = todayAppointments.reduce(
+    (acc, a) => {
+      acc.totalToday++;
+      if (a.status === "DONE") { acc.doneToday++; acc.revenueToday += a.price; }
+      if (a.status === "RESERVED") acc.pendingToday++;
+      return acc;
+    },
+    { totalToday: 0, doneToday: 0, revenueToday: 0, pendingToday: 0 }
+  );
 
   return NextResponse.json({
     barber: {
@@ -44,6 +47,6 @@ export const GET = withBarber(async (_req, { userId }) => {
       color: barber.color,
       branch: barber.branch,
     },
-    stats: { totalToday, doneToday, pendingToday, revenueToday },
+    stats,
   });
 });
