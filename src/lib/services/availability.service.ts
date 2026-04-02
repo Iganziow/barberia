@@ -148,3 +148,174 @@ export async function getBarbersWithAvailability(
 
   return result;
 }
+
+export type HeatmapDay = {
+  date: string;
+  totalSlots: number;
+  availableSlots: number;
+  level: "high" | "medium" | "low" | "full" | "closed";
+  waitlistCount: number;
+};
+
+/**
+ * Get availability heatmap for a branch across multiple days.
+ * Returns slot counts and availability level per day.
+ */
+export async function getAvailabilityHeatmap(
+  branchId: string,
+  serviceId: string,
+  days: number = 14
+): Promise<HeatmapDay[]> {
+  // Get service duration
+  const service = await prisma.service.findUnique({
+    where: { id: serviceId },
+    select: { durationMin: true },
+  });
+  if (!service) return [];
+
+  // Get all active barbers in this branch
+  const barbers = await prisma.barber.findMany({
+    where: { branchId, active: true },
+    select: { id: true },
+  });
+  if (barbers.length === 0) return [];
+
+  const barberIds = barbers.map((b) => b.id);
+
+  // Generate date range
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    dates.push(d.toISOString().split("T")[0]);
+  }
+
+  // Batch fetch: all schedules, working hours, appointments, blocks for the range
+  const rangeStart = new Date(dates[0] + "T00:00:00");
+  const rangeEnd = new Date(dates[dates.length - 1] + "T23:59:59");
+
+  const [barberSchedules, branchHours, appointments, blocks, waitlistCounts] = await Promise.all([
+    prisma.barberSchedule.findMany({
+      where: { barberId: { in: barberIds } },
+    }),
+    prisma.workingHours.findMany({
+      where: { branchId },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        barberId: { in: barberIds },
+        start: { gte: rangeStart, lte: rangeEnd },
+        status: { notIn: ["CANCELED", "NO_SHOW"] },
+      },
+      select: { barberId: true, start: true, end: true },
+    }),
+    prisma.blockTime.findMany({
+      where: {
+        barberId: { in: barberIds },
+        start: { lte: rangeEnd },
+        end: { gte: rangeStart },
+      },
+      select: { barberId: true, start: true, end: true },
+    }),
+    prisma.waitlist.groupBy({
+      by: ["preferredDate"],
+      where: {
+        branchId,
+        serviceId,
+        status: "ACTIVE",
+        preferredDate: { in: dates },
+      },
+      _count: true,
+    }),
+  ]);
+
+  // Index data for fast lookup
+  const scheduleMap = new Map<string, typeof barberSchedules[0]>();
+  for (const s of barberSchedules) {
+    scheduleMap.set(`${s.barberId}_${s.dayOfWeek}`, s);
+  }
+
+  const hoursMap = new Map<number, typeof branchHours[0]>();
+  for (const h of branchHours) {
+    hoursMap.set(h.dayOfWeek, h);
+  }
+
+  const waitlistMap = new Map<string, number>();
+  for (const w of waitlistCounts) {
+    waitlistMap.set(w.preferredDate, w._count);
+  }
+
+  const durationMin = service.durationMin;
+  const slotStep = 30;
+  const nowMs = Date.now();
+
+  // Calculate per day
+  const result: HeatmapDay[] = dates.map((date) => {
+    const dayDate = new Date(date + "T00:00:00");
+    const dayOfWeek = dayDate.getDay();
+    const dayStart = dayDate.getTime();
+    const dayEnd = new Date(date + "T23:59:59").getTime();
+
+    const branchDay = hoursMap.get(dayOfWeek);
+    if (!branchDay || !branchDay.isOpen) {
+      return { date, totalSlots: 0, availableSlots: 0, level: "closed" as const, waitlistCount: waitlistMap.get(date) ?? 0 };
+    }
+
+    let totalSlots = 0;
+    let availableSlots = 0;
+
+    for (const barberId of barberIds) {
+      const sched = scheduleMap.get(`${barberId}_${dayOfWeek}`);
+      if (!sched || !sched.isWorking) continue;
+
+      const workStart = laterTime(sched.startTime, branchDay.openTime);
+      const workEnd = earlierTime(sched.endTime, branchDay.closeTime);
+
+      const [startH, startM] = workStart.split(":").map(Number);
+      const [endH, endM] = workEnd.split(":").map(Number);
+
+      const windowStart = new Date(dayDate);
+      windowStart.setHours(startH, startM, 0, 0);
+      const windowEnd = new Date(dayDate);
+      windowEnd.setHours(endH, endM, 0, 0);
+
+      // Get busy intervals for this barber on this day
+      const busy = [
+        ...appointments
+          .filter((a) => a.barberId === barberId && a.start.getTime() >= dayStart && a.start.getTime() <= dayEnd)
+          .map((a) => ({ start: a.start.getTime(), end: a.end.getTime() })),
+        ...blocks
+          .filter((b) => b.barberId === barberId && b.start.getTime() <= dayEnd && b.end.getTime() >= dayStart)
+          .map((b) => ({ start: b.start.getTime(), end: b.end.getTime() })),
+      ];
+
+      let cursor = windowStart.getTime();
+      while (cursor + durationMin * 60_000 <= windowEnd.getTime()) {
+        const slotStart = cursor;
+        const slotEnd = cursor + durationMin * 60_000;
+
+        // Skip past slots for today
+        if (slotStart > nowMs || date !== dates[0]) {
+          totalSlots++;
+          const conflicts = busy.some((b) => slotStart < b.end && b.start < slotEnd);
+          if (!conflicts) availableSlots++;
+        }
+
+        cursor += slotStep * 60_000;
+      }
+    }
+
+    const ratio = totalSlots > 0 ? availableSlots / totalSlots : 0;
+    const level: HeatmapDay["level"] =
+      totalSlots === 0 ? "closed"
+        : availableSlots === 0 ? "full"
+          : ratio > 0.6 ? "high"
+            : ratio > 0.3 ? "medium"
+              : "low";
+
+    return { date, totalSlots, availableSlots, level, waitlistCount: waitlistMap.get(date) ?? 0 };
+  });
+
+  return result;
+}

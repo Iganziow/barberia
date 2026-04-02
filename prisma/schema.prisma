@@ -113,6 +113,7 @@ model Branch {
   appointments   Appointment[]
   workingHours   WorkingHours[]
   stockMovements StockMovement[]
+  waitlists      Waitlist[]
 }
 
 // ─── WorkingHours ───────────────────────────────────────
@@ -187,6 +188,7 @@ model Barber {
   blockTimes      BlockTime[]
   barberSchedules BarberSchedule[]
   services        BarberService[]
+  waitlists       Waitlist[]
 }
 
 // ─── BarberSchedule ─────────────────────────────────────
@@ -235,6 +237,7 @@ model Service {
   org          Organization     @relation(fields: [orgId], references: [id])
   appointments Appointment[]
   barbers      BarberService[]
+  waitlists    Waitlist[]
 }
 
 // ─── BarberService ──────────────────────────────────────
@@ -403,4 +406,33 @@ model LoyaltyTransaction {
   createdAt DateTime               @default(now())
 
   client Client @relation(fields: [clientId], references: [id])
+}
+
+// ─── Waitlist ──────────────────────────────────────────
+
+enum WaitlistStatus {
+  ACTIVE
+  NOTIFIED
+  BOOKED
+  EXPIRED
+}
+
+model Waitlist {
+  id            String         @id @default(cuid())
+  clientName    String
+  clientPhone   String
+  serviceId     String
+  barberId      String?
+  preferredDate String         // YYYY-MM-DD
+  branchId      String
+  status        WaitlistStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id])
+  barber  Barber? @relation(fields: [barberId], references: [id])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+
+  @@index([status, preferredDate])
+  @@index([branchId, status])
 }

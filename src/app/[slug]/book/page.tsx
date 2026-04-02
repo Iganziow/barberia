@@ -8,6 +8,7 @@ type Service = { id: string; name: string; durationMin: number; price: number; c
 type BarberAvail = { id: string; name: string; color: string | null; availableSlots: number };
 type Slot = { start: string; end: string };
 type Step = "service" | "barber" | "datetime" | "confirm";
+type HeatmapDay = { date: string; totalSlots: number; availableSlots: number; level: string; waitlistCount: number };
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(price);
@@ -62,6 +63,10 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+  const [waitlistPosition, setWaitlistPosition] = useState<number | null>(null);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/book/services?slug=${slug}`)
@@ -96,7 +101,41 @@ export default function BookingPage() {
     setSelectedBarber(null);
     setSelectedSlot(null);
     setSelectedDate("");
+    setWaitlistSubmitted(false);
+    setWaitlistPosition(null);
     setStep("barber");
+    // Load heatmap for date picker
+    if (branchId && selectedServices[0]) {
+      fetch(`/api/book/heatmap?branchId=${branchId}&serviceId=${selectedServices[0].id}&days=14&slug=${slug}`)
+        .then((r) => r.ok ? r.json() : { heatmap: [] })
+        .then((d) => setHeatmap(d.heatmap || []))
+        .catch(() => {});
+    }
+  }
+
+  async function handleJoinWaitlist() {
+    if (!primaryService || !selectedDate || !branchId || !clientName.trim() || !clientPhone.trim()) return;
+    setWaitlistLoading(true);
+    try {
+      const res = await fetch(`/api/book/waitlist?slug=${slug}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: clientName.trim(),
+          clientPhone: clientPhone.trim(),
+          serviceId: primaryService.id,
+          barberId: selectedBarber?.id || "",
+          preferredDate: selectedDate,
+          branchId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWaitlistSubmitted(true);
+        setWaitlistPosition(data.position);
+      }
+    } catch { /* ignore */ }
+    finally { setWaitlistLoading(false); }
   }
 
   function loadBarbers(serviceId: string, date: string, branch: string) {
@@ -295,6 +334,13 @@ export default function BookingPage() {
                   const dayName = d.toLocaleDateString("es-CL", { weekday: "short" });
                   const dayNum = d.getDate();
                   const isToday = date === new Date().toISOString().split("T")[0];
+                  const hm = heatmap.find((h) => h.date === date);
+                  const dotColor =
+                    !hm || hm.level === "closed" ? "bg-stone-300"
+                    : hm.level === "full" ? "bg-red-400"
+                    : hm.level === "low" ? "bg-amber-400"
+                    : hm.level === "medium" ? "bg-yellow-400"
+                    : "bg-emerald-400";
 
                   return (
                     <button
@@ -303,13 +349,25 @@ export default function BookingPage() {
                       className={`flex-shrink-0 w-14 rounded-xl border p-2 text-center transition ${
                         isSelected
                           ? "border-[#c87941] bg-[#c87941] text-white"
-                          : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
+                          : hm?.level === "closed"
+                            ? "border-[#e8e2dc] bg-stone-50 opacity-50"
+                            : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
                       }`}
+                      disabled={hm?.level === "closed"}
                     >
                       <p className={`text-[10px] uppercase ${isSelected ? "text-white/70" : "text-stone-400"}`}>
                         {isToday ? "Hoy" : dayName}
                       </p>
                       <p className="text-lg font-bold leading-tight">{dayNum}</p>
+                      {/* Heatmap dot */}
+                      <div className="flex justify-center mt-1">
+                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white/60" : dotColor}`} />
+                      </div>
+                      {hm && hm.level !== "closed" && (
+                        <p className={`text-[8px] mt-0.5 ${isSelected ? "text-white/60" : "text-stone-400"}`}>
+                          {hm.availableSlots > 0 ? hm.availableSlots : "Lleno"}
+                        </p>
+                      )}
                     </button>
                   );
                 })}
@@ -382,7 +440,50 @@ export default function BookingPage() {
             {loading ? (
               <p className="text-stone-400 text-sm py-4 text-center">Cargando horarios...</p>
             ) : slots.length === 0 ? (
-              <p className="text-stone-500 text-sm py-4 text-center">No hay horarios disponibles</p>
+              <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 text-center">
+                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-amber-50">
+                  <svg width="24" height="24" fill="none" stroke="#F59E0B" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                </div>
+                <p className="text-sm font-bold text-stone-800">Este día está lleno</p>
+                <p className="text-xs text-stone-400 mt-1 mb-4">Todos los horarios están ocupados para esta fecha</p>
+
+                {waitlistSubmitted ? (
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3">
+                    <p className="text-sm font-bold text-emerald-700">Te anotamos en la lista de espera</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">Posición #{waitlistPosition} — Te contactaremos si se libera un horario</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-stone-500">Anótate y te avisamos si se libera un horario:</p>
+                    <input
+                      className="input-field text-sm"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Tu nombre *"
+                    />
+                    <input
+                      className="input-field text-sm"
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Tu teléfono *"
+                    />
+                    <button
+                      onClick={handleJoinWaitlist}
+                      disabled={waitlistLoading || !clientName.trim() || !clientPhone.trim()}
+                      className="w-full rounded-xl bg-[#c87941] py-2.5 text-sm font-bold text-white hover:bg-[#b56a35] transition disabled:opacity-50"
+                    >
+                      {waitlistLoading ? "Anotando..." : "Anotarme en lista de espera"}
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setStep("barber")}
+                  className="mt-3 text-xs text-stone-400 hover:text-[#c87941]"
+                >
+                  Probar otra fecha o profesional
+                </button>
+              </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {slots.map((slot) => (
