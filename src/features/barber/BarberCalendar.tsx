@@ -12,6 +12,13 @@ export type CalendarEvent = {
   end: string;
   kind: "APPOINTMENT" | "BLOCK";
   status?: string;
+  // Extended data for detail panel
+  clientName?: string;
+  clientPhone?: string | null;
+  serviceName?: string;
+  serviceDuration?: number;
+  price?: number;
+  notePublic?: string | null;
 };
 
 interface BarberCalendarProps {
