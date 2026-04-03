@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireBarber } from "@/lib/api-auth";
+import { verifyApiKey } from "@/lib/api-key-auth";
 import { AppError } from "@/lib/api-error";
 import type { JwtPayload } from "@/lib/auth";
 
@@ -55,6 +56,27 @@ export function withBarber(
   handler: (req: Request, ctx: AuthContext, routeParams: RouteParams) => Promise<NextResponse>
 ) {
   return withAuth(requireBarber, handler);
+}
+
+type ApiKeyContext = { orgId: string };
+
+export function withApiKey(
+  handler: (req: Request, ctx: ApiKeyContext, routeParams: RouteParams) => Promise<NextResponse>
+) {
+  return async (req: Request, routeParams: RouteParams) => {
+    try {
+      const auth = await verifyApiKey(req);
+      if (!auth) {
+        return NextResponse.json(
+          { message: "API key inválida o no proporcionada" },
+          { status: 401, headers: { "WWW-Authenticate": "Bearer" } }
+        );
+      }
+      return await handler(req, { orgId: auth.orgId }, routeParams);
+    } catch (err: unknown) {
+      return handleError(req, err);
+    }
+  };
 }
 
 export function withPublic(

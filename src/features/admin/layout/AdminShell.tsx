@@ -86,6 +86,13 @@ function IconClock2({ className }: { className?: string }) {
     </svg>
   );
 }
+function IconPlug({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M15 9l-6 6M9 9l6 6" />
+    </svg>
+  );
+}
 
 const NAV = [
   { href: "/admin", label: "Agenda", Icon: IconCalendar, tourId: "nav-agenda" },
@@ -94,6 +101,7 @@ const NAV = [
   { href: "/admin/services", label: "Servicios", Icon: IconScissors, tourId: "nav-servicios" },
   { href: "/admin/clients", label: "Clientes", Icon: IconUsers, tourId: "nav-clientes" },
   { href: "/admin/reports", label: "Reportes", Icon: IconChart, tourId: "nav-reportes" },
+  { href: "/admin/integrations", label: "Integraciones", Icon: IconPlug, tourId: "nav-integraciones" },
   { href: "/admin/profile", label: "Mi Perfil", Icon: IconUser, tourId: "nav-perfil" },
 ];
 

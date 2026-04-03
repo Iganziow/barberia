@@ -93,6 +93,8 @@ model Organization {
   loyaltyConfig         LoyaltyConfig?
   notificationTemplates NotificationTemplate[]
   users                 User[]
+  apiKeys               ApiKey[]
+  webhooks              IntegrationWebhook[]
 }
 
 // ─── Branch ─────────────────────────────────────────────
@@ -435,4 +437,38 @@ model Waitlist {
 
   @@index([status, preferredDate])
   @@index([branchId, status])
+}
+
+// ─── ApiKey ────────────────────────────────────────────
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String
+  prefix     String
+  orgId      String
+  active     Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@index([prefix])
+  @@index([orgId])
+}
+
+// ─── IntegrationWebhook ────────────────────────────────
+
+model IntegrationWebhook {
+  id        String  @id @default(cuid())
+  url       String
+  event     String
+  active    Boolean @default(true)
+  secret    String
+  orgId     String
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, event])
 }

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { dispatchWebhook } from "@/lib/services/webhook.service";
 import type { CreateAppointmentInput, UpdateStatusInput } from "@/lib/validations/appointment";
 
 export type AppointmentFilters = {
@@ -75,11 +76,35 @@ export async function updateAppointmentStatus(
     if (!apt) return null;
   }
 
-  return prisma.appointment.update({
+  const updated = await prisma.appointment.update({
     where: { id },
     data: {
       status: data.status,
       ...(data.cancelReason ? { cancelReason: data.cancelReason } : {}),
     },
+    include: {
+      branch: { select: { orgId: true } },
+      service: { select: { name: true } },
+      barber: { include: { user: { select: { name: true } } } },
+    },
   });
+
+  // Fire webhook for status changes (fire-and-forget)
+  const webhookOrg = orgId || updated.branch.orgId;
+  if (data.status === "DONE") {
+    dispatchWebhook(webhookOrg, "appointment.completed", {
+      appointmentId: updated.id,
+      status: updated.status,
+      serviceName: updated.service.name,
+      barberName: updated.barber.user.name,
+      price: updated.price,
+    }).catch(() => {});
+  } else if (data.status === "CANCELED") {
+    dispatchWebhook(webhookOrg, "appointment.canceled", {
+      appointmentId: updated.id,
+      status: updated.status,
+    }).catch(() => {});
+  }
+
+  return updated;
 }
