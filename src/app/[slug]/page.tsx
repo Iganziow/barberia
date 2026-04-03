@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { formatCLP } from "@/lib/format";
+import QRBooking from "@/components/ui/QRBooking";
 
 type WorkingHour = { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string };
 type Branch = { name: string; address: string; phone: string | null; workingHours: WorkingHour[] };
@@ -273,8 +274,9 @@ export default function OrgLandingPage() {
           </div>
         )}
 
-        {/* Bottom CTA */}
-        <div className="text-center pt-2 pb-4">
+        {/* QR + Bottom CTA */}
+        <div className="flex flex-col items-center gap-4 pt-2 pb-4">
+          <QRBooking slug={slug} size={160} />
           <Link
             href={bookUrl}
             className="inline-block rounded-full bg-brand px-10 py-3 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/20"
