@@ -182,7 +182,7 @@ export default function ReportsDashboard() {
                 onClick={() => { setLoading(true); setActiveTab(t.value); }}
                 className={`px-4 py-2 text-sm font-medium transition border-b-2 flex items-center gap-1 ${
                   activeTab === t.value
-                    ? "border-[#c87941] text-[#c87941]"
+                    ? "border-brand text-brand"
                     : "border-transparent text-stone-400 hover:text-stone-600"
                 }`}
               >
@@ -199,7 +199,7 @@ export default function ReportsDashboard() {
               onClick={() => { setLoading(true); setPeriod(p.value); }}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 period === p.value
-                  ? "bg-[#c87941] text-white shadow-sm"
+                  ? "bg-brand text-white shadow-sm"
                   : "text-stone-500 hover:bg-stone-50"
               }`}
             >
@@ -274,7 +274,7 @@ export default function ReportsDashboard() {
                         {formatCLP(commissions.reduce((s, c) => s + c.revenue, 0))}
                       </td>
                       <td />
-                      <td className="pt-3 text-right font-bold text-[#c87941] text-base">
+                      <td className="pt-3 text-right font-bold text-brand text-base">
                         {formatCLP(commissions.reduce((s, c) => s + c.commission, 0))}
                       </td>
                     </tr>
@@ -342,7 +342,7 @@ export default function ReportsDashboard() {
                   return (
                     <div key={day.date} className="flex-1 flex flex-col items-center justify-end gap-1 group">
                       <span className="text-[10px] text-stone-500 sm:opacity-0 sm:group-hover:opacity-100 transition">{formatCLP(day.revenue)}</span>
-                      <div className="w-full bg-[#c87941] rounded-t hover:bg-[#b56a35] transition cursor-default" style={{ height: `${height}%` }} title={`${label}: ${formatCLP(day.revenue)}`} />
+                      <div className="w-full bg-brand rounded-t hover:bg-brand-hover transition cursor-default" style={{ height: `${height}%` }} title={`${label}: ${formatCLP(day.revenue)}`} />
                       <span className="text-[10px] text-stone-400 truncate w-full text-center">{label}</span>
                     </div>
                   );

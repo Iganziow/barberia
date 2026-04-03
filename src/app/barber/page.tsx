@@ -179,11 +179,11 @@ export default function BarberPage() {
             </div>
           </div>
           <div className="rounded-xl bg-white border border-[#e8e2dc] px-3 py-2.5 shadow-sm flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-[#c87941]/10 flex items-center justify-center shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-brand/10 flex items-center justify-center shrink-0">
               <svg width="14" height="14" fill="none" stroke="#c87941" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>
             </div>
             <div>
-              <div className="text-lg font-black text-[#c87941] leading-none truncate">{formatCLP(stats.revenueToday)}</div>
+              <div className="text-lg font-black text-brand leading-none truncate">{formatCLP(stats.revenueToday)}</div>
               <div className="text-[10px] text-stone-400 font-medium">Cobrado</div>
             </div>
           </div>
@@ -349,7 +349,7 @@ export default function BarberPage() {
               <p className="text-xs text-stone-400 mb-4">para ver el detalle y gestionar su estado</p>
               <button
                 onClick={() => setBlockModal({ open: true })}
-                className="w-full rounded-lg bg-[#c87941] py-2 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-sm"
+                className="w-full rounded-lg bg-brand py-2 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm"
               >
                 Bloquear horario
               </button>
@@ -438,7 +438,7 @@ export default function BarberPage() {
       {/* ── Mobile FAB: block time ── */}
       <button
         onClick={() => setBlockModal({ open: true })}
-        className="lg:hidden fixed bottom-4 right-4 z-20 flex items-center gap-2 rounded-full bg-[#c87941] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-[#c87941]/25 hover:bg-[#b56a35] transition"
+        className="lg:hidden fixed bottom-4 right-4 z-20 flex items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-bold text-white shadow-lg shadow-brand/25 hover:bg-brand-hover transition"
       >
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
           <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" />

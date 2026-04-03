@@ -134,7 +134,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-5 py-5">
             <div>
               <div className="text-lg font-extrabold tracking-tight">
-                Mar<span className="text-[#c87941]">Brava</span>
+                Mar<span className="text-brand">Brava</span>
               </div>
               <div className="mt-0.5 text-[11px] text-white/50">Panel de administración</div>
             </div>
@@ -160,11 +160,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all",
                       active
-                        ? "border-l-[3px] border-l-[#c87941] bg-[#c87941]/15 text-[#c87941] ml-0"
+                        ? "border-l-[3px] border-l-brand bg-brand/15 text-brand ml-0"
                         : "text-white/60 hover:bg-white/5 hover:text-white/90 border-l-[3px] border-l-transparent"
                     )}
                   >
-                    <item.Icon className={cn("shrink-0", active ? "text-[#c87941]" : "text-white/40")} />
+                    <item.Icon className={cn("shrink-0", active ? "text-brand" : "text-white/40")} />
                     {item.label}
                   </Link>
                 );
@@ -196,14 +196,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
                 </button>
                 <div className="lg:hidden text-base font-extrabold tracking-tight text-stone-800">
-                  Mar<span className="text-[#c87941]">Brava</span>
+                  Mar<span className="text-brand">Brava</span>
                 </div>
               </div>
 
               {/* Center: Quick stats (desktop only) */}
               <div className="hidden lg:flex items-center gap-6">
                 <div className="flex items-center gap-2">
-                  <IconCalendar className="h-4 w-4 text-[#c87941]" />
+                  <IconCalendar className="h-4 w-4 text-brand" />
                   <div>
                     <div className="text-[10px] text-stone-400 leading-none">Citas hoy</div>
                     <div className="text-sm font-semibold text-stone-800">{stats?.appointmentCount ?? "—"}</div>
@@ -211,7 +211,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 </div>
                 <div className="h-6 w-px bg-[#e8e2dc]" />
                 <div className="flex items-center gap-2">
-                  <IconClock className="h-4 w-4 text-[#c87941]" />
+                  <IconClock className="h-4 w-4 text-brand" />
                   <div>
                     <div className="text-[10px] text-stone-400 leading-none">Próxima</div>
                     <div className="text-sm font-semibold text-stone-800">
@@ -221,7 +221,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 </div>
                 <div className="h-6 w-px bg-[#e8e2dc]" />
                 <div className="flex items-center gap-2">
-                  <IconDollar className="h-4 w-4 text-[#c87941]" />
+                  <IconDollar className="h-4 w-4 text-brand" />
                   <div>
                     <div className="text-[10px] text-stone-400 leading-none">Ingreso hoy</div>
                     <div className="text-sm font-semibold text-stone-800">
@@ -234,7 +234,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               {/* Right: User */}
               <div className="flex items-center gap-2">
                 <div className="hidden md:flex items-center gap-2.5 rounded-full border border-[#e8e2dc] bg-white px-3 py-1.5">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-[#c87941] text-xs font-bold text-white">
+                  <div className="grid h-8 w-8 place-items-center rounded-full bg-brand text-xs font-bold text-white">
                     {initials}
                   </div>
                   <div className="leading-tight pr-1">
@@ -242,7 +242,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     <div className="text-[10px] font-medium text-stone-400">{user?.role ?? "..."}</div>
                   </div>
                 </div>
-                <div className="md:hidden grid h-8 w-8 place-items-center rounded-full bg-[#c87941] text-xs font-bold text-white">
+                <div className="md:hidden grid h-8 w-8 place-items-center rounded-full bg-brand text-xs font-bold text-white">
                   {initials}
                 </div>
               </div>
@@ -266,10 +266,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   className={cn(
                     "flex flex-col items-center gap-0.5 px-1.5 py-1 text-[9px] font-medium transition min-w-0",
-                    active ? "text-[#c87941]" : "text-stone-400"
+                    active ? "text-brand" : "text-stone-400"
                   )}
                 >
-                  <item.Icon className={cn("h-5 w-5 shrink-0", active ? "text-[#c87941]" : "text-stone-300")} />
+                  <item.Icon className={cn("h-5 w-5 shrink-0", active ? "text-brand" : "text-stone-300")} />
                   <span className="truncate max-w-[48px]">{item.label}</span>
                 </Link>
               );

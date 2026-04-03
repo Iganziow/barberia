@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-auth";
+import { withAdmin } from "@/lib/api-handler";
+import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import {
   getAppointments,
@@ -8,93 +9,75 @@ import {
 import { CreateAppointmentSchema } from "@/lib/validations/appointment";
 import { parseDate } from "@/lib/sanitize";
 
-export async function GET(req: Request) {
-  const auth = await requireAdmin();
-  if (!auth.ok) return auth.response;
-  const orgId = auth.payload.orgId;
+export const GET = withAdmin(async (req, { orgId }) => {
+  const { searchParams } = new URL(req.url);
 
-  try {
-    const { searchParams } = new URL(req.url);
+  const fromStr = searchParams.get("from");
+  const toStr = searchParams.get("to");
+  const from = fromStr ? parseDate(fromStr) : undefined;
+  const to = toStr ? parseDate(toStr) : undefined;
 
-    const fromStr = searchParams.get("from");
-    const toStr = searchParams.get("to");
-    const from = fromStr ? parseDate(fromStr) : undefined;
-    const to = toStr ? parseDate(toStr) : undefined;
-
-    if ((fromStr && !from) || (toStr && !to)) {
-      return NextResponse.json({ message: "Formato de fecha inválido" }, { status: 400 });
-    }
-
-    const appointments = await getAppointments({
-      orgId,
-      branchId: searchParams.get("branchId") || undefined,
-      barberId: searchParams.get("barberId") || undefined,
-      from: from ?? undefined,
-      to: to ?? undefined,
-    });
-
-    return NextResponse.json({
-      appointments: appointments.map((a) => ({
-        id: a.id,
-        start: a.start.toISOString(),
-        end: a.end.toISOString(),
-        status: a.status,
-        price: a.price,
-        notePublic: a.notePublic,
-        noteInternal: a.noteInternal,
-        barberId: a.barberId,
-        barberName: a.barber.user.name,
-        serviceId: a.serviceId,
-        serviceName: a.service.name,
-        clientId: a.clientId,
-        clientName: a.client.user.name,
-      })),
-    });
-  } catch (err) {
-    console.error("GET /api/admin/appointments failed:", err);
-    return NextResponse.json({ message: "Error interno" }, { status: 500 });
+  if ((fromStr && !from) || (toStr && !to)) {
+    throw AppError.badRequest("Formato de fecha inválido");
   }
-}
 
-export async function POST(req: Request) {
-  const auth = await requireAdmin();
-  if (!auth.ok) return auth.response;
-  const orgId = auth.payload.orgId;
+  const appointments = await getAppointments({
+    orgId,
+    branchId: searchParams.get("branchId") || undefined,
+    barberId: searchParams.get("barberId") || undefined,
+    from: from ?? undefined,
+    to: to ?? undefined,
+  });
 
-  try {
-    const json = await req.json().catch(() => null);
-    const parsed = CreateAppointmentSchema.safeParse(json);
+  return NextResponse.json({
+    appointments: appointments.map((a) => ({
+      id: a.id,
+      start: a.start.toISOString(),
+      end: a.end.toISOString(),
+      status: a.status,
+      price: a.price,
+      notePublic: a.notePublic,
+      noteInternal: a.noteInternal,
+      barberId: a.barberId,
+      barberName: a.barber.user.name,
+      serviceId: a.serviceId,
+      serviceName: a.service.name,
+      clientId: a.clientId,
+      clientName: a.client.user.name,
+    })),
+  });
+});
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { message: "Datos inválidos.", errors: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
+export const POST = withAdmin(async (req, { orgId }) => {
+  const json = await req.json().catch(() => null);
+  const parsed = CreateAppointmentSchema.safeParse(json);
 
-    // Verify branch belongs to org
-    const branch = await prisma.branch.findFirst({
-      where: { id: parsed.data.branchId, orgId },
-      select: { id: true },
-    });
-    if (!branch) {
-      return NextResponse.json({ message: "Sucursal no encontrada" }, { status: 404 });
-    }
-
-    // Verify barber belongs to org
-    const barber = await prisma.barber.findFirst({
-      where: { id: parsed.data.barberId, branch: { orgId } },
-      select: { id: true },
-    });
-    if (!barber) {
-      return NextResponse.json({ message: "Barbero no encontrado" }, { status: 404 });
-    }
-
-    const appointment = await createAppointment(parsed.data);
-
-    return NextResponse.json({ appointment }, { status: 201 });
-  } catch (err) {
-    console.error("POST /api/admin/appointments failed:", err);
-    return NextResponse.json({ message: "Error interno" }, { status: 500 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { message: "Datos inválidos.", errors: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
-}
+
+  // Verify branch belongs to org
+  const branch = await prisma.branch.findFirst({
+    where: { id: parsed.data.branchId, orgId },
+    select: { id: true },
+  });
+  if (!branch) {
+    throw AppError.notFound("Sucursal no encontrada");
+  }
+
+  // Verify barber belongs to org
+  const barber = await prisma.barber.findFirst({
+    where: { id: parsed.data.barberId, branch: { orgId } },
+    select: { id: true },
+  });
+  if (!barber) {
+    throw AppError.notFound("Barbero no encontrado");
+  }
+
+  const appointment = await createAppointment(parsed.data);
+
+  return NextResponse.json({ appointment }, { status: 201 });
+});

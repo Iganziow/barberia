@@ -52,7 +52,7 @@ export default function ClientsPage() {
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
         </svg>
         <input
-          className="w-full rounded-lg border border-[#e8e2dc] bg-white pl-9 pr-4 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-[#c87941] focus:outline-none focus:ring-2 focus:ring-[#c87941]/15 sm:max-w-md"
+          className="w-full rounded-lg border border-[#e8e2dc] bg-white pl-9 pr-4 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 sm:max-w-md"
           placeholder="Buscar por nombre, teléfono o email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -84,7 +84,7 @@ export default function ClientsPage() {
             <Link
               key={c.id}
               href={`/admin/clients/${c.id}`}
-              className="block rounded-xl border border-[#e8e2dc] bg-white p-4 hover:border-[#c87941]/40 transition shadow-sm"
+              className="block rounded-xl border border-[#e8e2dc] bg-white p-4 hover:border-brand/40 transition shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
@@ -95,7 +95,7 @@ export default function ClientsPage() {
                   )}
                 </div>
                 <div className="ml-3 text-right shrink-0">
-                  <span className="inline-flex items-center rounded-full bg-[#c87941]/10 px-2.5 py-0.5 text-xs font-semibold text-[#c87941]">
+                  <span className="inline-flex items-center rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
                     {c.appointmentCount} cita{c.appointmentCount !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -119,9 +119,9 @@ export default function ClientsPage() {
             </thead>
             <tbody>
               {clients.map((c) => (
-                <tr key={c.id} className="border-b border-[#e8e2dc] last:border-0 hover:bg-[#c87941]/5 transition">
+                <tr key={c.id} className="border-b border-[#e8e2dc] last:border-0 hover:bg-brand/5 transition">
                   <td className="px-5 py-3">
-                    <Link href={`/admin/clients/${c.id}`} className="font-medium text-stone-900 hover:text-[#c87941]">
+                    <Link href={`/admin/clients/${c.id}`} className="font-medium text-stone-900 hover:text-brand">
                       {c.name}
                     </Link>
                   </td>

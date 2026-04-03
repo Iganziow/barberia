@@ -26,12 +26,12 @@ export default function ProfilePage() {
 
       <div className="rounded-xl border border-[#e8e2dc] bg-white p-6 shadow-sm">
         <div className="flex items-center gap-4 mb-6">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-[#c87941] text-xl font-bold text-white">
+          <div className="grid h-16 w-16 place-items-center rounded-full bg-brand text-xl font-bold text-white">
             {initials}
           </div>
           <div>
             <h2 className="text-lg font-semibold text-stone-900">{user.name}</h2>
-            <span className="inline-flex rounded-full bg-[#c87941]/10 px-2.5 py-0.5 text-xs font-semibold text-[#c87941]">
+            <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
               {user.role}
             </span>
           </div>
@@ -60,7 +60,7 @@ export default function ProfilePage() {
             restart();
             window.location.href = "/admin";
           }}
-          className="rounded-lg border border-[#c87941]/20 bg-[#c87941]/5 px-4 py-2.5 text-sm font-medium text-[#c87941] hover:bg-[#c87941]/10 transition"
+          className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-2.5 text-sm font-medium text-brand hover:bg-brand/10 transition"
         >
           Repetir tour de bienvenida
         </button>

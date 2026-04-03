@@ -1,32 +1,26 @@
 import { NextResponse } from "next/server";
+import { withPublic } from "@/lib/api-handler";
+import { AppError } from "@/lib/api-error";
 import { getWaitlistByPhone } from "@/lib/services/waitlist.service";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ phone: string }> }
-) {
-  try {
-    const { phone } = await params;
+export const GET = withPublic(async (_req, { params }) => {
+  const { phone } = await params;
 
-    if (!phone || phone.length < 8) {
-      return NextResponse.json({ message: "Teléfono inválido" }, { status: 400 });
-    }
-
-    const entries = await getWaitlistByPhone(phone);
-
-    return NextResponse.json({
-      entries: entries.map((e) => ({
-        id: e.id,
-        serviceName: e.service.name,
-        barberName: e.barber?.user.name ?? "Cualquier barbero",
-        branchName: e.branch.name,
-        preferredDate: e.preferredDate,
-        status: e.status,
-        createdAt: e.createdAt.toISOString(),
-      })),
-    });
-  } catch (err) {
-    console.error("GET /api/book/waitlist/[phone] failed:", err);
-    return NextResponse.json({ message: "Error interno" }, { status: 500 });
+  if (!phone || phone.length < 8) {
+    throw AppError.badRequest("Teléfono inválido");
   }
-}
+
+  const entries = await getWaitlistByPhone(phone);
+
+  return NextResponse.json({
+    entries: entries.map((e) => ({
+      id: e.id,
+      serviceName: e.service.name,
+      barberName: e.barber?.user.name ?? "Cualquier barbero",
+      branchName: e.branch.name,
+      preferredDate: e.preferredDate,
+      status: e.status,
+      createdAt: e.createdAt.toISOString(),
+    })),
+  });
+});

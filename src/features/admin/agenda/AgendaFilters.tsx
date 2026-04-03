@@ -22,7 +22,7 @@ export default function AgendaFilters({
   onChangeStatus: (v: "ACTIVE" | "ALL") => void;
 }) {
   const selectClass =
-    "h-9 rounded-lg border border-[#e8e2dc] bg-white px-3 text-sm text-stone-700 focus:border-[#c87941] focus:outline-none focus:ring-2 focus:ring-[#c87941]/15";
+    "h-9 rounded-lg border border-[#e8e2dc] bg-white px-3 text-sm text-stone-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15";
 
   return (
     <div className="flex items-center gap-2 flex-wrap" data-tour-id="agenda-filters">

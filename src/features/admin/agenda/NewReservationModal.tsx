@@ -324,12 +324,12 @@ export default function NewReservationModal({
         <div>
           <label className="field-label">Cliente</label>
           {selectedClient ? (
-            <div className="flex items-center justify-between rounded-lg border border-[#c87941]/20 bg-[#c87941]/5 px-3 py-2">
+            <div className="flex items-center justify-between rounded-lg border border-brand/20 bg-brand/5 px-3 py-2">
               <div className="text-sm">
                 <span className="font-medium text-stone-900">{selectedClient.name}</span>
-                {selectedClient.phone && <span className="ml-2 text-[#c87941]">{selectedClient.phone}</span>}
+                {selectedClient.phone && <span className="ml-2 text-brand">{selectedClient.phone}</span>}
               </div>
-              <button type="button" className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium" onClick={clearClient}>Cambiar</button>
+              <button type="button" className="text-xs text-brand hover:text-brand-hover font-medium" onClick={clearClient}>Cambiar</button>
             </div>
           ) : (
             <div className="relative">
@@ -338,7 +338,7 @@ export default function NewReservationModal({
               {showResults && clientResults.length > 0 && (
                 <div className="absolute z-20 mt-1 w-full rounded-lg border border-[#e8e2dc] bg-white shadow-lg max-h-48 overflow-y-auto">
                   {clientResults.map((c) => (
-                    <button key={c.id} type="button" className="w-full text-left px-3 py-2 hover:bg-[#c87941]/5 flex items-center justify-between text-sm" onClick={() => selectClient(c)}>
+                    <button key={c.id} type="button" className="w-full text-left px-3 py-2 hover:bg-brand/5 flex items-center justify-between text-sm" onClick={() => selectClient(c)}>
                       <span className="font-medium">{c.name}</span>
                       <span className="text-stone-400">{c.phone || c.email || ""}</span>
                     </button>
@@ -348,16 +348,16 @@ export default function NewReservationModal({
               {showResults && clientResults.length === 0 && clientQuery.length >= 2 && !searching && (
                 <div className="absolute z-20 mt-1 w-full rounded-lg border border-[#e8e2dc] bg-white shadow-lg p-3">
                   <p className="text-sm text-stone-400 mb-2">Sin resultados para &quot;{clientQuery}&quot;</p>
-                  <button type="button" className="text-sm font-medium text-[#c87941] hover:text-[#b56a35]" onClick={() => { setNewClientName(clientQuery); setShowNewClient(true); setShowResults(false); }}>+ Crear nuevo cliente</button>
+                  <button type="button" className="text-sm font-medium text-brand hover:text-brand-hover" onClick={() => { setNewClientName(clientQuery); setShowNewClient(true); setShowResults(false); }}>+ Crear nuevo cliente</button>
                 </div>
               )}
             </div>
           )}
           {!selectedClient && !showNewClient && (
-            <button type="button" className="mt-1.5 text-xs font-medium text-[#c87941] hover:text-[#b56a35]" onClick={() => { setShowNewClient(true); setShowResults(false); }}>+ Nuevo cliente</button>
+            <button type="button" className="mt-1.5 text-xs font-medium text-brand hover:text-brand-hover" onClick={() => { setShowNewClient(true); setShowResults(false); }}>+ Nuevo cliente</button>
           )}
           {showNewClient && (
-            <div className="mt-2 rounded-lg border border-[#c87941]/20 bg-[#c87941]/5 p-3 space-y-2">
+            <div className="mt-2 rounded-lg border border-brand/20 bg-brand/5 p-3 space-y-2">
               <p className="text-xs font-semibold text-stone-700">Nuevo cliente</p>
               <input className="input-field" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder="Nombre completo *" />
               <input className="input-field" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} placeholder="Teléfono" />

@@ -112,7 +112,7 @@ function TourTooltip({
         <div className="rounded-xl bg-white p-5 shadow-2xl border border-[#e8e2dc]">
           {isCenter && (
             <div className="flex justify-center mb-3">
-              <div className="h-12 w-12 rounded-full bg-[#c87941]/10 flex items-center justify-center text-2xl">
+              <div className="h-12 w-12 rounded-full bg-brand/10 flex items-center justify-center text-2xl">
                 ✂️
               </div>
             </div>
@@ -130,7 +130,7 @@ function TourTooltip({
                 <div
                   key={i}
                   className={`h-1.5 rounded-full transition ${
-                    i === currentStep ? "bg-[#c87941] w-4" : i < currentStep ? "bg-[#c87941]/40 w-1.5" : "bg-stone-200 w-1.5"
+                    i === currentStep ? "bg-brand w-4" : i < currentStep ? "bg-brand/40 w-1.5" : "bg-stone-200 w-1.5"
                   }`}
                 />
               ))}
@@ -141,7 +141,7 @@ function TourTooltip({
               </button>
               <button
                 onClick={onNext}
-                className="rounded-md bg-[#c87941] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#b56a35] transition"
+                className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover transition"
               >
                 {isLast ? "Entendido" : currentStep === 0 ? "Comenzar" : "Siguiente"}
               </button>

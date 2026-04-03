@@ -80,9 +80,9 @@ export default function OrgLandingPage() {
     return (
       <div className="min-h-screen bg-[#faf8f6] flex items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="text-2xl font-extrabold text-stone-900">Mar<span className="text-[#c87941]">Brava</span></div>
-          <div className="h-1 w-24 mx-auto rounded-full bg-[#c87941]/20 overflow-hidden">
-            <div className="h-full w-1/2 rounded-full bg-[#c87941] animate-pulse" />
+          <div className="text-2xl font-extrabold text-stone-900">Mar<span className="text-brand">Brava</span></div>
+          <div className="h-1 w-24 mx-auto rounded-full bg-brand/20 overflow-hidden">
+            <div className="h-full w-1/2 rounded-full bg-brand animate-pulse" />
           </div>
         </div>
       </div>
@@ -95,11 +95,11 @@ export default function OrgLandingPage() {
       <nav className="sticky top-0 z-20 border-b border-[#e8e2dc] bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <h1 className="text-lg font-extrabold tracking-tight text-stone-900">
-            Mar<span className="text-[#c87941]">Brava</span>
+            Mar<span className="text-brand">Brava</span>
           </h1>
           <Link
             href={bookUrl}
-            className="rounded-full bg-[#c87941] px-5 py-1.5 text-xs font-semibold text-white hover:bg-[#b56a35] transition"
+            className="rounded-full bg-brand px-5 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover transition"
           >
             Reservar
           </Link>
@@ -109,10 +109,10 @@ export default function OrgLandingPage() {
       <div className="mx-auto max-w-2xl px-4 py-5 space-y-5">
         {/* Hero */}
         <div className="rounded-2xl bg-[#1a1412] p-6 sm:p-8 text-center overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#c87941]/10 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-brand/10 to-transparent pointer-events-none" />
           <div className="relative">
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Mar<span className="text-[#c87941]">Brava</span>
+              Mar<span className="text-brand">Brava</span>
             </h2>
             <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mt-1.5 font-medium">Barbería</p>
             {branch?.address && (
@@ -120,7 +120,7 @@ export default function OrgLandingPage() {
             )}
             <Link
               href={bookUrl}
-              className="mt-5 inline-block rounded-full bg-[#c87941] px-8 py-2.5 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-lg shadow-[#c87941]/25"
+              className="mt-5 inline-block rounded-full bg-brand px-8 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/25"
             >
               Reservar hora
             </Link>
@@ -132,7 +132,7 @@ export default function OrgLandingPage() {
           {branch?.phone && (
             <a
               href={`https://wa.me/${branch.phone.replace(/\D/g, "")}`}
-              className="flex items-center gap-2.5 rounded-xl border border-[#e8e2dc] bg-white p-3.5 hover:border-[#c87941]/30 transition"
+              className="flex items-center gap-2.5 rounded-xl border border-[#e8e2dc] bg-white p-3.5 hover:border-brand/30 transition"
             >
               <div className="grid h-9 w-9 place-items-center rounded-full bg-green-50 shrink-0">
                 <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.126 1.524 5.867L.05 23.308a.75.75 0 00.892.892l5.441-1.474A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.94 9.94 0 01-5.39-1.582l-.386-.232-3.232.876.876-3.232-.232-.386A9.94 9.94 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" /></svg>
@@ -145,10 +145,10 @@ export default function OrgLandingPage() {
           )}
           <button
             onClick={() => setShowSchedule(!showSchedule)}
-            className="flex items-center gap-2.5 rounded-xl border border-[#e8e2dc] bg-white p-3.5 hover:border-[#c87941]/30 transition text-left"
+            className="flex items-center gap-2.5 rounded-xl border border-[#e8e2dc] bg-white p-3.5 hover:border-brand/30 transition text-left"
           >
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#c87941]/10 shrink-0">
-              <svg className="h-4 w-4 text-[#c87941]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-brand/10 shrink-0">
+              <svg className="h-4 w-4 text-brand" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-stone-800">Horario</p>
@@ -189,8 +189,8 @@ export default function OrgLandingPage() {
                     onClick={() => selectBarberAndOpenFirst(b.id)}
                     className={`flex items-center gap-2.5 shrink-0 rounded-full border py-1.5 pl-1.5 pr-4 transition ${
                       isActive
-                        ? "border-[#c87941] bg-[#c87941]/10"
-                        : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
+                        ? "border-brand bg-brand/10"
+                        : "border-[#e8e2dc] bg-white hover:border-brand/30"
                     }`}
                   >
                     <div
@@ -199,7 +199,7 @@ export default function OrgLandingPage() {
                     >
                       {initials}
                     </div>
-                    <span className={`text-sm font-medium ${isActive ? "text-[#c87941]" : "text-stone-600"}`}>
+                    <span className={`text-sm font-medium ${isActive ? "text-brand" : "text-stone-600"}`}>
                       {b.name.split(" ")[0]}
                     </span>
                   </button>
@@ -256,7 +256,7 @@ export default function OrgLandingPage() {
                               <span className="text-sm font-bold text-stone-800">{formatCLP(svc.price)}</span>
                               <Link
                                 href={bookUrl}
-                                className="rounded-full bg-[#c87941] px-3.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#b56a35] transition"
+                                className="rounded-full bg-brand px-3.5 py-1.5 text-[11px] font-semibold text-white hover:bg-brand-hover transition"
                               >
                                 Reservar
                               </Link>
@@ -277,7 +277,7 @@ export default function OrgLandingPage() {
         <div className="text-center pt-2 pb-4">
           <Link
             href={bookUrl}
-            className="inline-block rounded-full bg-[#c87941] px-10 py-3 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-lg shadow-[#c87941]/20"
+            className="inline-block rounded-full bg-brand px-10 py-3 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/20"
           >
             Reservar hora
           </Link>

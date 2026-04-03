@@ -1,22 +1,10 @@
 import { NextResponse } from "next/server";
 import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
-import { prisma } from "@/lib/prisma";
+import { getUserProfile } from "@/lib/services/barber.service";
 
 export const GET = withAdmin(async (_req, { userId }) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      createdAt: true,
-    },
-  });
-
+  const user = await getUserProfile(userId);
   if (!user) throw AppError.notFound("Usuario no existe");
-
   return NextResponse.json({ user });
 });

@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { withPublic } from "@/lib/api-handler";
+import { AppError } from "@/lib/api-error";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getAvailableSlots } from "@/lib/services/availability.service";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
 import { stripHtml } from "@/lib/sanitize";
+import { rateLimit } from "@/lib/rate-limit";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-().+]/g, "").replace(/^56/, "");
@@ -27,7 +30,12 @@ const BookingSchema = z.object({
   { message: "La hora de inicio debe ser anterior a la hora de fin", path: ["start"] }
 );
 
-export async function POST(req: Request) {
+export const POST = withPublic(async (req) => {
+  // Rate limit: 10 bookings per minute per IP
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = rateLimit(ip, { maxRequests: 10, windowMs: 60_000 });
+  if (!allowed) throw AppError.badRequest("Demasiadas solicitudes. Intenta en un minuto.");
+
   const json = await req.json().catch(() => null);
   const parsed = BookingSchema.safeParse(json);
 
@@ -49,10 +57,7 @@ export async function POST(req: Request) {
     where: { id: data.serviceId, orgId },
   });
   if (!service) {
-    return NextResponse.json(
-      { message: "Servicio no encontrado" },
-      { status: 404 }
-    );
+    throw AppError.notFound("Servicio no encontrado");
   }
 
   // Verify barber belongs to this org and offers this service
@@ -61,16 +66,10 @@ export async function POST(req: Request) {
     include: { services: { where: { serviceId: data.serviceId } } },
   });
   if (!barber) {
-    return NextResponse.json(
-      { message: "Barbero no encontrado" },
-      { status: 404 }
-    );
+    throw AppError.notFound("Barbero no encontrado");
   }
   if (barber.services.length === 0) {
-    return NextResponse.json(
-      { message: "Este barbero no ofrece el servicio seleccionado" },
-      { status: 400 }
-    );
+    throw AppError.badRequest("Este barbero no ofrece el servicio seleccionado");
   }
 
   // Verify branch belongs to org
@@ -78,20 +77,14 @@ export async function POST(req: Request) {
     where: { id: data.branchId, orgId },
   });
   if (!branch) {
-    return NextResponse.json(
-      { message: "Sucursal no encontrada" },
-      { status: 404 }
-    );
+    throw AppError.notFound("Sucursal no encontrada");
   }
 
   // Validate slot duration matches service duration
   const slotDurationMs = new Date(data.end).getTime() - new Date(data.start).getTime();
   const slotDurationMin = Math.round(slotDurationMs / 60_000);
   if (slotDurationMin !== service.durationMin) {
-    return NextResponse.json(
-      { message: "La duración del horario no coincide con el servicio" },
-      { status: 400 }
-    );
+    throw AppError.badRequest("La duración del horario no coincide con el servicio");
   }
 
   const dateStr = data.start.split("T")[0];
@@ -103,10 +96,7 @@ export async function POST(req: Request) {
 
   const slotAvailable = slots.some((s) => s.start === data.start);
   if (!slotAvailable) {
-    return NextResponse.json(
-      { message: "Este horario ya no está disponible. Intenta otro." },
-      { status: 409 }
-    );
+    throw AppError.conflict("Este horario ya no está disponible. Intenta otro.");
   }
 
   // Use transaction with overlap check inside to prevent race condition
@@ -177,10 +167,7 @@ export async function POST(req: Request) {
   });
 
   if (!result) {
-    return NextResponse.json(
-      { message: "Este horario ya no está disponible. Intenta otro." },
-      { status: 409 }
-    );
+    throw AppError.conflict("Este horario ya no está disponible. Intenta otro.");
   }
 
   return NextResponse.json(
@@ -200,4 +187,4 @@ export async function POST(req: Request) {
     },
     { status: 201 }
   );
-}
+});

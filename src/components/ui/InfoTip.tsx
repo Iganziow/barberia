@@ -20,7 +20,7 @@ export default function InfoTip({ text }: { text: string }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-500 hover:bg-[#c87941]/20 hover:text-[#c87941] transition shrink-0"
+        className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-500 hover:bg-brand/20 hover:text-brand transition shrink-0"
         aria-label="Más información"
       >
         i

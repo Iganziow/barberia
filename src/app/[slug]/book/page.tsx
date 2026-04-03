@@ -209,7 +209,7 @@ export default function BookingPage() {
       <header className="bg-[#1a1412] text-white">
         <div className="mx-auto max-w-lg px-4 py-4 flex items-center justify-between">
           <Link href={`/${slug}`} className="text-lg font-extrabold tracking-tight">
-            Mar<span className="text-[#c87941]">Brava</span>
+            Mar<span className="text-brand">Brava</span>
           </Link>
           <span className="text-xs text-white/40">Reservar hora</span>
         </div>
@@ -222,10 +222,10 @@ export default function BookingPage() {
             <div key={s.key} className="flex items-center flex-1">
               <div className="flex-1">
                 <div className={`h-1 rounded-full transition-all ${
-                  i <= stepIndex ? "bg-[#c87941]" : "bg-stone-200"
+                  i <= stepIndex ? "bg-brand" : "bg-stone-200"
                 }`} />
                 <p className={`text-[10px] mt-1 font-medium ${
-                  i === stepIndex ? "text-[#c87941]" : i < stepIndex ? "text-stone-500" : "text-stone-300"
+                  i === stepIndex ? "text-brand" : i < stepIndex ? "text-stone-500" : "text-stone-300"
                 }`}>
                   {s.label}
                 </p>
@@ -256,13 +256,13 @@ export default function BookingPage() {
                   disabled={isDisabled}
                   className={`w-full rounded-xl border p-4 text-left transition ${
                     isSelected
-                      ? "border-[#c87941] bg-[#c87941]/5 ring-1 ring-[#c87941]/20"
-                      : "border-[#e8e2dc] bg-white hover:border-[#c87941]/40"
+                      ? "border-brand bg-brand/5 ring-1 ring-brand/20"
+                      : "border-[#e8e2dc] bg-white hover:border-brand/40"
                   } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${
-                      isSelected ? "border-[#c87941] bg-[#c87941]" : "border-stone-300"
+                      isSelected ? "border-brand bg-brand" : "border-stone-300"
                     }`}>
                       {isSelected && (
                         <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
@@ -272,7 +272,7 @@ export default function BookingPage() {
                       <p className="font-semibold text-stone-800">{svc.name}</p>
                       <p className="text-xs text-stone-400 mt-0.5">{svc.durationMin} min</p>
                     </div>
-                    <p className="font-bold text-[#c87941] text-lg shrink-0">{formatCLP(svc.price)}</p>
+                    <p className="font-bold text-brand text-lg shrink-0">{formatCLP(svc.price)}</p>
                   </div>
                 </button>
               );
@@ -286,11 +286,11 @@ export default function BookingPage() {
                     <p className="text-sm text-stone-600">
                       {selectedServices.length} servicio{selectedServices.length > 1 ? "s" : ""} · {totalDuration} min
                     </p>
-                    <p className="text-lg font-bold text-[#c87941]">{formatCLP(totalPrice)}</p>
+                    <p className="text-lg font-bold text-brand">{formatCLP(totalPrice)}</p>
                   </div>
                   <button
                     onClick={confirmServices}
-                    className="rounded-xl bg-[#c87941] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-lg shadow-[#c87941]/20"
+                    className="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/20"
                   >
                     Continuar
                   </button>
@@ -303,11 +303,11 @@ export default function BookingPage() {
         {/* Step 2: Date + Barber */}
         {step === "barber" && selectedServices.length > 0 && (
           <div className="space-y-4 pt-2">
-            <button onClick={() => setStep("service")} className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium">
+            <button onClick={() => setStep("service")} className="text-xs text-brand hover:text-brand-hover font-medium">
               ← Cambiar servicios
             </button>
 
-            <div className="rounded-xl border border-[#c87941]/20 bg-[#c87941]/5 px-4 py-2.5">
+            <div className="rounded-xl border border-brand/20 bg-brand/5 px-4 py-2.5">
               {selectedServices.map((svc) => (
                 <div key={svc.id} className="flex justify-between items-center py-0.5">
                   <span className="text-sm text-stone-800">{svc.name}</span>
@@ -315,9 +315,9 @@ export default function BookingPage() {
                 </div>
               ))}
               {selectedServices.length > 1 && (
-                <div className="flex justify-between items-center pt-1 mt-1 border-t border-[#c87941]/10">
+                <div className="flex justify-between items-center pt-1 mt-1 border-t border-brand/10">
                   <span className="text-xs font-medium text-stone-600">Total · {totalDuration} min</span>
-                  <span className="text-sm font-bold text-[#c87941]">{formatCLP(totalPrice)}</span>
+                  <span className="text-sm font-bold text-brand">{formatCLP(totalPrice)}</span>
                 </div>
               )}
             </div>
@@ -345,10 +345,10 @@ export default function BookingPage() {
                       onClick={() => handleSelectDate(date)}
                       className={`flex-shrink-0 w-14 rounded-xl border p-2 text-center transition ${
                         isSelected
-                          ? "border-[#c87941] bg-[#c87941] text-white"
+                          ? "border-brand bg-brand text-white"
                           : hm?.level === "closed"
                             ? "border-[#e8e2dc] bg-stone-50 opacity-50"
-                            : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
+                            : "border-[#e8e2dc] bg-white hover:border-brand/30"
                       }`}
                       disabled={hm?.level === "closed"}
                     >
@@ -387,7 +387,7 @@ export default function BookingPage() {
                           key={b.id}
                           onClick={() => handleSelectBarber(b)}
                           disabled={b.availableSlots === 0}
-                          className="w-full rounded-xl border border-[#e8e2dc] bg-white p-3.5 text-left hover:border-[#c87941]/30 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="w-full rounded-xl border border-[#e8e2dc] bg-white p-3.5 text-left hover:border-brand/30 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <div className="flex items-center gap-3">
                             <div
@@ -421,7 +421,7 @@ export default function BookingPage() {
         {/* Step 3: Time slot */}
         {step === "datetime" && primaryService && selectedBarber && selectedDate && (
           <div className="space-y-4 pt-2">
-            <button onClick={() => setStep("barber")} className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium">
+            <button onClick={() => setStep("barber")} className="text-xs text-brand hover:text-brand-hover font-medium">
               ← Cambiar profesional
             </button>
 
@@ -467,7 +467,7 @@ export default function BookingPage() {
                     <button
                       onClick={handleJoinWaitlist}
                       disabled={waitlistLoading || !clientName.trim() || !clientPhone.trim()}
-                      className="w-full rounded-xl bg-[#c87941] py-2.5 text-sm font-bold text-white hover:bg-[#b56a35] transition disabled:opacity-50"
+                      className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white hover:bg-brand-hover transition disabled:opacity-50"
                     >
                       {waitlistLoading ? "Anotando..." : "Anotarme en lista de espera"}
                     </button>
@@ -476,7 +476,7 @@ export default function BookingPage() {
 
                 <button
                   onClick={() => setStep("barber")}
-                  className="mt-3 text-xs text-stone-400 hover:text-[#c87941]"
+                  className="mt-3 text-xs text-stone-400 hover:text-brand"
                 >
                   Probar otra fecha o profesional
                 </button>
@@ -487,7 +487,7 @@ export default function BookingPage() {
                   <button
                     key={slot.start}
                     onClick={() => handleSelectSlot(slot)}
-                    className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-2.5 text-center text-sm font-medium text-stone-700 hover:border-[#c87941] hover:bg-[#c87941]/5 hover:text-[#c87941] transition"
+                    className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-2.5 text-center text-sm font-medium text-stone-700 hover:border-brand hover:bg-brand/5 hover:text-brand transition"
                   >
                     {formatSlotTime(slot.start)}
                   </button>
@@ -500,7 +500,7 @@ export default function BookingPage() {
         {/* Step 4: Confirm */}
         {step === "confirm" && primaryService && selectedBarber && selectedSlot && (
           <div className="space-y-4 pt-2">
-            <button onClick={() => setStep("datetime")} className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium">
+            <button onClick={() => setStep("datetime")} className="text-xs text-brand hover:text-brand-hover font-medium">
               ← Cambiar horario
             </button>
 
@@ -532,7 +532,7 @@ export default function BookingPage() {
                 </div>
                 <div className="flex justify-between border-t border-[#e8e2dc] pt-2.5">
                   <span className="text-stone-500">Total</span>
-                  <span className="text-lg font-bold text-[#c87941]">{formatCLP(totalPrice)}</span>
+                  <span className="text-lg font-bold text-brand">{formatCLP(totalPrice)}</span>
                 </div>
               </div>
             </div>
@@ -561,7 +561,7 @@ export default function BookingPage() {
             <button
               onClick={handleSubmit}
               disabled={submitting || !clientName.trim() || !clientPhone.trim()}
-              className="w-full rounded-xl bg-[#c87941] px-4 py-3 text-sm font-semibold text-white hover:bg-[#b56a35] disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-[#c87941]/20"
+              className="w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-brand/20"
             >
               {submitting ? "Reservando..." : "Confirmar reserva"}
             </button>

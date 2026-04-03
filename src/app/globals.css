@@ -14,6 +14,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: #c87941;
+  --color-brand-hover: #b56a35;
+  --color-brand-light: color-mix(in srgb, #c87941 15%, white);
+  --color-surface: #faf8f6;
+  --color-border: #e8e2dc;
+  --color-sidebar: #1a1412;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

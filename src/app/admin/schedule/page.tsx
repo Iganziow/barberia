@@ -184,7 +184,7 @@ export default function SchedulePage() {
         <button
           onClick={() => setTab("branch")}
           className={`rounded-md px-4 py-1.5 text-sm font-medium transition flex items-center gap-1 ${
-            tab === "branch" ? "bg-[#c87941] text-white shadow-sm" : "text-stone-500 hover:bg-stone-50"
+            tab === "branch" ? "bg-brand text-white shadow-sm" : "text-stone-500 hover:bg-stone-50"
           }`}
         >
           Sucursal
@@ -193,7 +193,7 @@ export default function SchedulePage() {
         <button
           onClick={() => setTab("barbers")}
           className={`rounded-md px-4 py-1.5 text-sm font-medium transition flex items-center gap-1 ${
-            tab === "barbers" ? "bg-[#c87941] text-white shadow-sm" : "text-stone-500 hover:bg-stone-50"
+            tab === "barbers" ? "bg-brand text-white shadow-sm" : "text-stone-500 hover:bg-stone-50"
           }`}
         >
           Barberos
@@ -216,8 +216,8 @@ export default function SchedulePage() {
                   onClick={() => handleSelectBranch(b.id)}
                   className={`w-full text-left rounded-xl border p-3 text-sm font-medium transition ${
                     selectedBranch === b.id
-                      ? "border-[#c87941] bg-[#c87941]/5 text-stone-900"
-                      : "border-[#e8e2dc] bg-white text-stone-600 hover:border-[#c87941]/30"
+                      ? "border-brand bg-brand/5 text-stone-900"
+                      : "border-[#e8e2dc] bg-white text-stone-600 hover:border-brand/30"
                   }`}
                 >
                   {b.name}
@@ -290,7 +290,7 @@ export default function SchedulePage() {
                         type="checkbox"
                         checked={hour.isOpen}
                         onChange={(e) => updateBranchHour(dayOfWeek, "isOpen", e.target.checked)}
-                        className="h-4 w-4 rounded border-stone-300 text-[#c87941] accent-[#c87941]"
+                        className="h-4 w-4 rounded border-stone-300 text-brand accent-brand"
                       />
                     </label>
                   </div>
@@ -313,8 +313,8 @@ export default function SchedulePage() {
                   onClick={() => handleSelectBarber(b.id)}
                   className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition ${
                     selectedBarber === b.id
-                      ? "border-[#c87941] bg-[#c87941]/5"
-                      : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
+                      ? "border-brand bg-brand/5"
+                      : "border-[#e8e2dc] bg-white hover:border-brand/30"
                   }`}
                 >
                   <div
@@ -401,7 +401,7 @@ export default function SchedulePage() {
                             type="checkbox"
                             checked={day.isWorking}
                             onChange={(e) => updateBarberDay(dayOfWeek, "isWorking", e.target.checked)}
-                            className="h-4 w-4 rounded border-stone-300 text-[#c87941] accent-[#c87941]"
+                            className="h-4 w-4 rounded border-stone-300 text-brand accent-brand"
                           />
                         </label>
                       </div>

@@ -293,7 +293,7 @@ export default function ServicesPage() {
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => openEdit(svc)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#c87941] hover:bg-[#c87941]/10 transition"
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/10 transition"
                   >
                     Editar
                   </button>

@@ -48,7 +48,7 @@ export default function BarberShell({
           {/* Brand + greeting */}
           <div>
             <div className="text-base font-extrabold tracking-tight">
-              Mar<span className="text-[#c87941]">Brava</span>
+              Mar<span className="text-brand">Brava</span>
             </div>
             <p className="text-[11px] text-white/40 hidden sm:block">{greeting}, {firstName}</p>
           </div>
@@ -59,7 +59,7 @@ export default function BarberShell({
               onClick={() => setMenuOpen(!menuOpen)}
               className="flex items-center gap-2 rounded-full bg-white/10 pl-1 pr-3 py-1 hover:bg-white/15 transition"
             >
-              <div className="grid h-7 w-7 place-items-center rounded-full bg-[#c87941] text-xs font-bold shrink-0">
+              <div className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-bold shrink-0">
                 {initials || "?"}
               </div>
               <span className="text-xs font-medium text-white/80 hidden sm:block">

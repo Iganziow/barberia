@@ -286,7 +286,7 @@ export default function AppointmentDetailModal({
                 <p className="text-xs font-medium text-green-600 uppercase tracking-wide">
                   Pago registrado
                 </p>
-                <button type="button" className="text-xs text-[#c87941] hover:text-[#b56a35] font-medium" onClick={() => { if (apt.payment) { setPayAmount(apt.payment.amount); setPayMethod(apt.payment.method); } setEditingPayment(true); }}>
+                <button type="button" className="text-xs text-brand hover:text-brand-hover font-medium" onClick={() => { if (apt.payment) { setPayAmount(apt.payment.amount); setPayMethod(apt.payment.method); } setEditingPayment(true); }}>
                   Editar
                 </button>
               </div>
@@ -299,7 +299,7 @@ export default function AppointmentDetailModal({
             </div>
           )}
           {apt.payment && editingPayment && (
-            <div className="rounded-xl border border-[#c87941]/20 bg-[#c87941]/5 p-4 space-y-3">
+            <div className="rounded-xl border border-brand/20 bg-brand/5 p-4 space-y-3">
               <p className="text-xs font-semibold text-stone-700">Editar pago</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -412,7 +412,7 @@ export default function AppointmentDetailModal({
                           ? "border border-red-200 text-red-700 hover:bg-red-50"
                           : s === "DONE"
                             ? "bg-green-600 text-white hover:bg-green-700"
-                            : "bg-[#c87941] text-white hover:bg-[#b56a35]"
+                            : "bg-brand text-white hover:bg-brand-hover"
                       }`}
                     >
                       {STATUS_LABELS[s] || s}

@@ -22,3 +22,17 @@ export async function getBarberById(id: string) {
     },
   });
 }
+
+export async function getUserProfile(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      createdAt: true,
+    },
+  });
+}

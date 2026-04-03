@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withPublic } from "@/lib/api-handler";
 import {
   getPublicBranchInfo,
   getPublicBarbers,
@@ -6,19 +7,14 @@ import {
 } from "@/lib/services/public.service";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
 
-export async function GET(req: Request) {
-  try {
-    const orgId = await getOrgIdFromHeaders(req);
+export const GET = withPublic(async (req) => {
+  const orgId = await getOrgIdFromHeaders(req);
 
-    const [branch, barbers, services] = await Promise.all([
-      getPublicBranchInfo(orgId),
-      getPublicBarbers(orgId),
-      getPublicServices(orgId),
-    ]);
+  const [branch, barbers, services] = await Promise.all([
+    getPublicBranchInfo(orgId),
+    getPublicBarbers(orgId),
+    getPublicServices(orgId),
+  ]);
 
-    return NextResponse.json({ branch, barbers, services });
-  } catch (err) {
-    console.error("GET /api/book/info failed:", err);
-    return NextResponse.json({ message: "Error interno" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ branch, barbers, services });
+});

@@ -149,7 +149,7 @@ export default function AdminAgenda() {
         </div>
         <div className="flex items-center gap-2" data-tour-id="new-button">
           <button
-            className="rounded-lg bg-[#c87941] px-4 py-2 text-sm font-semibold text-white hover:bg-[#b56a35] transition shadow-sm"
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm"
             onClick={() => {
               const x = Math.min(window.innerWidth - 240, window.innerWidth - 260);
               setSlotMenuPos({ x, y: 140 });

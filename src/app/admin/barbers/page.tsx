@@ -153,8 +153,8 @@ export default function BarbersPage() {
                   onClick={() => selectBarber(b.id)}
                   className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition ${
                     isActive
-                      ? "border-[#c87941] bg-[#c87941]/5"
-                      : "border-[#e8e2dc] bg-white hover:border-[#c87941]/30"
+                      ? "border-brand bg-brand/5"
+                      : "border-[#e8e2dc] bg-white hover:border-brand/30"
                   }`}
                 >
                   <div
@@ -192,7 +192,7 @@ export default function BarbersPage() {
                     onClick={() => setInnerTab("services")}
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition border-b-2 ${
                       innerTab === "services"
-                        ? "border-[#c87941] text-[#c87941]"
+                        ? "border-brand text-brand"
                         : "border-transparent text-stone-400 hover:text-stone-600"
                     }`}
                   >
@@ -202,7 +202,7 @@ export default function BarbersPage() {
                     onClick={() => { setInnerTab("commission"); setCommissionSaved(false); }}
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition border-b-2 ${
                       innerTab === "commission"
-                        ? "border-[#c87941] text-[#c87941]"
+                        ? "border-brand text-brand"
                         : "border-transparent text-stone-400 hover:text-stone-600"
                     }`}
                   >
@@ -240,7 +240,7 @@ export default function BarbersPage() {
                                       type="checkbox"
                                       checked={!!assigned}
                                       onChange={() => toggleService(svc.id)}
-                                      className="mt-1 h-4 w-4 rounded border-stone-300 text-[#c87941] focus:ring-[#c87941]/20 accent-[#c87941]"
+                                      className="mt-1 h-4 w-4 rounded border-stone-300 text-brand focus:ring-brand/20 accent-brand"
                                     />
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-stone-800">{svc.name}</p>
@@ -302,7 +302,7 @@ export default function BarbersPage() {
                               onClick={() => setCommissionType("PERCENTAGE")}
                               className={`flex-1 rounded-lg border py-2.5 text-sm font-medium transition ${
                                 commissionType === "PERCENTAGE"
-                                  ? "border-[#c87941] bg-[#c87941]/10 text-[#c87941]"
+                                  ? "border-brand bg-brand/10 text-brand"
                                   : "border-[#e8e2dc] text-stone-500 hover:bg-stone-50"
                               }`}
                             >
@@ -312,7 +312,7 @@ export default function BarbersPage() {
                               onClick={() => setCommissionType("FIXED")}
                               className={`flex-1 rounded-lg border py-2.5 text-sm font-medium transition ${
                                 commissionType === "FIXED"
-                                  ? "border-[#c87941] bg-[#c87941]/10 text-[#c87941]"
+                                  ? "border-brand bg-brand/10 text-brand"
                                   : "border-[#e8e2dc] text-stone-500 hover:bg-stone-50"
                               }`}
                             >

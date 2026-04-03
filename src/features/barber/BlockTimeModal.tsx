@@ -114,8 +114,8 @@ export default function BlockTimeModal({ defaultStart, defaultEnd, onClose, onCr
                   onClick={() => setReason(p)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium border transition ${
                     reason === p
-                      ? "bg-[#c87941] border-[#c87941] text-white"
-                      : "bg-white border-[#e8e2dc] text-stone-600 hover:border-[#c87941]/40"
+                      ? "bg-brand border-brand text-white"
+                      : "bg-white border-[#e8e2dc] text-stone-600 hover:border-brand/40"
                   }`}
                 >
                   {p}
@@ -128,7 +128,7 @@ export default function BlockTimeModal({ defaultStart, defaultEnd, onClose, onCr
                 placeholder="Especifica el motivo..."
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-[#e8e2dc] px-3 py-2 text-sm focus:border-[#c87941] focus:outline-none"
+                className="mt-2 w-full rounded-lg border border-[#e8e2dc] px-3 py-2 text-sm focus:border-brand focus:outline-none"
                 autoFocus
               />
             )}
@@ -142,7 +142,7 @@ export default function BlockTimeModal({ defaultStart, defaultEnd, onClose, onCr
                 type="datetime-local"
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
-                className="w-full rounded-lg border border-[#e8e2dc] px-3 py-2 text-sm focus:border-[#c87941] focus:outline-none"
+                className="w-full rounded-lg border border-[#e8e2dc] px-3 py-2 text-sm focus:border-brand focus:outline-none"
                 required
               />
             </div>
@@ -152,7 +152,7 @@ export default function BlockTimeModal({ defaultStart, defaultEnd, onClose, onCr
                 type="datetime-local"
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
-                className="w-full rounded-lg border border-[#e8e2dc] px-3 py-2 text-sm focus:border-[#c87941] focus:outline-none"
+                className="w-full rounded-lg border border-[#e8e2dc] px-3 py-2 text-sm focus:border-brand focus:outline-none"
                 required
               />
             </div>
@@ -173,7 +173,7 @@ export default function BlockTimeModal({ defaultStart, defaultEnd, onClose, onCr
             <button
               type="submit"
               disabled={saving || !reason}
-              className="flex-1 rounded-lg bg-[#c87941] py-2.5 text-sm font-semibold text-white hover:bg-[#b56a35] disabled:opacity-50 transition"
+              className="flex-1 rounded-lg bg-brand py-2.5 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 transition"
             >
               {saving ? "Guardando..." : "Bloquear"}
             </button>

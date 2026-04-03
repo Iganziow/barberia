@@ -51,13 +51,13 @@ function ConfirmationContent() {
         <header className="bg-[#1a1412] text-white">
           <div className="mx-auto max-w-lg px-4 py-5">
             <h1 className="text-xl font-extrabold tracking-tight">
-              Mar<span className="text-[#c87941]">Brava</span>
+              Mar<span className="text-brand">Brava</span>
             </h1>
           </div>
         </header>
         <div className="text-center py-12">
           <p className="text-stone-500">Reserva no encontrada</p>
-          <Link href={bookUrl} className="text-[#c87941] text-sm mt-2 inline-block">Volver a reservar</Link>
+          <Link href={bookUrl} className="text-brand text-sm mt-2 inline-block">Volver a reservar</Link>
         </div>
       </div>
     );
@@ -68,7 +68,7 @@ function ConfirmationContent() {
       <header className="bg-[#1a1412] text-white">
         <div className="mx-auto max-w-lg px-4 py-5">
           <h1 className="text-xl font-extrabold tracking-tight">
-            Mar<span className="text-[#c87941]">Brava</span>
+            Mar<span className="text-brand">Brava</span>
           </h1>
         </div>
       </header>
@@ -79,7 +79,7 @@ function ConfirmationContent() {
         {!loading && !booking && (
           <div className="text-center py-12">
             <p className="text-stone-500">Reserva no encontrada</p>
-            <Link href={bookUrl} className="text-[#c87941] text-sm mt-2 inline-block">Volver a reservar</Link>
+            <Link href={bookUrl} className="text-brand text-sm mt-2 inline-block">Volver a reservar</Link>
           </div>
         )}
 
@@ -97,7 +97,7 @@ function ConfirmationContent() {
                   <p className="font-bold text-lg text-stone-900">{booking.serviceName}</p>
                   <p className="text-sm text-stone-500">{booking.serviceDuration} min con {booking.barberName}</p>
                 </div>
-                <p className="font-bold text-[#c87941]">{formatCLP(booking.price)}</p>
+                <p className="font-bold text-brand">{formatCLP(booking.price)}</p>
               </div>
               <div className="border-t border-[#e8e2dc] pt-4">
                 <div className="flex items-center gap-3">
@@ -118,7 +118,7 @@ function ConfirmationContent() {
               Si necesitas cancelar o cambiar tu hora, contacta directamente a la barbería.
             </p>
 
-            <Link href={bookUrl} className="block w-full text-center rounded-xl border border-[#c87941]/20 bg-white px-4 py-3 text-sm font-medium text-[#c87941] hover:bg-[#c87941]/5 transition">
+            <Link href={bookUrl} className="block w-full text-center rounded-xl border border-brand/20 bg-white px-4 py-3 text-sm font-medium text-brand hover:bg-brand/5 transition">
               Reservar otra hora
             </Link>
           </div>

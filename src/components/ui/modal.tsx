@@ -60,7 +60,7 @@ export default function Modal({
           <div className="border-b border-[#e8e2dc] px-5 py-3.5 flex items-center justify-between shrink-0">
             <h3 id="modal-title" className="font-bold text-stone-900">{title}</h3>
             <button
-              className="grid h-7 w-7 place-items-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition focus:outline-none focus:ring-2 focus:ring-[#c87941]/40"
+              className="grid h-7 w-7 place-items-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition focus:outline-none focus:ring-2 focus:ring-brand/40"
               onClick={onClose}
               aria-label="Cerrar"
               type="button"
