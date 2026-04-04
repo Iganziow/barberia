@@ -1,12 +1,18 @@
 import { prisma } from "@/lib/prisma";
 
 export async function getPublicBranchInfo(orgId: string) {
-  const branch = await prisma.branch.findFirst({
-    where: { orgId },
-    include: {
-      workingHours: { orderBy: { dayOfWeek: "asc" } },
-    },
-  });
+  const [org, branch] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { name: true, description: true, logo: true, phone: true, email: true },
+    }),
+    prisma.branch.findFirst({
+      where: { orgId },
+      include: {
+        workingHours: { orderBy: { dayOfWeek: "asc" } },
+      },
+    }),
+  ]);
 
   if (!branch) return null;
 
@@ -14,6 +20,13 @@ export async function getPublicBranchInfo(orgId: string) {
     name: branch.name,
     address: branch.address,
     phone: branch.phone,
+    latitude: branch.latitude,
+    longitude: branch.longitude,
+    orgName: org?.name ?? null,
+    orgDescription: org?.description ?? null,
+    orgLogo: org?.logo ?? null,
+    orgPhone: org?.phone ?? null,
+    orgEmail: org?.email ?? null,
     workingHours: branch.workingHours.map((wh) => ({
       dayOfWeek: wh.dayOfWeek,
       isOpen: wh.isOpen,

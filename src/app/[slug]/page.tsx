@@ -7,7 +7,11 @@ import { formatCLP } from "@/lib/format";
 import QRBooking from "@/components/ui/QRBooking";
 
 type WorkingHour = { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string };
-type Branch = { name: string; address: string; phone: string | null; workingHours: WorkingHour[] };
+type Branch = {
+  name: string; address: string; phone: string | null; workingHours: WorkingHour[];
+  latitude: number | null; longitude: number | null;
+  orgDescription: string | null; orgLogo: string | null;
+};
 type BarberService = { id: string; name: string; description: string | null; durationMin: number; price: number; categoryName: string | null };
 type Barber = { id: string; name: string; color: string | null; workDays: number[]; services: BarberService[] };
 
@@ -108,23 +112,37 @@ export default function OrgLandingPage() {
       </nav>
 
       <div className="mx-auto max-w-2xl px-4 py-5 space-y-5">
-        {/* Hero */}
-        <div className="rounded-2xl bg-[#1a1412] p-6 sm:p-8 text-center overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand/10 to-transparent pointer-events-none" />
-          <div className="relative">
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Mar<span className="text-brand">Brava</span>
-            </h2>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mt-1.5 font-medium">Barbería</p>
-            {branch?.address && (
-              <p className="mt-3 text-xs text-white/50">{branch.address}</p>
-            )}
-            <Link
-              href={bookUrl}
-              className="mt-5 inline-block rounded-full bg-brand px-8 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/25"
-            >
-              Reservar hora
-            </Link>
+        {/* Hero with optional photo */}
+        <div className="rounded-2xl bg-[#1a1412] overflow-hidden relative">
+          {branch?.orgLogo && (
+            <div className="w-full h-48 sm:h-56 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={branch.orgLogo} alt={branch.name} className="w-full h-full object-cover opacity-80" />
+            </div>
+          )}
+          <div className={`${branch?.orgLogo ? "bg-gradient-to-t from-[#1a1412] via-[#1a1412]/95 to-[#1a1412]/70 -mt-20 relative" : ""} p-6 sm:p-8 text-center`}>
+            <div className="relative">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                Mar<span className="text-brand">Brava</span>
+              </h2>
+              {branch?.orgDescription ? (
+                <p className="mt-2 text-sm text-white/60 max-w-md mx-auto">{branch.orgDescription}</p>
+              ) : (
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mt-1.5 font-medium">Barbería</p>
+              )}
+              {branch?.address && (
+                <p className="mt-2 text-xs text-white/40 flex items-center justify-center gap-1">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                  {branch.address}
+                </p>
+              )}
+              <Link
+                href={bookUrl}
+                className="mt-5 inline-block rounded-full bg-brand px-8 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/25"
+              >
+                Reservar hora
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -271,6 +289,27 @@ export default function OrgLandingPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Map */}
+        {branch?.latitude && branch?.longitude && (
+          <div className="rounded-2xl border border-[#e8e2dc] bg-white overflow-hidden shadow-sm">
+            <div className="px-5 pt-4 pb-2">
+              <h3 className="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                Ubicaci&oacute;n
+              </h3>
+              {branch.address && <p className="text-xs text-stone-500 mt-0.5">{branch.address}</p>}
+            </div>
+            <iframe
+              title="Ubicación de la barbería"
+              width="100%"
+              height="220"
+              style={{ border: 0 }}
+              loading="lazy"
+              src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${branch.latitude},${branch.longitude}&zoom=16`}
+            />
           </div>
         )}
 
