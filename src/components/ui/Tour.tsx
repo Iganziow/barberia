@@ -105,7 +105,7 @@ function TourTooltip({
       )}
 
       {/* Click blocker */}
-      <div className="fixed inset-0 z-[9998]" onClick={onSkip} />
+      <div className="fixed inset-0 z-[9998]" onClick={onSkip} aria-hidden="true" />
 
       {/* Tooltip */}
       <div style={tooltipStyle} className="max-w-xs w-80" onClick={(e) => e.stopPropagation()}>

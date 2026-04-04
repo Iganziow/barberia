@@ -127,7 +127,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen">
         {/* Mobile overlay */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
         )}
 
         {/* ── Sidebar ── */}

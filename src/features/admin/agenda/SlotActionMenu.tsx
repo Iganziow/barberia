@@ -41,7 +41,7 @@ export default function SlotActionMenu({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60]" onClick={onClose}>
+    <div className="fixed inset-0 z-[60]" onClick={onClose} aria-hidden="true">
       <div
         className="absolute w-56 rounded-xl border border-[#e8e2dc] bg-white shadow-xl text-stone-900"
         style={{ left: pos.x, top: pos.y }}

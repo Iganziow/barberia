@@ -360,7 +360,7 @@ export default function BarberPage() {
 
       {/* ── Mobile: bottom sheet for event detail ── */}
       {ev && (
-        <div className="lg:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-sm" onClick={() => setSelectedEvent(null)}>
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-sm" onClick={() => setSelectedEvent(null)} role="presentation">
           <div className="w-full max-w-lg rounded-t-2xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Drag handle */}
             <div className="flex justify-center pt-2 pb-1">

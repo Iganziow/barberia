@@ -69,7 +69,7 @@ export default function BarberShell({
 
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} aria-hidden="true" />
                 <div className="absolute right-0 top-full mt-2 z-20 w-48 rounded-xl border border-[#e8e2dc] bg-white shadow-xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-[#e8e2dc]">
                     <p className="text-sm font-semibold text-stone-800">{name}</p>
