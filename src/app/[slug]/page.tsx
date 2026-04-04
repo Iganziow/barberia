@@ -308,7 +308,7 @@ export default function OrgLandingPage() {
               height="220"
               style={{ border: 0 }}
               loading="lazy"
-              src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${branch.latitude},${branch.longitude}&zoom=16`}
+              src={`https://maps.google.com/maps?q=${branch.latitude},${branch.longitude}&z=16&output=embed`}
             />
           </div>
         )}

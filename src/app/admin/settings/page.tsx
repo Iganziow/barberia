@@ -219,7 +219,7 @@ export default function SettingsPage() {
               height="200"
               style={{ border: 0 }}
               loading="lazy"
-              src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${latitude},${longitude}&zoom=16`}
+              src={`https://maps.google.com/maps?q=${latitude},${longitude}&z=16&output=embed`}
             />
           </div>
         )}
