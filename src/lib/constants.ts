@@ -1,3 +1,7 @@
+/** Brand color for JS contexts where Tailwind classes can't be used (inline styles, SVG strokes) */
+export const BRAND_COLOR = "#c87941";
+export const BRAND_COLOR_HOVER = "#b56a35";
+
 /**
  * Shared appointment status configuration.
  * Used across barber portal, admin agenda, and client detail pages.
