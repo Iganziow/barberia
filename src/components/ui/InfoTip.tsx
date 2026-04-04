@@ -17,14 +17,13 @@ export default function InfoTip({ text }: { text: string }) {
 
   return (
     <div className="relative inline-flex" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-500 hover:bg-brand/20 hover:text-brand transition shrink-0"
+      <div
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}
+        className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-500 hover:bg-brand/20 hover:text-brand transition shrink-0 cursor-pointer select-none"
         aria-label="Más información"
       >
         i
-      </button>
+      </div>
       {open && (
         <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-lg border border-[#e8e2dc] bg-white p-3 text-xs text-stone-600 leading-relaxed shadow-lg">
           <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-[#e8e2dc] rotate-45" />

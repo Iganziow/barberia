@@ -175,21 +175,21 @@ export default function ReportsDashboard() {
         <div>
           <h1 className="text-xl font-bold text-stone-900">Reportes</h1>
           <p className="text-sm text-stone-500">Ingresos, citas y liquidaciones de tu barbería</p>
-          <div className="flex gap-1 mt-2 border-b border-[#e8e2dc]">
+          <div className="flex gap-1 mt-2 border-b border-[#e8e2dc] items-center">
             {TABS.map((t) => (
               <button
                 key={t.value}
                 onClick={() => { setLoading(true); setActiveTab(t.value); }}
-                className={`px-4 py-2 text-sm font-medium transition border-b-2 flex items-center gap-1 ${
+                className={`px-4 py-2 text-sm font-medium transition border-b-2 ${
                   activeTab === t.value
                     ? "border-brand text-brand"
                     : "border-transparent text-stone-400 hover:text-stone-600"
                 }`}
               >
                 {t.label}
-                {t.value === "commissions" && <InfoTip text="Muestra cuánto debes pagarle a cada barbero según las citas completadas en el período seleccionado." />}
               </button>
             ))}
+            <InfoTip text="Liquidaciones muestra cuánto debes pagarle a cada barbero según las citas completadas en el período." />
           </div>
         </div>
         <div className="flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1 self-start sm:self-auto">
