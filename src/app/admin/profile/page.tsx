@@ -2,7 +2,6 @@
 
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useTour } from "@/hooks/use-tour";
-import QRBooking from "@/components/ui/QRBooking";
 
 export default function ProfilePage() {
   const { user, loading } = useAuthUser();
@@ -67,14 +66,6 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* QR de reserva */}
-      <div className="rounded-xl border border-[#e8e2dc] bg-white p-6 shadow-sm">
-        <h3 className="font-bold text-stone-900 mb-1">Link de reserva</h3>
-        <p className="text-sm text-stone-500 mb-4">
-          Comparte este QR en tu local, Instagram o tarjetas de visita. Los clientes escanean y reservan al instante.
-        </p>
-        <QRBooking slug="mi-barberia" size={200} />
-      </div>
     </div>
   );
 }
