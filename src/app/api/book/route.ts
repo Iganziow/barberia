@@ -8,6 +8,7 @@ import { getAvailableSlots } from "@/lib/services/availability.service";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
 import { stripHtml } from "@/lib/sanitize";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendBookingConfirmation } from "@/lib/services/email.service";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-().+]/g, "").replace(/^56/, "");
@@ -156,7 +157,8 @@ export const POST = withPublic(async (req) => {
       include: {
         barber: { include: { user: { select: { name: true } } } },
         service: { select: { name: true, durationMin: true } },
-        branch: { select: { name: true, address: true } },
+        client: { include: { user: { select: { name: true, email: true } } } },
+        branch: { select: { name: true, address: true, orgId: true } },
       },
     });
 
@@ -169,6 +171,9 @@ export const POST = withPublic(async (req) => {
   if (!result) {
     throw AppError.conflict("Este horario ya no está disponible. Intenta otro.");
   }
+
+  // Send confirmation email (fire-and-forget)
+  sendBookingConfirmation(result).catch(() => {});
 
   return NextResponse.json(
     {

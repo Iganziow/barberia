@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { dispatchWebhook } from "@/lib/services/webhook.service";
+import { sendStatusChangeEmail } from "@/lib/services/email.service";
 import type { CreateAppointmentInput, UpdateStatusInput } from "@/lib/validations/appointment";
 
 export type AppointmentFilters = {
@@ -104,6 +105,11 @@ export async function updateAppointmentStatus(
       appointmentId: updated.id,
       status: updated.status,
     }).catch(() => {});
+  }
+
+  // Send email notification for status changes (fire-and-forget)
+  if (data.status === "CONFIRMED" || data.status === "CANCELED") {
+    sendStatusChangeEmail(updated.id, data.status).catch(() => {});
   }
 
   return updated;
