@@ -173,7 +173,7 @@ export const POST = withPublic(async (req) => {
   }
 
   // Send confirmation email (fire-and-forget)
-  sendBookingConfirmation(result).catch(() => {});
+  sendBookingConfirmation(result).catch((err) => console.error("Email failed:", err));
 
   return NextResponse.json(
     {
