@@ -9,6 +9,22 @@
   --sidebar-bg: #1a1412;
   --surface: #faf8f6;
   --border: #e8e2dc;
+  --card-bg: #ffffff;
+  --muted: #78716c;
+  --muted-light: #a8a29e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0c0a09;
+    --foreground: #e7e5e4;
+    --sidebar-bg: #1c1917;
+    --surface: #1c1917;
+    --border: #2e2a27;
+    --card-bg: #1c1917;
+    --muted: #a8a29e;
+    --muted-light: #57534e;
+  }
 }
 
 @theme inline {
@@ -17,9 +33,11 @@
   --color-brand: #c87941;
   --color-brand-hover: #b56a35;
   --color-brand-light: color-mix(in srgb, #c87941 15%, white);
-  --color-surface: #faf8f6;
-  --color-border: #e8e2dc;
-  --color-sidebar: #1a1412;
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-sidebar: var(--sidebar-bg);
+  --color-card: var(--card-bg);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -76,7 +94,7 @@ body {
 .fc .fc-toolbar-title {
   font-weight: 700 !important;
   font-size: 1.05rem !important;
-  color: #1c1917 !important;
+  color: var(--foreground) !important;
 }
 .fc .fc-event {
   border-radius: 5px !important;
@@ -139,10 +157,10 @@ body {
   width: 100%;
   border-radius: 0.5rem;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--card-bg);
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #1c1917;
+  color: var(--foreground);
 }
 .input-field:focus {
   border-color: var(--accent);
@@ -150,7 +168,7 @@ body {
   box-shadow: 0 0 0 2px rgba(200, 121, 65, 0.15);
 }
 .input-field::placeholder {
-  color: #a8a29e;
+  color: var(--muted-light);
 }
 .field-label {
   display: block;
@@ -158,7 +176,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #78716c;
+  color: var(--muted);
   margin-bottom: 0.35rem;
 }
 .btn-primary {
@@ -180,14 +198,14 @@ body {
 .btn-secondary {
   border-radius: 0.5rem;
   border: 1px solid var(--border);
-  background: white;
-  color: #57534e;
+  background: var(--card-bg);
+  color: var(--muted);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
 }
 .btn-secondary:hover {
-  background: #faf8f6;
+  background: var(--surface);
 }
 
 /* Smooth transitions */
