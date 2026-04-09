@@ -55,17 +55,13 @@ async function logNotification(
  * Fire-and-forget — does not block the booking flow.
  */
 export async function sendBookingConfirmation(appointment: FullAppointment): Promise<void> {
-  console.log("[EMAIL] sendBookingConfirmation called, resend:", resend ? "OK" : "NULL");
-
-  if (!resend) { console.log("[EMAIL] Skipped: no RESEND_API_KEY"); return; }
+  if (!resend) return;
 
   const email = appointment.client?.user?.email;
-  console.log("[EMAIL] Client email:", email);
-  if (!isRealEmail(email)) { console.log("[EMAIL] Skipped: not a real email"); return; }
+  if (!isRealEmail(email)) return;
 
   const org = await getOrgInfo(appointment.branch.orgId);
-  if (!org) { console.log("[EMAIL] Skipped: org not found"); return; }
-  console.log("[EMAIL] Sending to", email, "from", org.name);
+  if (!org) return;
 
   const html = bookingConfirmationHtml(
     org,
