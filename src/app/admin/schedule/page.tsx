@@ -258,23 +258,27 @@ export default function SchedulePage() {
                 const hour = branchHours.find((h) => h.dayOfWeek === dayOfWeek);
                 if (!hour) return null;
                 return (
-                  <div key={dayOfWeek} className={`flex items-center gap-3 px-5 py-3 ${!hour.isOpen ? "opacity-40" : ""}`}>
-                    <span className="w-24 text-sm font-medium text-stone-700 shrink-0">{label}</span>
-                    <div className="flex items-center gap-2 flex-1">
+                  <div key={dayOfWeek} className={`flex items-center gap-3 sm:gap-4 px-5 py-3.5 ${!hour.isOpen ? "bg-stone-50/50" : ""}`}>
+                    <span className={`w-24 text-sm font-semibold shrink-0 ${hour.isOpen ? "text-stone-800" : "text-stone-400"}`}>{label}</span>
+                    <div className={`flex items-center gap-2 ${!hour.isOpen ? "opacity-30 pointer-events-none" : ""}`}>
                       <input type="time" value={hour.openTime} disabled={!hour.isOpen}
                         onChange={(e) => updateBranchHour(dayOfWeek, "openTime", e.target.value)}
-                        className="input-field text-sm w-28 disabled:cursor-not-allowed" />
-                      <span className="text-stone-300 text-xs">a</span>
+                        className="input-field text-sm w-[120px]" />
+                      <span className="text-stone-400 text-xs font-medium">a</span>
                       <input type="time" value={hour.closeTime} disabled={!hour.isOpen}
                         onChange={(e) => updateBranchHour(dayOfWeek, "closeTime", e.target.value)}
-                        className="input-field text-sm w-28 disabled:cursor-not-allowed" />
+                        className="input-field text-sm w-[120px]" />
                     </div>
-                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                      <input type="checkbox" checked={hour.isOpen}
-                        onChange={(e) => updateBranchHour(dayOfWeek, "isOpen", e.target.checked)}
-                        className="h-4 w-4 rounded border-stone-300 text-brand accent-brand" />
-                      <span className="text-[10px] text-stone-400 hidden sm:inline">{hour.isOpen ? "Abierto" : "Cerrado"}</span>
-                    </label>
+                    <div className="ml-auto shrink-0">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={hour.isOpen}
+                          onChange={(e) => updateBranchHour(dayOfWeek, "isOpen", e.target.checked)}
+                          className="h-4 w-4 rounded border-stone-300 accent-brand" />
+                        <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${hour.isOpen ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-400"}`}>
+                          {hour.isOpen ? "Abierto" : "Cerrado"}
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 );
               })}
@@ -346,23 +350,27 @@ export default function SchedulePage() {
                     const day = barberSchedule.find((s) => s.dayOfWeek === dayOfWeek);
                     if (!day) return null;
                     return (
-                      <div key={dayOfWeek} className={`flex items-center gap-3 px-5 py-3 ${!day.isWorking ? "opacity-40" : ""}`}>
-                        <span className="w-24 text-sm font-medium text-stone-700 shrink-0">{label}</span>
-                        <div className="flex items-center gap-2 flex-1">
+                      <div key={dayOfWeek} className={`flex items-center gap-3 sm:gap-4 px-5 py-3.5 ${!day.isWorking ? "bg-stone-50/50" : ""}`}>
+                        <span className={`w-24 text-sm font-semibold shrink-0 ${day.isWorking ? "text-stone-800" : "text-stone-400"}`}>{label}</span>
+                        <div className={`flex items-center gap-2 ${!day.isWorking ? "opacity-30 pointer-events-none" : ""}`}>
                           <input type="time" value={day.startTime} disabled={!day.isWorking}
                             onChange={(e) => updateBarberDay(dayOfWeek, "startTime", e.target.value)}
-                            className="input-field text-sm w-28 disabled:cursor-not-allowed" />
-                          <span className="text-stone-300 text-xs">a</span>
+                            className="input-field text-sm w-[120px]" />
+                          <span className="text-stone-400 text-xs font-medium">a</span>
                           <input type="time" value={day.endTime} disabled={!day.isWorking}
                             onChange={(e) => updateBarberDay(dayOfWeek, "endTime", e.target.value)}
-                            className="input-field text-sm w-28 disabled:cursor-not-allowed" />
+                            className="input-field text-sm w-[120px]" />
                         </div>
-                        <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                          <input type="checkbox" checked={day.isWorking}
-                            onChange={(e) => updateBarberDay(dayOfWeek, "isWorking", e.target.checked)}
-                            className="h-4 w-4 rounded border-stone-300 text-brand accent-brand" />
-                          <span className="text-[10px] text-stone-400 hidden sm:inline">{day.isWorking ? "Trabaja" : "Libre"}</span>
-                        </label>
+                        <div className="ml-auto shrink-0">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={day.isWorking}
+                              onChange={(e) => updateBarberDay(dayOfWeek, "isWorking", e.target.checked)}
+                              className="h-4 w-4 rounded border-stone-300 accent-brand" />
+                            <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${day.isWorking ? "bg-blue-50 text-blue-700" : "bg-stone-100 text-stone-400"}`}>
+                              {day.isWorking ? "Trabaja" : "Libre"}
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     );
                   })}
