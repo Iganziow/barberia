@@ -259,8 +259,8 @@ export default function ServicesPage() {
           {services.map((svc) => (
             <div
               key={svc.id}
-              className={`rounded-xl border bg-white p-4 shadow-sm transition ${
-                svc.active ? "border-[#e8e2dc]" : "border-red-100 opacity-60"
+              className={`rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md ${
+                svc.active ? "border-[#e8e2dc]" : "border-red-100 opacity-50"
               }`}
             >
               <div className="flex items-start justify-between gap-3">

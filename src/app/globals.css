@@ -48,76 +48,78 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ── FullCalendar — clean modern theme ── */
+/* ── FullCalendar — premium custom theme ── */
 .fc {
   --fc-bg: #ffffff;
-  --fc-border: #e5e0da;
+  --fc-border: #eae6e1;
   --fc-text: #1c1917;
   --fc-muted: #a8a29e;
   --fc-surface: #fafaf9;
+  font-family: var(--font-sans), system-ui, sans-serif !important;
 }
 
-/* Toolbar buttons */
+/* Toolbar — minimal, spaced */
+.fc .fc-toolbar { margin-bottom: 12px !important; gap: 8px !important; flex-wrap: wrap !important; }
+.fc .fc-toolbar-title { font-weight: 800 !important; font-size: 1.1rem !important; color: var(--fc-text) !important; letter-spacing: -0.02em !important; }
+.fc .fc-button-group { border-radius: 10px !important; overflow: hidden !important; box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important; }
 .fc .fc-button-primary {
-  background-color: var(--accent) !important;
-  border: none !important;
-  border-radius: 8px !important;
-  font-weight: 600 !important;
-  text-transform: capitalize !important;
-  font-size: 0.75rem !important;
-  padding: 6px 14px !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
+  background: #fff !important; color: #57534e !important;
+  border: 1px solid var(--fc-border) !important; border-radius: 0 !important;
+  font-weight: 600 !important; font-size: 0.75rem !important;
+  padding: 6px 16px !important; text-transform: capitalize !important;
 }
-.fc .fc-button-primary:hover { background-color: var(--accent-hover) !important; }
-.fc .fc-button-primary:disabled { background-color: var(--accent) !important; opacity: 0.4 !important; }
-.fc .fc-button-primary:not(:disabled).fc-button-active { background-color: #8b5420 !important; }
+.fc .fc-button-primary:hover { background: #faf8f6 !important; }
+.fc .fc-button-primary:not(:disabled).fc-button-active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.fc .fc-button-primary:disabled { opacity: 0.35 !important; }
 .fc .fc-today-button {
-  background-color: transparent !important;
-  color: var(--accent) !important;
-  border: 1px solid var(--accent) !important;
-  border-radius: 8px !important;
+  background: transparent !important; color: var(--accent) !important;
+  border: 1.5px solid var(--accent) !important; border-radius: 10px !important;
+  font-weight: 700 !important; font-size: 0.72rem !important;
+  padding: 5px 14px !important; text-transform: uppercase !important; letter-spacing: 0.04em !important;
 }
-.fc .fc-today-button:hover { background-color: var(--accent) !important; color: white !important; }
+.fc .fc-today-button:hover { background: var(--accent) !important; color: #fff !important; }
+.fc .fc-prev-button, .fc .fc-next-button {
+  background: #fff !important; color: #78716c !important;
+  border: 1px solid var(--fc-border) !important; border-radius: 10px !important;
+  padding: 5px 10px !important; box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+.fc .fc-prev-button:hover, .fc .fc-next-button:hover { background: #faf8f6 !important; color: var(--fc-text) !important; }
 
 /* Grid */
-.fc .fc-scrollgrid { border: none !important; background: var(--fc-bg) !important; border-radius: 10px !important; overflow: hidden !important; }
+.fc .fc-scrollgrid { border: 1px solid var(--fc-border) !important; background: var(--fc-bg) !important; border-radius: 12px !important; overflow: hidden !important; }
 .fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: var(--fc-border) !important; }
-.fc .fc-timegrid-slot { border-color: var(--fc-border) !important; height: 2.5em !important; }
+.fc .fc-timegrid-slot { border-color: var(--fc-border) !important; height: 2.8em !important; }
+.fc .fc-timegrid-slot-minor { border-top-style: dotted !important; border-color: #f0ece8 !important; }
 .fc .fc-timegrid-col, .fc .fc-daygrid-day { background: var(--fc-bg) !important; }
 
-/* Header */
+/* Column header */
 .fc .fc-col-header-cell {
   background: var(--fc-surface) !important;
-  border-bottom: 2px solid var(--fc-border) !important;
-  font-weight: 600;
-  color: var(--fc-muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--fc-border) !important;
+  font-weight: 700; color: #78716c; font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
 }
-.fc .fc-col-header-cell-cushion { padding: 8px 4px !important; text-decoration: none !important; }
-.fc .fc-toolbar-title { font-weight: 700 !important; font-size: 1rem !important; color: var(--fc-text) !important; }
-.fc .fc-toolbar { gap: 0.5rem !important; flex-wrap: wrap !important; margin-bottom: 8px !important; }
+.fc .fc-col-header-cell-cushion { padding: 10px 6px !important; text-decoration: none !important; }
 
 /* Time labels */
-.fc .fc-timegrid-slot-label-cushion { font-size: 0.68rem !important; color: var(--fc-muted) !important; padding-right: 8px !important; font-weight: 500 !important; }
+.fc .fc-timegrid-slot-label-cushion { font-size: 0.65rem !important; color: #b8b4af !important; padding-right: 10px !important; font-weight: 600 !important; font-variant-numeric: tabular-nums !important; }
 
-/* Events — pill style like Google Calendar */
+/* Events — rounded pill with left accent */
 .fc .fc-event {
   border: none !important;
   border-left: 3px solid !important;
-  border-radius: 4px !important;
-  box-shadow: none !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
   overflow: hidden !important;
-  transition: opacity 0.15s !important;
+  transition: transform 0.1s, box-shadow 0.15s !important;
 }
-.fc .fc-event:hover { opacity: 0.85 !important; z-index: 10 !important; }
+.fc .fc-event:hover { transform: translateY(-1px) !important; box-shadow: 0 3px 8px rgba(0,0,0,0.1) !important; z-index: 10 !important; }
 .fc .fc-timegrid-event .fc-event-main { padding: 0 !important; overflow: hidden !important; }
-.fc .fc-timegrid-col-events { margin: 0 1px !important; }
+.fc .fc-timegrid-col-events { margin: 0 2px !important; }
 
-/* Today */
-.fc .fc-day-today { background-color: rgba(200, 121, 65, 0.04) !important; }
-.fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent) !important; font-weight: 700 !important; }
+/* Today column */
+.fc .fc-day-today { background-color: rgba(200, 121, 65, 0.03) !important; }
+.fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent) !important; font-weight: 800 !important; }
 
 /* Now indicator */
 .fc .fc-timegrid-now-indicator-line { border-color: #ef4444 !important; border-width: 2px !important; }
