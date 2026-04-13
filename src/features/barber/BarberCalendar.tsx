@@ -41,7 +41,7 @@ function eventStyle(event: CalendarEvent) {
   if (event.status === "NO_SHOW") {
     return { backgroundColor: "#fff7ed", borderColor: "#fdba74", textColor: "#c2410c" };
   }
-  return { backgroundColor: "#fffbf5", borderColor: "#c87941", textColor: "#78350f" };
+  return { backgroundColor: "#fef0e2", borderColor: "#c87941", textColor: "#78350f" };
 }
 
 function isMobile() {

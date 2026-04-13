@@ -25,7 +25,7 @@ function eventStyle(event: AgendaEvent) {
     return { backgroundColor: "#f0fdf4", borderColor: "#86efac", textColor: "#15803d" };
   }
   return {
-    backgroundColor: "#fffbf5",
+    backgroundColor: "#fef0e2",
     borderColor: "#c87941",
     textColor: "#78350f",
   };
