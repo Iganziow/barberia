@@ -125,6 +125,21 @@ body {
 .fc .fc-timegrid-now-indicator-line { border-color: #ef4444 !important; border-width: 2px !important; }
 .fc .fc-timegrid-now-indicator-arrow { border-top-color: #ef4444 !important; border-bottom-color: #ef4444 !important; }
 
+/* ── Barber calendar overrides — bolder grid ── */
+.fc-wrapper .fc .fc-scrollgrid td,
+.fc-wrapper .fc .fc-scrollgrid th { border-color: #ddd7d0 !important; }
+.fc-wrapper .fc .fc-timegrid-slot { border-color: #ddd7d0 !important; }
+.fc-wrapper .fc .fc-timegrid-slot-minor { border-color: #ebe7e2 !important; }
+.fc-wrapper .fc .fc-event {
+  border-left-width: 4px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;
+}
+.fc-wrapper .fc .fc-event:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+  transform: translateY(-1px) !important;
+}
+
 /* ── Shared form classes — always light regardless of dark mode ── */
 .input-field {
   width: 100%;

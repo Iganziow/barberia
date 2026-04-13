@@ -30,18 +30,19 @@ interface BarberCalendarProps {
 
 function eventStyle(event: CalendarEvent) {
   if (event.kind === "BLOCK") {
-    return { backgroundColor: "#f8f8f7", borderColor: "#d6d3d1", textColor: "#78716c" };
+    return { backgroundColor: "#e7e5e4", borderColor: "#a8a29e", textColor: "#57534e" };
   }
   if (event.status === "DONE") {
-    return { backgroundColor: "#f0fdf4", borderColor: "#86efac", textColor: "#15803d" };
+    return { backgroundColor: "#dcfce7", borderColor: "#22c55e", textColor: "#166534" };
   }
   if (event.status === "CANCELED") {
-    return { backgroundColor: "#fef2f2", borderColor: "#fca5a5", textColor: "#b91c1c" };
+    return { backgroundColor: "#fee2e2", borderColor: "#ef4444", textColor: "#991b1b" };
   }
   if (event.status === "NO_SHOW") {
-    return { backgroundColor: "#fff7ed", borderColor: "#fdba74", textColor: "#c2410c" };
+    return { backgroundColor: "#ffedd5", borderColor: "#f97316", textColor: "#9a3412" };
   }
-  return { backgroundColor: "#fef0e2", borderColor: "#c87941", textColor: "#78350f" };
+  // Active/reserved — brand warm orange
+  return { backgroundColor: "#fde8d0", borderColor: "#c87941", textColor: "#6b2f0a" };
 }
 
 function isMobile() {
@@ -106,28 +107,13 @@ export default function BarberCalendar({
           onRangeChange(info.startStr, info.endStr);
         }}
         eventContent={(arg) => {
-          const isBlock = arg.event.extendedProps?.kind === "BLOCK";
           const lines = (arg.event.title || "").split("\n");
-          const status = arg.event.extendedProps?.status as string;
-          const dotColor = isBlock
-            ? "#a8a29e"
-            : status === "DONE"
-              ? "#22c55e"
-              : status === "CANCELED" || status === "NO_SHOW"
-                ? "#ef4444"
-                : "#c87941";
 
           return (
-            <div className="px-1 py-0.5 text-[10px] leading-tight overflow-hidden cursor-pointer h-full">
-              <div className="flex items-center gap-1">
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                  style={{ backgroundColor: dotColor }}
-                />
-                <span className="font-semibold truncate">{lines[0]}</span>
-              </div>
+            <div className="px-1.5 py-1 text-[11px] leading-snug overflow-hidden cursor-pointer h-full">
+              <div className="font-bold truncate">{lines[0]}</div>
               {lines[1] && (
-                <div className="truncate opacity-60 pl-2.5 text-[9px]">{lines[1]}</div>
+                <div className="truncate opacity-70 text-[10px] mt-0.5">{lines[1]}</div>
               )}
             </div>
           );
