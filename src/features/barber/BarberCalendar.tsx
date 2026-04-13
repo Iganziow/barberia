@@ -30,18 +30,18 @@ interface BarberCalendarProps {
 
 function eventStyle(event: CalendarEvent) {
   if (event.kind === "BLOCK") {
-    return { backgroundColor: "#f5f5f4", borderColor: "#a8a29e", textColor: "#57534e" };
+    return { backgroundColor: "#f8f8f7", borderColor: "#d6d3d1", textColor: "#78716c" };
   }
   if (event.status === "DONE") {
-    return { backgroundColor: "#f0fdf4", borderColor: "#4ade80", textColor: "#166534" };
+    return { backgroundColor: "#f0fdf4", borderColor: "#86efac", textColor: "#15803d" };
   }
   if (event.status === "CANCELED") {
-    return { backgroundColor: "#fef2f2", borderColor: "#f87171", textColor: "#991b1b" };
+    return { backgroundColor: "#fef2f2", borderColor: "#fca5a5", textColor: "#b91c1c" };
   }
   if (event.status === "NO_SHOW") {
-    return { backgroundColor: "#fff7ed", borderColor: "#fb923c", textColor: "#9a3412" };
+    return { backgroundColor: "#fff7ed", borderColor: "#fdba74", textColor: "#c2410c" };
   }
-  return { backgroundColor: "#fef7f0", borderColor: "#c87941", textColor: "#92400e" };
+  return { backgroundColor: "#fffbf5", borderColor: "#c87941", textColor: "#78350f" };
 }
 
 function isMobile() {
