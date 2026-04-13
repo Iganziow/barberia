@@ -60,7 +60,7 @@ function initBarberSchedule(existing: BarberDay[]): BarberDay[] {
 }
 
 export default function SchedulePage() {
-  const [tab, setTab] = useState<"branch" | "barbers">("branch");
+  // Tab removed — barber schedules now managed from /admin/barbers
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [branchHours, setBranchHours] = useState<BranchHour[]>([]);
@@ -179,35 +179,14 @@ export default function SchedulePage() {
 
       <PageTip id="horarios" text="Configura los horarios de la sucursal primero, luego los de cada barbero. Los barberos solo podrán recibir citas dentro de estos horarios." />
 
-      {/* Tabs */}
+      {/* Info */}
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1">
-          <button
-            onClick={() => setTab("branch")}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-              tab === "branch" ? "bg-brand text-white shadow-sm" : "text-stone-500 hover:bg-stone-50"
-            }`}
-          >
-            Sucursal
-          </button>
-          <button
-            onClick={() => setTab("barbers")}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition ${
-              tab === "barbers" ? "bg-brand text-white shadow-sm" : "text-stone-500 hover:bg-stone-50"
-            }`}
-          >
-            Barberos
-          </button>
-        </div>
-        <InfoTip text={tab === "branch"
-          ? "Los horarios de la sucursal definen cuándo está abierta. Los barberos solo pueden atender dentro de estas horas."
-          : "Configura el horario de trabajo individual de cada barbero. Solo verán disponibilidad dentro de su horario."
-        } />
+        <InfoTip text="Los horarios de la sucursal definen cuándo está abierta. Los barberos solo pueden atender dentro de estas horas." />
       </div>
 
       {loading ? (
         <div className="text-center text-stone-400 py-12">Cargando...</div>
-      ) : tab === "branch" ? (
+      ) : (
         /* ── Branch working hours ── */
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
           {/* Branch selector */}
@@ -285,8 +264,10 @@ export default function SchedulePage() {
             </div>
           </div>
         </div>
-      ) : (
-        /* ── Barber schedules ── */
+      )}
+
+      {/* NOTE: Barber individual schedules are now managed from /admin/barbers */}
+      {false && (
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
           {/* Barber list */}
           <div className="space-y-2">
@@ -380,6 +361,6 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
   );
 }

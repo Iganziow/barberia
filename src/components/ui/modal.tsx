@@ -17,25 +17,37 @@ export default function Modal({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const didFocusRef = useRef(false);
 
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (open) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      document.addEventListener("keydown", onKeyDown);
-      // Focus the dialog on open
-      setTimeout(() => dialogRef.current?.focus(), 50);
-    }
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      // Return focus when closing
-      if (!open && previousFocusRef.current) {
+    if (!open) {
+      didFocusRef.current = false;
+      if (previousFocusRef.current) {
         previousFocusRef.current.focus();
         previousFocusRef.current = null;
       }
-    };
+      return;
+    }
+
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+
+    // Focus dialog only once on open
+    if (!didFocusRef.current) {
+      didFocusRef.current = true;
+      setTimeout(() => {
+        // Focus first input if exists, otherwise the dialog
+        const firstInput = dialogRef.current?.querySelector<HTMLElement>("input, textarea, select");
+        if (firstInput) firstInput.focus();
+        else dialogRef.current?.focus();
+      }, 50);
+    }
+
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
   if (!open) return null;

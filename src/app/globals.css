@@ -51,7 +51,7 @@ body {
 /* ── FullCalendar — clean modern theme ── */
 .fc {
   --fc-bg: #ffffff;
-  --fc-border: #f0ece8;
+  --fc-border: #e5e0da;
   --fc-text: #1c1917;
   --fc-muted: #a8a29e;
   --fc-surface: #fafaf9;
