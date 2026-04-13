@@ -123,15 +123,15 @@ body {
 .fc .fc-timegrid-now-indicator-line { border-color: #ef4444 !important; border-width: 2px !important; }
 .fc .fc-timegrid-now-indicator-arrow { border-top-color: #ef4444 !important; border-bottom-color: #ef4444 !important; }
 
-/* ── Shared form classes ── */
+/* ── Shared form classes — always light regardless of dark mode ── */
 .input-field {
   width: 100%;
   border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
+  border: 1px solid #e8e2dc;
+  background: #ffffff;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: var(--foreground);
+  color: #1c1917;
 }
 .input-field:focus {
   border-color: var(--accent);
@@ -139,7 +139,11 @@ body {
   box-shadow: 0 0 0 2px rgba(200, 121, 65, 0.15);
 }
 .input-field::placeholder {
-  color: var(--muted-light);
+  color: #a8a29e;
+}
+.input-field:disabled {
+  background: #f5f5f4;
+  color: #a8a29e;
 }
 .field-label {
   display: block;
@@ -147,7 +151,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: #78716c;
   margin-bottom: 0.35rem;
 }
 .btn-primary {
@@ -168,15 +172,15 @@ body {
 }
 .btn-secondary {
   border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--muted);
+  border: 1px solid #e8e2dc;
+  background: #ffffff;
+  color: #57534e;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
 }
 .btn-secondary:hover {
-  background: var(--surface);
+  background: #faf8f6;
 }
 
 /* Smooth transitions */

@@ -8,7 +8,7 @@ export async function getBarbers(orgId: string, branchId?: string) {
       ...(branchId ? { branchId } : {}),
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, email: true, phone: true } },
     },
     orderBy: { user: { name: "asc" } },
   });
