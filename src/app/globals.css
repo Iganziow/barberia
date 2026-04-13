@@ -77,34 +77,48 @@ body {
   background-color: var(--accent) !important;
   color: white !important;
 }
+/* Force light colors on calendar regardless of dark mode */
+.fc {
+  --fc-bg: #ffffff;
+  --fc-border: #e8e2dc;
+  --fc-text: #1c1917;
+  --fc-muted: #78716c;
+  --fc-surface: #faf8f6;
+}
 .fc .fc-col-header-cell {
-  background-color: var(--surface);
+  background-color: var(--fc-surface) !important;
   font-weight: 500;
-  color: #78716c;
+  color: var(--fc-muted);
   font-size: 0.8rem;
 }
 .fc .fc-timegrid-slot {
-  border-color: var(--border) !important;
+  border-color: var(--fc-border) !important;
 }
 .fc .fc-scrollgrid,
 .fc .fc-scrollgrid td,
 .fc .fc-scrollgrid th {
-  border-color: var(--border) !important;
+  border-color: var(--fc-border) !important;
+}
+.fc .fc-timegrid-col,
+.fc .fc-daygrid-day {
+  background-color: var(--fc-bg) !important;
 }
 .fc .fc-toolbar-title {
   font-weight: 700 !important;
   font-size: 1.05rem !important;
-  color: var(--foreground) !important;
+  color: var(--fc-text) !important;
 }
 .fc .fc-event {
-  border-radius: 5px !important;
+  border-radius: 4px !important;
   border-left-width: 3px !important;
-  border-top-width: 1px !important;
-  border-right-width: 1px !important;
-  border-bottom-width: 1px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  border-top-width: 0 !important;
+  border-right-width: 0 !important;
+  border-bottom-width: 0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
   transition: box-shadow 0.15s, transform 0.1s !important;
   overflow: hidden !important;
+  font-size: 11px !important;
+  line-height: 1.3 !important;
 }
 .fc .fc-event:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.13) !important;
@@ -124,7 +138,7 @@ body {
   border-bottom-color: var(--accent) !important;
 }
 .fc .fc-day-today {
-  background-color: rgba(200, 121, 65, 0.035) !important;
+  background-color: rgba(200, 121, 65, 0.05) !important;
 }
 .fc .fc-day-today .fc-col-header-cell-cushion {
   color: var(--accent) !important;
@@ -140,12 +154,13 @@ body {
 }
 .fc .fc-timegrid-slot-label-cushion {
   font-size: 0.72rem !important;
-  color: #a8a29e !important;
+  color: var(--fc-muted) !important;
   padding-right: 6px !important;
 }
 .fc .fc-scrollgrid {
   border-radius: 8px !important;
   overflow: hidden !important;
+  background-color: var(--fc-bg) !important;
 }
 /* Clip events strictly inside their column */
 .fc .fc-timegrid-col-events {

@@ -141,8 +141,8 @@ export default function AgendaCalendar({
                 : "#c87941";
 
           return (
-            <div className="px-1.5 py-1 text-[11px] leading-snug overflow-hidden cursor-pointer">
-              <div className="flex items-center gap-1.5">
+            <div className="px-1 py-0.5 text-[10px] leading-tight overflow-hidden cursor-pointer h-full">
+              <div className="flex items-center gap-1">
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
                   style={{ backgroundColor: dotColor }}
@@ -150,7 +150,7 @@ export default function AgendaCalendar({
                 <span className="font-semibold truncate">{lines[0]}</span>
               </div>
               {lines[1] && (
-                <div className="truncate opacity-70 pl-3">{lines[1]}</div>
+                <div className="truncate opacity-60 pl-2.5 text-[9px]">{lines[1]}</div>
               )}
             </div>
           );
