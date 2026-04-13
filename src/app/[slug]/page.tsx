@@ -10,7 +10,8 @@ type WorkingHour = { dayOfWeek: number; isOpen: boolean; openTime: string; close
 type Branch = {
   name: string; address: string; phone: string | null; workingHours: WorkingHour[];
   latitude: number | null; longitude: number | null;
-  orgDescription: string | null; orgLogo: string | null;
+  orgName: string | null; orgDescription: string | null; orgLogo: string | null;
+  orgPhone: string | null; orgEmail: string | null;
 };
 type BarberService = { id: string; name: string; description: string | null; durationMin: number; price: number; categoryName: string | null };
 type Barber = { id: string; name: string; color: string | null; workDays: number[]; services: BarberService[] };
@@ -85,7 +86,7 @@ export default function OrgLandingPage() {
     return (
       <div className="min-h-screen bg-[#faf8f6] flex items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="text-2xl font-extrabold text-stone-900">Mar<span className="text-brand">Brava</span></div>
+          <div className="text-2xl font-extrabold text-stone-900">Cargando...</div>
           <div className="h-1 w-24 mx-auto rounded-full bg-brand/20 overflow-hidden">
             <div className="h-full w-1/2 rounded-full bg-brand animate-pulse" />
           </div>
@@ -100,7 +101,7 @@ export default function OrgLandingPage() {
       <nav className="sticky top-0 z-20 border-b border-[#e8e2dc] bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <h1 className="text-lg font-extrabold tracking-tight text-stone-900">
-            Mar<span className="text-brand">Brava</span>
+            {branch?.orgName || slug}
           </h1>
           <Link
             href={bookUrl}
@@ -123,7 +124,7 @@ export default function OrgLandingPage() {
           <div className={`${branch?.orgLogo ? "bg-gradient-to-t from-[#1a1412] via-[#1a1412]/95 to-[#1a1412]/70 -mt-20 relative" : ""} p-6 sm:p-8 text-center`}>
             <div className="relative">
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                Mar<span className="text-brand">Brava</span>
+                {branch?.orgName || slug}
               </h2>
               {branch?.orgDescription ? (
                 <p className="mt-2 text-sm text-white/60 max-w-md mx-auto">{branch.orgDescription}</p>
@@ -325,7 +326,7 @@ export default function OrgLandingPage() {
         </div>
 
         <footer className="border-t border-[#e8e2dc] pt-4 pb-6 text-center text-[11px] text-stone-400">
-          &copy; {new Date().getFullYear()} MarBrava Barbería · Ancud, Chiloé
+          &copy; {new Date().getFullYear()} {branch?.orgName || slug}
         </footer>
       </div>
     </div>

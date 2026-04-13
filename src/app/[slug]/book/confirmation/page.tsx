@@ -51,7 +51,7 @@ function ConfirmationContent() {
         <header className="bg-[#1a1412] text-white">
           <div className="mx-auto max-w-lg px-4 py-5">
             <h1 className="text-xl font-extrabold tracking-tight">
-              Mar<span className="text-brand">Brava</span>
+              {slug}
             </h1>
           </div>
         </header>
@@ -68,7 +68,7 @@ function ConfirmationContent() {
       <header className="bg-[#1a1412] text-white">
         <div className="mx-auto max-w-lg px-4 py-5">
           <h1 className="text-xl font-extrabold tracking-tight">
-            Mar<span className="text-brand">Brava</span>
+            {slug}
           </h1>
         </div>
       </header>

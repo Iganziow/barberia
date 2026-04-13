@@ -209,7 +209,7 @@ export default function BookingPage() {
       <header className="bg-[#1a1412] text-white">
         <div className="mx-auto max-w-lg px-4 py-4 flex items-center justify-between">
           <Link href={`/${slug}`} className="text-lg font-extrabold tracking-tight">
-            Mar<span className="text-brand">Brava</span>
+            {slug}
           </Link>
           <span className="text-xs text-white/40">Reservar hora</span>
         </div>
