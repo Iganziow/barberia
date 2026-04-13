@@ -88,7 +88,7 @@ export default function BarberCalendar({
         allDaySlot={false}
         nowIndicator={true}
         stickyHeaderDates={true}
-        height="calc(100dvh - 130px)"
+        height="calc(100dvh - 160px)"
         expandRows={true}
         hiddenDays={[0]}
         events={fcEvents}
