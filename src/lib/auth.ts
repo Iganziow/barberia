@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 
-export type JwtRole = "CLIENT" | "BARBER" | "ADMIN" | "RECEPTIONIST";
+export type JwtRole = "CLIENT" | "BARBER" | "ADMIN" | "RECEPTIONIST" | "SUPERADMIN";
 
 export type JwtPayload = {
   sub: string; // userId

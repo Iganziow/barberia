@@ -5,8 +5,22 @@ const prisma = new PrismaClient();
 
 async function main() {
   const hash = await bcrypt.hash("Admin1234!", 10);
+  const superHash = await bcrypt.hash("Super1234!", 10);
   const barberHash = await bcrypt.hash("Barber1234!", 10);
   const clientHash = await bcrypt.hash("Client1234!", 10);
+
+  // ─── SuperAdmin ───────────────────────────────────────
+  const superAdmin = await prisma.user.upsert({
+    where: { email: "super@marbrava.cl" },
+    update: {},
+    create: {
+      name: "Super Admin",
+      email: "super@marbrava.cl",
+      password: superHash,
+      role: Role.SUPERADMIN,
+    },
+  });
+  console.log("✅ SuperAdmin creado:", superAdmin.email);
 
   // ─── Admin ────────────────────────────────────────────
   const admin = await prisma.user.upsert({

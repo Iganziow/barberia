@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, requireBarber } from "@/lib/api-auth";
+import { requireAdmin, requireBarber, requireSuperAdmin } from "@/lib/api-auth";
 import { verifyApiKey } from "@/lib/api-key-auth";
 import { AppError } from "@/lib/api-error";
 import type { JwtPayload } from "@/lib/auth";
@@ -50,6 +50,12 @@ export function withAdmin(
   handler: (req: Request, ctx: AuthContext, routeParams: RouteParams) => Promise<NextResponse>
 ) {
   return withAuth(requireAdmin, handler);
+}
+
+export function withSuperAdmin(
+  handler: (req: Request, ctx: AuthContext, routeParams: RouteParams) => Promise<NextResponse>
+) {
+  return withAuth(requireSuperAdmin, handler);
 }
 
 export function withBarber(

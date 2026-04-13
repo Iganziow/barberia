@@ -40,7 +40,7 @@ export async function middleware(req: NextRequest) {
 
     try {
       const payload = await verifySessionToken(token);
-      if (payload.role !== "ADMIN") {
+      if (payload.role !== "ADMIN" && payload.role !== "SUPERADMIN") {
         const url = req.nextUrl.clone();
         url.pathname = "/login";
         return NextResponse.redirect(url);
@@ -48,6 +48,31 @@ export async function middleware(req: NextRequest) {
 
       if (payload.orgId) {
         requestHeaders.set("x-org-id", payload.orgId);
+      }
+    } catch {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Superadmin routes: check JWT + SUPERADMIN role
+  if (pathname.startsWith("/superadmin")) {
+    const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+    if (!token) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+
+    try {
+      const payload = await verifySessionToken(token);
+      if (payload.role !== "SUPERADMIN") {
+        const url = req.nextUrl.clone();
+        url.pathname = "/login";
+        return NextResponse.redirect(url);
       }
     } catch {
       const url = req.nextUrl.clone();
@@ -92,5 +117,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/barber/:path*", "/api/:path*"],
+  matcher: ["/admin/:path*", "/superadmin/:path*", "/barber/:path*", "/api/:path*"],
 };

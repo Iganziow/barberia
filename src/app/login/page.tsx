@@ -31,7 +31,8 @@ export default function LoginPage() {
       }
 
       const params = new URLSearchParams(window.location.search);
-      const defaultRedirect = data.user?.role === "BARBER" ? "/barber" : "/admin";
+      const role = data.user?.role;
+      const defaultRedirect = role === "SUPERADMIN" ? "/superadmin" : role === "BARBER" ? "/barber" : "/admin";
       const next = params.get("next") || defaultRedirect;
       router.push(next);
     } catch {
