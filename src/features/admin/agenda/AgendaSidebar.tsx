@@ -68,10 +68,15 @@ export default function AgendaSidebar({
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
+  const labelClass =
+    "block text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-500 mb-1.5";
+
   const body = (
-    <div className="space-y-5 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-stone-900">Filtros</h2>
+    <div className="divide-y divide-[#f0ebe5]">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-stone-700">
+          Filtros
+        </h2>
         <button
           type="button"
           onClick={() => setCollapsed(true)}
@@ -84,7 +89,7 @@ export default function AgendaSidebar({
         <button
           type="button"
           onClick={onMobileClose}
-          className="lg:hidden grid h-6 w-6 place-items-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
+          className="lg:hidden grid h-7 w-7 place-items-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
           aria-label="Cerrar"
         >
           ×
@@ -92,14 +97,12 @@ export default function AgendaSidebar({
       </div>
 
       {/* Sucursal */}
-      <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
-          Sucursal
-        </label>
+      <div className="px-4 py-3">
+        <label className={labelClass}>Sucursal</label>
         <select
           value={branchId}
           onChange={(e) => onChangeBranch(e.target.value)}
-          className="h-9 w-full rounded-lg border border-[#e8e2dc] bg-white px-3 text-sm text-stone-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+          className="h-8 w-full rounded-md border border-[#e8e2dc] bg-white px-2.5 text-[13px] text-stone-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
         >
           {branches.map((b) => (
             <option key={b.id} value={b.id}>
@@ -110,10 +113,8 @@ export default function AgendaSidebar({
       </div>
 
       {/* Profesional */}
-      <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
-          Profesional
-        </label>
+      <div className="px-4 py-3">
+        <label className={labelClass}>Profesional</label>
         <AgendaBarberSelect
           barbers={barbers}
           selected={barberIds}
@@ -122,10 +123,8 @@ export default function AgendaSidebar({
       </div>
 
       {/* Estado */}
-      <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
-          Estado de la reserva
-        </label>
+      <div className="px-4 py-3">
+        <label className={labelClass}>Estado</label>
         <AgendaStatusFilter
           preset={statusPreset}
           customStatuses={customStatuses}
@@ -135,10 +134,8 @@ export default function AgendaSidebar({
       </div>
 
       {/* Rango visible */}
-      <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
-          Rango horario visible
-        </label>
+      <div className="px-4 py-3">
+        <label className={labelClass}>Horario visible</label>
         <AgendaVisibleRangeSelect
           value={visibleRange}
           onChange={onChangeVisibleRange}
@@ -146,28 +143,30 @@ export default function AgendaSidebar({
       </div>
 
       {/* Quick search */}
-      <button
-        type="button"
-        onClick={onOpenQuickSearch}
-        className="w-full rounded-lg border border-[#e8e2dc] bg-stone-50 px-3 py-2.5 text-left hover:bg-white hover:border-brand/40 transition flex items-center gap-2"
-      >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-brand/10 text-brand shrink-0">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M9 3a6 6 0 1 0 3.5 10.9l3.3 3.3 1.4-1.4-3.3-3.3A6 6 0 0 0 9 3zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" />
-          </svg>
-        </span>
-        <div className="min-w-0">
-          <div className="text-xs font-semibold text-stone-800 leading-tight">
-            Búsqueda rápida de hora
+      <div className="px-4 py-3">
+        <button
+          type="button"
+          onClick={onOpenQuickSearch}
+          className="w-full rounded-md border border-[#e8e2dc] bg-stone-50/60 px-2.5 py-2 text-left hover:bg-white hover:border-brand/40 transition flex items-center gap-2"
+        >
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-brand/10 text-brand shrink-0">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 3a6 6 0 1 0 3.5 10.9l3.3 3.3 1.4-1.4-3.3-3.3A6 6 0 0 0 9 3zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" />
+            </svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-stone-800 leading-tight">
+              Búsqueda rápida
+            </div>
+            <div className="text-[10px] text-stone-500 leading-tight">
+              Primer slot libre
+            </div>
           </div>
-          <div className="text-[10px] text-stone-500 leading-tight">
-            Encuentra el primer slot libre
-          </div>
-        </div>
-      </button>
+        </button>
+      </div>
 
       {/* Mini calendar */}
-      <div className="pt-2 border-t border-[#f0ebe5]">
+      <div className="px-4 py-3">
         <MiniMonthCalendar
           selectedDate={selectedDate}
           onSelectDate={onSelectDate}
@@ -200,7 +199,10 @@ export default function AgendaSidebar({
       {collapsed ? (
         collapsedRail
       ) : (
-        <aside className="hidden lg:block w-[260px] shrink-0 border-r border-[#e8e2dc] bg-white overflow-y-auto">
+        <aside
+          className="hidden lg:block shrink-0 border-r border-[#e8e2dc] bg-white overflow-y-auto overflow-x-hidden"
+          style={{ width: 240 }}
+        >
           {body}
         </aside>
       )}

@@ -95,7 +95,7 @@ export default function MiniMonthCalendar({
 
   return (
     <div className="text-xs">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <button
           type="button"
           onClick={prevMonth}
@@ -104,9 +104,9 @@ export default function MiniMonthCalendar({
         >
           ‹
         </button>
-        <div className="font-semibold text-stone-700">
+        <div className="text-[11px] font-semibold text-stone-700">
           {MONTH_NAMES[cursor.getMonth()]}{" "}
-          <span className="text-stone-400">{cursor.getFullYear()}</span>
+          <span className="text-stone-400 font-normal">{cursor.getFullYear()}</span>
         </div>
         <button
           type="button"
@@ -118,13 +118,13 @@ export default function MiniMonthCalendar({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-stone-400 mb-1">
+      <div className="grid grid-cols-7 text-center text-[9px] font-semibold text-stone-400 mb-0.5">
         {DAY_HEADERS.map((h) => (
-          <div key={h} className="py-1">{h}</div>
+          <div key={h} className="py-0.5">{h}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5">
+      <div className="grid grid-cols-7 gap-px">
         {grid.map(({ date, currentMonth }) => {
           const isToday = sameDay(date, today);
           const isSelected = sameDay(date, selectedDate);
@@ -133,11 +133,11 @@ export default function MiniMonthCalendar({
               key={date.toISOString()}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`h-7 rounded-md text-center text-[11px] transition ${
+              className={`h-6 rounded text-center text-[10.5px] transition tabular-nums ${
                 isSelected
-                  ? "bg-brand text-white font-semibold shadow-sm"
+                  ? "bg-brand text-white font-bold shadow-sm"
                   : isToday
-                    ? "bg-stone-900 text-white font-medium"
+                    ? "bg-stone-900 text-white font-semibold"
                     : currentMonth
                       ? "text-stone-700 hover:bg-stone-100"
                       : "text-stone-300 hover:bg-stone-50"

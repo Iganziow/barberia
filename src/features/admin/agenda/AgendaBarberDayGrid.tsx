@@ -125,29 +125,34 @@ export default function AgendaBarberDayGrid({
     });
   }
 
+  // Con pocos barberos queremos columnas anchas que llenen el contenedor.
+  // Con muchos barberos, cada columna debe tener un mínimo razonable y aparece scroll horizontal.
+  const minColWidth = barbers.length <= 3 ? 0 : 160;
+  const useScroll = barbers.length > 4;
+
   return (
-    <div className="h-full overflow-auto">
+    <div className={`h-full w-full ${useScroll ? "overflow-auto" : "overflow-y-auto overflow-x-hidden"}`}>
       <div
-        className="grid min-w-max"
+        className={`grid ${useScroll ? "min-w-max" : "w-full"}`}
         style={{
-          gridTemplateColumns: `56px repeat(${Math.max(barbers.length, 1)}, minmax(180px, 1fr))`,
+          gridTemplateColumns: `56px repeat(${Math.max(barbers.length, 1)}, minmax(${minColWidth}px, 1fr))`,
         }}
       >
         {/* Header: empty corner + barber headers */}
-        <div className="sticky top-0 z-20 bg-white border-b border-[#e8e2dc] h-16" />
+        <div className="sticky top-0 z-20 bg-white border-b border-[#e8e2dc] h-14" />
         {barbers.map((b) => (
           <div
             key={`h-${b.id}`}
-            className="sticky top-0 z-20 bg-white border-b border-l border-[#e8e2dc] h-16 flex items-center justify-center"
+            className="sticky top-0 z-20 bg-white border-b border-l border-[#e8e2dc] h-14 flex items-center justify-center"
           >
             <button
               type="button"
               onClick={() => onClickBarberHeader(b.id)}
-              className="group flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-stone-50 transition"
+              className="group flex items-center gap-2 px-3 py-1 rounded-full hover:bg-stone-50 transition"
               title={`Ver semana de ${b.name}`}
             >
               <div
-                className="h-8 w-8 rounded-full grid place-items-center text-white text-xs font-bold shadow-sm"
+                className="h-7 w-7 rounded-full grid place-items-center text-white text-[10px] font-bold shadow-sm ring-2 ring-white"
                 style={{ backgroundColor: b.color || "#c87941" }}
               >
                 {b.name
@@ -157,7 +162,7 @@ export default function AgendaBarberDayGrid({
                   .slice(0, 2)
                   .toUpperCase()}
               </div>
-              <span className="text-xs font-medium text-stone-700 group-hover:text-stone-900 truncate max-w-[120px]">
+              <span className="text-[13px] font-semibold text-stone-700 group-hover:text-stone-900 truncate max-w-[140px]">
                 {b.name}
               </span>
             </button>

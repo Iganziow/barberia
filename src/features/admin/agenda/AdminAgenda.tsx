@@ -16,7 +16,6 @@ import { useBranches } from "@/hooks/use-branches";
 import { useAgendaEvents } from "@/hooks/use-agenda-events";
 import { useBarberSchedules } from "@/hooks/use-barber-schedules";
 import { useVisibleRange } from "@/hooks/use-visible-range";
-import PageTip from "@/components/ui/PageTip";
 import type { AppointmentStatusCode, StatusPreset } from "@/types/agenda";
 import {
   STATUS_ACTIVE,
@@ -223,7 +222,10 @@ export default function AdminAgenda() {
       : null;
 
   return (
-    <div className="flex -mx-[var(--admin-pad-x,1rem)] -my-[var(--admin-pad-y,1rem)] min-h-[calc(100dvh-80px)]">
+    // Escapamos el padding del <main> (px-4 py-4 lg:px-6 lg:py-5) y el max-w-[1400px]
+    // para que la agenda ocupe todo el ancho del content area del AdminShell,
+    // mostrando sidebar + canvas como un único panel (estilo Agenda Pro).
+    <div className="flex -mx-4 -my-4 lg:-mx-6 lg:-my-5 min-h-[calc(100dvh-64px)] bg-white border-t border-[#e8e2dc]">
       {/* Sidebar */}
       <AgendaSidebar
         branches={branches}
@@ -246,10 +248,10 @@ export default function AdminAgenda() {
       />
 
       {/* Main area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col bg-white">
         {/* Header */}
-        <div className="border-b border-[#e8e2dc] bg-white px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="border-b border-[#e8e2dc] bg-white px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -261,18 +263,25 @@ export default function AdminAgenda() {
               </svg>
             </button>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold tracking-tight text-stone-900 leading-tight truncate">
+              <h1 className="text-[17px] font-bold tracking-tight text-stone-900 leading-tight truncate capitalize">
                 {selectedDate.toLocaleDateString("es-CL", {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
-                  year: "numeric",
                 })}
+                <span className="text-stone-400 font-medium ml-1.5">
+                  {selectedDate.getFullYear()}
+                </span>
               </h1>
-              <div className="text-xs text-stone-500 flex items-center gap-2 flex-wrap">
-                <span>🏠 {branches.find((b) => b.id === effectiveBranchId)?.name || "—"}</span>
+              <div className="text-[11px] text-stone-500 flex items-center gap-2 flex-wrap mt-0.5">
+                <span className="inline-flex items-center gap-1">
+                  <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" className="text-stone-400">
+                    <path d="M10 2L2 8v10h5v-6h6v6h5V8z" />
+                  </svg>
+                  {branches.find((b) => b.id === effectiveBranchId)?.name || "—"}
+                </span>
                 {singleSelectedBarber && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 text-brand px-2 py-0.5 font-medium">
                     <span
                       className="h-1.5 w-1.5 rounded-full"
                       style={{ backgroundColor: singleSelectedBarber.color || "#c87941" }}
@@ -281,7 +290,7 @@ export default function AdminAgenda() {
                     <button
                       type="button"
                       onClick={() => setBarberIds([])}
-                      className="ml-0.5 text-stone-400 hover:text-stone-700"
+                      className="ml-0.5 opacity-60 hover:opacity-100"
                       aria-label="Quitar filtro de barbero"
                     >
                       ×
@@ -292,21 +301,21 @@ export default function AdminAgenda() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
               onClick={() => setSelectedDate(startOfDay(new Date()))}
-              className="rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 transition"
+              className="rounded-md border border-[#e8e2dc] bg-white px-3 h-8 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
             >
               Hoy
             </button>
-            <div className="inline-flex rounded-md border border-[#e8e2dc] overflow-hidden">
+            <div className="inline-flex rounded-md border border-[#e8e2dc] overflow-hidden h-8">
               <button
                 type="button"
                 onClick={() =>
                   setSelectedDate(addDays(selectedDate, viewMode === "day" ? -1 : -7))
                 }
-                className="px-2 py-1.5 text-sm hover:bg-stone-50 transition"
+                className="px-2.5 text-stone-500 hover:bg-stone-50 hover:text-stone-800 transition"
                 aria-label="Anterior"
               >
                 ‹
@@ -316,7 +325,7 @@ export default function AdminAgenda() {
                 onClick={() =>
                   setSelectedDate(addDays(selectedDate, viewMode === "day" ? 1 : 7))
                 }
-                className="px-2 py-1.5 text-sm hover:bg-stone-50 transition border-l border-[#e8e2dc]"
+                className="px-2.5 text-stone-500 hover:bg-stone-50 hover:text-stone-800 transition border-l border-[#e8e2dc]"
                 aria-label="Siguiente"
               >
                 ›
@@ -324,7 +333,7 @@ export default function AdminAgenda() {
             </div>
             <AgendaViewToggle mode={viewMode} onChange={setViewMode} />
             <button
-              className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-sm flex items-center gap-1"
+              className="h-8 rounded-md bg-brand px-3.5 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-sm flex items-center gap-1.5"
               onClick={() => {
                 const x = Math.min(window.innerWidth - 240, window.innerWidth - 260);
                 setSlotMenuPos({ x, y: 140 });
@@ -333,7 +342,7 @@ export default function AdminAgenda() {
                 setSlotMenuOpen(true);
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M7 1v12M1 7h12" />
               </svg>
               Nuevo
@@ -341,10 +350,8 @@ export default function AdminAgenda() {
           </div>
         </div>
 
-        <PageTip id="agenda" text="Haz clic en un horario vacío para crear una reserva rápida. Haz clic en un barbero para ver solo sus horarios." />
-
         {/* Calendar area */}
-        <div className="flex-1 overflow-hidden bg-[#faf8f6]">
+        <div className="flex-1 overflow-hidden bg-white">
           {viewMode === "day" ? (
             <AgendaBarberDayGrid
               date={selectedDate}
