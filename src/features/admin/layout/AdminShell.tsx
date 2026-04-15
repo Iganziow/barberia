@@ -174,14 +174,25 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     onClick={() => setSidebarOpen(false)}
                     data-tour-id={item.tourId}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all",
+                      "relative group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all nav-indicator",
                       active
-                        ? "border-l-[3px] border-l-brand bg-brand/15 text-brand ml-0"
-                        : "text-white/60 hover:bg-white/5 hover:text-white/90 border-l-[3px] border-l-transparent"
+                        ? "bg-gradient-to-r from-brand/20 via-brand/10 to-transparent text-brand shadow-[inset_3px_0_0_0_var(--accent)]"
+                        : "text-white/60 hover:bg-white/5 hover:text-white/90 hover:translate-x-0.5"
                     )}
                   >
-                    <item.Icon className={cn("shrink-0", active ? "text-brand" : "text-white/40")} />
+                    <item.Icon
+                      className={cn(
+                        "shrink-0 transition-transform",
+                        active ? "text-brand scale-105" : "text-white/40 group-hover:text-white/70"
+                      )}
+                    />
                     {item.label}
+                    {active && (
+                      <span
+                        className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--accent)]"
+                        aria-hidden="true"
+                      />
+                    )}
                   </Link>
                 );
               })}

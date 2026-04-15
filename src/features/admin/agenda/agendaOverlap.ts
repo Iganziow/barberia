@@ -9,24 +9,37 @@ function toMs(iso: string) {
   return new Date(iso).getTime();
 }
 
+// Statuses que bloquean la creación de una reserva (no permiten overlap).
+const BLOCKING_STATUSES = new Set<AgendaEvent["status"]>([
+  "ACTIVE", // BLOCK events
+  "RESERVED",
+  "CONFIRMED",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "DONE",
+]);
+
 // Intervalos se solapan si startA < endB && startB < endA
 export function hasOverlap(
   existing: AgendaEvent[],
   next: { startISO: string; endISO: string; barberId: string },
   options?: {
     ignoreEventId?: string;
-    // si quieres permitir que un cliente tenga 2 reservas simultáneas, esto lo ajustamos después
     considerStatuses?: Array<AgendaEvent["status"]>;
   }
 ): OverlapResult {
   const start = toMs(next.startISO);
   const end = toMs(next.endISO);
-  const consider = options?.considerStatuses ?? ["ACTIVE"];
+  const considerSet = options?.considerStatuses
+    ? new Set(options.considerStatuses)
+    : BLOCKING_STATUSES;
 
   const conflicts = existing.filter((e) => {
     if (options?.ignoreEventId && e.id === options.ignoreEventId) return false;
+    // UNAVAILABLE son solo visuales; no bloquean overlaps.
+    if (e.kind === "UNAVAILABLE") return false;
     if (e.barberId !== next.barberId) return false;
-    if (!consider.includes(e.status)) return false;
+    if (!considerSet.has(e.status)) return false;
 
     const es = toMs(e.start);
     const ee = toMs(e.end);

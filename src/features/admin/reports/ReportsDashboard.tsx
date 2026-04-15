@@ -74,10 +74,24 @@ function StatCard({
   borderColor: string;
 }) {
   return (
-    <div className="rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm" style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}>
-      <p className="text-xs font-medium text-stone-400 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-stone-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-stone-400 mt-0.5">{sub}</p>}
+    <div
+      className="relative rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm overflow-hidden group hover:shadow-md transition-all"
+      style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
+    >
+      {/* Subtle gradient wash on hover */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at top right, ${borderColor}08, transparent 70%)`,
+        }}
+      />
+      <div className="relative">
+        <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em]">{label}</p>
+        <p className="text-[28px] leading-none font-extrabold text-stone-900 mt-2 tracking-tight tabular-nums">
+          {value}
+        </p>
+        {sub && <p className="text-xs text-stone-500 mt-1.5">{sub}</p>}
+      </div>
     </div>
   );
 }

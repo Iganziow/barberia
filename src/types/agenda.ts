@@ -44,16 +44,48 @@ export type BlockTimeView = {
   barberName: string;
 };
 
-// Tipo unificado para el calendario (appointments + blocks)
+// Los 7 estados canónicos del enum AppointmentStatus (prisma/schema.prisma).
+export type AppointmentStatusCode =
+  | "RESERVED"
+  | "CONFIRMED"
+  | "ARRIVED"
+  | "IN_PROGRESS"
+  | "DONE"
+  | "CANCELED"
+  | "NO_SHOW";
+
+// Tipo unificado para el calendario (appointments + blocks + bloques "no disponible").
 export type AgendaEvent = {
   id: string;
   title: string;
-  start: string;
-  end: string;
-  kind: "APPOINTMENT" | "BLOCK";
+  start: string; // ISO
+  end: string; // ISO
+  kind: "APPOINTMENT" | "BLOCK" | "UNAVAILABLE";
   barberId: string;
-  status: "ACTIVE" | "CANCELED" | "DONE";
+  /**
+   * Para APPOINTMENT: el status canónico del Appointment.
+   * Para BLOCK / UNAVAILABLE: se fija en "ACTIVE" (solo usado para filtros).
+   */
+  status: AppointmentStatusCode | "ACTIVE";
 };
+
+// Horario de trabajo de un barbero para un día de la semana (espejo de BarberSchedule).
+export type BarberScheduleEntry = {
+  barberId: string;
+  dayOfWeek: number; // 0 = domingo, 6 = sábado
+  startTime: string; // "HH:mm"
+  endTime: string; // "HH:mm"
+  isWorking: boolean;
+};
+
+// Rango horario visible del calendario (seleccionable por el admin, persistido en localStorage).
+export type VisibleRange = {
+  from: string; // "HH:mm"
+  to: string; // "HH:mm"
+};
+
+// Preset de filtro de estado.
+export type StatusPreset = "ACTIVE" | "HISTORY" | "ALL" | "CUSTOM";
 
 export type ClientOption = {
   id: string;

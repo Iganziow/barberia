@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NEXT_DISABLE_TURBOPACK=1 next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "postinstall": "prisma generate",
     "start": "next start",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AgendaEvent } from "@/types/agenda";
+import type { AgendaEvent, AppointmentStatusCode } from "@/types/agenda";
 
 type Filters = {
   branchId?: string;
@@ -10,10 +10,21 @@ type Filters = {
   to?: string;
 };
 
-function statusToAgenda(status: string): AgendaEvent["status"] {
-  if (status === "CANCELED") return "CANCELED";
-  if (status === "DONE") return "DONE";
-  return "ACTIVE";
+const VALID_STATUSES: AppointmentStatusCode[] = [
+  "RESERVED",
+  "CONFIRMED",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "DONE",
+  "CANCELED",
+  "NO_SHOW",
+];
+
+function normalizeStatus(status: string): AppointmentStatusCode {
+  if ((VALID_STATUSES as string[]).includes(status)) {
+    return status as AppointmentStatusCode;
+  }
+  return "RESERVED";
 }
 
 export function useAgendaEvents(filters: Filters) {
@@ -57,7 +68,7 @@ export function useAgendaEvents(filters: Filters) {
           end: a.end,
           kind: "APPOINTMENT" as const,
           barberId: a.barberId,
-          status: statusToAgenda(a.status),
+          status: normalizeStatus(a.status),
         })
       );
 

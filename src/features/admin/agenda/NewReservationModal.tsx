@@ -48,7 +48,9 @@ export default function NewReservationModal({
   open,
   onClose,
   startISO,
+  endISO,
   barberId,
+  serviceId: initialServiceId,
   barbers,
   services,
   existingEvents,
@@ -57,7 +59,11 @@ export default function NewReservationModal({
   open: boolean;
   onClose: () => void;
   startISO: string | null;
+  /** Si se provee, precarga el servicio correspondiente a esa duración (desde Quick search). */
+  endISO?: string | null;
   barberId: string;
+  /** Si se provee, precarga este serviceId. */
+  serviceId?: string;
   barbers: BarberOption[];
   services: ServiceOption[];
   existingEvents: AgendaEvent[];
@@ -134,6 +140,17 @@ export default function NewReservationModal({
       setPrice(defaultService.price);
     }
   }, [defaultService, serviceId]);
+
+  // Si el contenedor manda un serviceId precargado (desde Quick search), úsalo.
+  useEffect(() => {
+    if (open && initialServiceId) {
+      setServiceId(initialServiceId);
+    }
+  }, [open, initialServiceId]);
+
+  // Mantener endISO como referencia futura si se llegara a necesitar.
+  // (Por ahora el end se deriva de la duración del servicio).
+  void endISO;
 
   const service = useMemo(
     () => services.find((s) => s.id === serviceId),

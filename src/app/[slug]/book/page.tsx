@@ -224,17 +224,35 @@ export default function BookingPage() {
             return (
               <div key={s.key} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
-                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                    done ? "bg-brand text-white" : active ? "bg-brand text-white ring-4 ring-brand/20" : "bg-stone-200 text-stone-400"
-                  }`}>
-                    {done ? "\u2713" : i + 1}
+                  <div
+                    className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                      done
+                        ? "bg-gradient-to-br from-brand to-[#b56a35] text-white shadow-md shadow-brand/25"
+                        : active
+                          ? "bg-white text-brand ring-2 ring-brand shadow-[0_0_0_4px_rgba(200,121,65,0.12)]"
+                          : "bg-stone-100 text-stone-400 border border-stone-200"
+                    }`}
+                  >
+                    {done ? (
+                      <svg className="step-pop h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      i + 1
+                    )}
                   </div>
-                  <p className={`text-[10px] mt-1.5 font-semibold ${active ? "text-brand" : done ? "text-stone-600" : "text-stone-300"}`}>
+                  <p className={`text-[10px] mt-2 font-semibold tracking-wide ${active ? "text-brand" : done ? "text-stone-700" : "text-stone-300"}`}>
                     {s.label}
                   </p>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`h-0.5 flex-1 rounded-full -mt-4 mx-1 ${i < stepIndex ? "bg-brand" : "bg-stone-200"}`} />
+                  <div className="h-0.5 flex-1 rounded-full -mt-5 mx-1 bg-stone-200 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${
+                        i < stepIndex ? "w-full bg-gradient-to-r from-brand to-[#b56a35]" : "w-0"
+                      }`}
+                    />
+                  </div>
                 )}
               </div>
             );
@@ -261,10 +279,10 @@ export default function BookingPage() {
                   key={svc.id}
                   onClick={() => toggleService(svc)}
                   disabled={isDisabled}
-                  className={`w-full rounded-xl border p-4 text-left transition ${
+                  className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 ${
                     isSelected
-                      ? "border-brand bg-brand/5 ring-1 ring-brand/20"
-                      : "border-[#e8e2dc] bg-white hover:border-brand/40"
+                      ? "border-brand bg-gradient-to-br from-brand/10 via-brand/5 to-white ring-1 ring-brand/30 shadow-md shadow-brand/10"
+                      : "border-[#e8e2dc] bg-white hover:border-brand/40 hover:shadow-md hover:-translate-y-0.5"
                   } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
                   <div className="flex items-center gap-3">
@@ -272,14 +290,19 @@ export default function BookingPage() {
                       isSelected ? "border-brand bg-brand" : "border-stone-300"
                     }`}>
                       {isSelected && (
-                        <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+                        <svg className="h-3 w-3 text-white step-pop" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-stone-800">{svc.name}</p>
-                      <p className="text-xs text-stone-400 mt-0.5">{svc.durationMin} min</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-500">
+                          <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .2.08.39.22.53l3 3a.75.75 0 101.06-1.06L10.75 9.69V5z" clipRule="evenodd" /></svg>
+                          {svc.durationMin} min
+                        </span>
+                      </div>
                     </div>
-                    <p className="font-bold text-brand text-lg shrink-0">{formatCLP(svc.price)}</p>
+                    <p className="font-extrabold text-brand text-lg shrink-0 tracking-tight">{formatCLP(svc.price)}</p>
                   </div>
                 </button>
               );
