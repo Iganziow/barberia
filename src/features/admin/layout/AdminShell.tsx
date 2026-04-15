@@ -1,12 +1,10 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthUser } from "@/hooks/use-auth-user";
-import { useQuickStats } from "@/hooks/use-quick-stats";
 import TourOverlay from "@/components/ui/Tour";
-import { formatCLP, formatTime } from "@/lib/format";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -48,21 +46,6 @@ function IconLogout({ className }: { className?: string }) {
     </svg>
   );
 }
-function IconClock({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-    </svg>
-  );
-}
-function IconDollar({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-      <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-    </svg>
-  );
-}
-
 function IconScissors({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -113,13 +96,47 @@ const NAV = [
   { href: "/admin/profile", label: "Mi Perfil", Icon: IconUser, tourId: "nav-perfil" },
 ];
 
+const NAV_COLLAPSED_KEY = "admin_nav_collapsed_v1";
+
+// External store para leer el colapso del nav desde localStorage sin
+// caer en setState-within-effect (prohibido por react-hooks/set-state-in-effect).
+function subscribeNavCollapsed(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", cb);
+  return () => window.removeEventListener("storage", cb);
+}
+function getNavCollapsedSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(NAV_COLLAPSED_KEY) === "1";
+}
+function getNavCollapsedServerSnapshot(): boolean {
+  return false;
+}
+
 export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthUser();
-  const stats = useQuickStats();
   const [loggingOut, setLoggingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navCollapsed = useSyncExternalStore(
+    subscribeNavCollapsed,
+    getNavCollapsedSnapshot,
+    getNavCollapsedServerSnapshot
+  );
+  // Hover expande temporalmente el rail sin tocar la preferencia persistida
+  const [navHovered, setNavHovered] = useState(false);
+
+  const toggleCollapsed = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const next = !getNavCollapsedSnapshot();
+    try {
+      window.localStorage.setItem(NAV_COLLAPSED_KEY, next ? "1" : "0");
+      // Disparamos un evento storage "sintético" para que useSyncExternalStore
+      // re-lea la snapshot y React re-renderice con el nuevo valor.
+      window.dispatchEvent(new StorageEvent("storage", { key: NAV_COLLAPSED_KEY }));
+    } catch {}
+  }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -130,6 +147,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const displayName = user?.name ?? "...";
   const initials = displayName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 
+  // Cuando está colapsado y no hay hover, mostramos el rail compacto.
+  const showCompact = navCollapsed && !navHovered;
+
   return (
     <div className="min-h-screen bg-[#faf8f6]">
       <div className="flex min-h-screen">
@@ -138,32 +158,57 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        {/* ── Sidebar ── */}
+        {/* ── Sidebar ──
+            Rail colapsable: 56px cuando `navCollapsed` y sin hover, 240px expandido.
+            Siempre permanece visible en desktop; el hover expande temporalmente
+            sin cambiar la preferencia persistida. */}
         <aside
+          onMouseEnter={() => setNavHovered(true)}
+          onMouseLeave={() => setNavHovered(false)}
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[240px] shrink-0 bg-[#1a1412] text-white transition-transform duration-200",
+            // Solo animamos el `transform` (slide del drawer mobile). El cambio de
+            // ancho del rail en desktop es instantáneo: animarlo desencadenaba un
+            // loop de transiciones por re-renders y nunca llegaba al ancho final.
+            "fixed inset-y-0 left-0 z-50 shrink-0 bg-[#1a1412] text-white transition-transform duration-200",
             "lg:static lg:translate-x-0",
             sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"
           )}
+          style={{
+            // Mobile: siempre 240px (el rail compacto solo existe en desktop).
+            // Desktop: 56px cuando colapsado y sin hover, 240px en caso contrario.
+            width: showCompact ? 56 : 240,
+          }}
         >
           {/* Brand */}
-          <div className="flex items-center justify-between px-5 py-5">
-            <div>
-              <div className="text-lg font-extrabold tracking-tight">
-                Mar<span className="text-brand">Brava</span>
+          <div className="flex items-center justify-between px-4 py-4 h-[60px]">
+            {showCompact ? (
+              <div className="w-full flex justify-center">
+                <div className="grid h-8 w-8 place-items-center rounded-md bg-brand text-white text-sm font-extrabold">
+                  M
+                </div>
               </div>
-              <div className="mt-0.5 text-[11px] text-white/50">Panel de administración</div>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden rounded-lg p-1 text-white/40 hover:text-white hover:bg-white/10">
-              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 4L4 14M4 4l10 10" /></svg>
-            </button>
+            ) : (
+              <>
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="text-lg font-extrabold tracking-tight">
+                    Mar<span className="text-brand">Brava</span>
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-white/50">Panel de administración</div>
+                </div>
+                <button onClick={() => setSidebarOpen(false)} className="lg:hidden rounded-lg p-1 text-white/40 hover:text-white hover:bg-white/10 shrink-0">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 4L4 14M4 4l10 10" /></svg>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Nav */}
-          <nav className="px-3 mt-2" data-tour-id="sidebar-nav">
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
-              Gestión
-            </div>
+          <nav className="mt-1 px-2" data-tour-id="sidebar-nav">
+            {!showCompact && (
+              <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                Gestión
+              </div>
+            )}
             <div className="space-y-0.5">
               {NAV.map((item) => {
                 const active = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
@@ -173,8 +218,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
                     data-tour-id={item.tourId}
+                    title={showCompact ? item.label : undefined}
                     className={cn(
-                      "relative group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all nav-indicator",
+                      "relative group flex items-center rounded-lg text-[13px] font-medium transition-all nav-indicator overflow-hidden",
+                      showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2.5",
                       active
                         ? "bg-gradient-to-r from-brand/20 via-brand/10 to-transparent text-brand shadow-[inset_3px_0_0_0_var(--accent)]"
                         : "text-white/60 hover:bg-white/5 hover:text-white/90 hover:translate-x-0.5"
@@ -186,38 +233,66 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                         active ? "text-brand scale-105" : "text-white/40 group-hover:text-white/70"
                       )}
                     />
-                    {item.label}
-                    {active && (
-                      <span
-                        className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--accent)]"
-                        aria-hidden="true"
-                      />
+                    {!showCompact && (
+                      <>
+                        <span className="whitespace-nowrap">{item.label}</span>
+                        {active && (
+                          <span
+                            className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--accent)]"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </>
                     )}
                   </Link>
                 );
               })}
             </div>
 
-            <div className="mt-8 mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
-              Cuenta
-            </div>
+            {!showCompact && (
+              <div className="mt-7 mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                Cuenta
+              </div>
+            )}
             <button
               onClick={handleLogout}
               disabled={loggingOut}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-white/40 hover:bg-white/5 hover:text-white/70 transition border-l-[3px] border-l-transparent disabled:opacity-50"
+              title={showCompact ? "Cerrar sesión" : undefined}
+              className={cn(
+                "flex items-center rounded-lg text-[13px] font-medium text-white/40 hover:bg-white/5 hover:text-white/70 transition disabled:opacity-50 overflow-hidden",
+                showCompact ? "justify-center h-10 w-10 mx-auto mt-2" : "gap-3 px-3 py-2.5 w-full"
+              )}
             >
               <IconLogout className="shrink-0 text-white/30" />
-              {loggingOut ? "Saliendo..." : "Cerrar sesión"}
+              {!showCompact && (
+                <span className="whitespace-nowrap">{loggingOut ? "Saliendo..." : "Cerrar sesión"}</span>
+              )}
             </button>
           </nav>
+
+          {/* Collapse toggle (desktop only) */}
+          <button
+            onClick={toggleCollapsed}
+            className="hidden lg:grid absolute bottom-4 right-0 translate-x-1/2 h-6 w-6 place-items-center rounded-full border border-white/20 bg-[#1a1412] text-white/50 hover:text-white hover:bg-[#2a1f18] hover:border-white/40 transition shadow-md z-10"
+            title={navCollapsed ? "Expandir menú" : "Colapsar menú"}
+            aria-label={navCollapsed ? "Expandir menú" : "Colapsar menú"}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+              {navCollapsed ? (
+                <path d="M4 3l3 3-3 3" />
+              ) : (
+                <path d="M8 3L5 6l3 3" />
+              )}
+            </svg>
+          </button>
         </aside>
 
         {/* ── Main area ── */}
         <div className="flex min-w-0 flex-1 flex-col pb-14 lg:pb-0">
-          {/* Topbar */}
+          {/* Topbar compacto: hamburger mobile + avatar de usuario. Los stats del
+              día se renderizan dentro del header de cada página contextualmente. */}
           <header className="sticky top-0 z-30 border-b border-[#e8e2dc] bg-white/80 backdrop-blur-sm" data-tour-id="topbar-stats">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-5">
-              {/* Left: hamburger + brand mobile */}
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-5">
               <div className="flex items-center gap-3">
                 <button onClick={() => setSidebarOpen(true)} className="lg:hidden rounded-lg p-1.5 text-stone-500 hover:bg-stone-100">
                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
@@ -227,45 +302,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 </div>
               </div>
 
-              {/* Center: Quick stats (desktop only) */}
-              <div className="hidden lg:flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <IconCalendar className="h-4 w-4 text-brand" />
-                  <div>
-                    <div className="text-[10px] text-stone-400 leading-none">Citas hoy</div>
-                    <div className="text-sm font-semibold text-stone-800">{stats?.appointmentCount ?? "—"}</div>
-                  </div>
-                </div>
-                <div className="h-6 w-px bg-[#e8e2dc]" />
-                <div className="flex items-center gap-2">
-                  <IconClock className="h-4 w-4 text-brand" />
-                  <div>
-                    <div className="text-[10px] text-stone-400 leading-none">Próxima</div>
-                    <div className="text-sm font-semibold text-stone-800">
-                      {stats?.nextAppointmentTime ? formatTime(stats.nextAppointmentTime) : "—"}
-                    </div>
-                  </div>
-                </div>
-                <div className="h-6 w-px bg-[#e8e2dc]" />
-                <div className="flex items-center gap-2">
-                  <IconDollar className="h-4 w-4 text-brand" />
-                  <div>
-                    <div className="text-[10px] text-stone-400 leading-none">Ingreso hoy</div>
-                    <div className="text-sm font-semibold text-stone-800">
-                      {stats ? formatCLP(stats.todayRevenue) : "—"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: User */}
               <div className="flex items-center gap-2">
-                <div className="hidden md:flex items-center gap-2.5 rounded-full border border-[#e8e2dc] bg-white px-3 py-1.5">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-brand text-xs font-bold text-white">
+                <div className="hidden md:flex items-center gap-2.5 rounded-full border border-[#e8e2dc] bg-white px-3 py-1">
+                  <div className="grid h-7 w-7 place-items-center rounded-full bg-brand text-[11px] font-bold text-white">
                     {initials}
                   </div>
                   <div className="leading-tight pr-1">
-                    <div className="text-sm font-semibold text-stone-800">{displayName}</div>
+                    <div className="text-[13px] font-semibold text-stone-800">{displayName}</div>
                     <div className="text-[10px] font-medium text-stone-400">{user?.role ?? "..."}</div>
                   </div>
                 </div>

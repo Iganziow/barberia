@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AgendaCalendar from "./AgendaCalendar";
 import AgendaBarberDayGrid from "./AgendaBarberDayGrid";
 import AgendaSidebar from "./AgendaSidebar";
 import AgendaViewToggle, { type AgendaViewMode } from "./AgendaViewToggle";
+import MiniMonthCalendar from "./MiniMonthCalendar";
 import NewReservationModal from "./NewReservationModal";
 import BlockTimeModal from "./BlockTimeModal";
 import SlotActionMenu from "./SlotActionMenu";
@@ -16,6 +17,8 @@ import { useBranches } from "@/hooks/use-branches";
 import { useAgendaEvents } from "@/hooks/use-agenda-events";
 import { useBarberSchedules } from "@/hooks/use-barber-schedules";
 import { useVisibleRange } from "@/hooks/use-visible-range";
+import { useQuickStats } from "@/hooks/use-quick-stats";
+import { formatCLP, formatTime } from "@/lib/format";
 import type { AppointmentStatusCode, StatusPreset } from "@/types/agenda";
 import {
   STATUS_ACTIVE,
@@ -58,6 +61,31 @@ export default function AdminAgenda() {
 
   // mobile sidebar
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Popover del mini-calendar desde el click en la fecha del header
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setDatePickerOpen(false);
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setDatePickerOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [datePickerOpen]);
+
+  // Stats del día (hoy). Puente para mostrarlos contextualmente en el header.
+  const stats = useQuickStats();
 
   // datos
   const { branches } = useBranches();
@@ -240,8 +268,6 @@ export default function AdminAgenda() {
         onChangeCustomStatuses={setCustomStatuses}
         visibleRange={visibleRange}
         onChangeVisibleRange={setVisibleRange}
-        selectedDate={selectedDate}
-        onSelectDate={(d) => setSelectedDate(startOfDay(d))}
         onOpenQuickSearch={() => setQuickSearchOpen(true)}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
@@ -262,17 +288,37 @@ export default function AdminAgenda() {
                 <path d="M2 3h12v2H2zM4 7h8v2H4zM6 11h4v2H6z" />
               </svg>
             </button>
-            <div className="min-w-0">
-              <h1 className="text-[17px] font-bold tracking-tight text-stone-900 leading-tight truncate capitalize">
-                {selectedDate.toLocaleDateString("es-CL", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
-                <span className="text-stone-400 font-medium ml-1.5">
-                  {selectedDate.getFullYear()}
-                </span>
-              </h1>
+            <div className="min-w-0 relative" ref={datePickerRef}>
+              <button
+                type="button"
+                onClick={() => setDatePickerOpen((v) => !v)}
+                className="group flex items-center gap-1.5 text-left hover:text-brand transition"
+                aria-expanded={datePickerOpen}
+                aria-haspopup="dialog"
+                title="Elegir fecha"
+              >
+                <h1 className="text-[17px] font-bold tracking-tight text-stone-900 leading-tight truncate capitalize group-hover:text-brand">
+                  {selectedDate.toLocaleDateString("es-CL", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                  <span className="text-stone-400 font-medium ml-1.5">
+                    {selectedDate.getFullYear()}
+                  </span>
+                </h1>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className={`text-stone-400 group-hover:text-brand transition-transform ${datePickerOpen ? "rotate-180" : ""}`}
+                >
+                  <path d="M3 4.5L6 7.5L9 4.5" />
+                </svg>
+              </button>
               <div className="text-[11px] text-stone-500 flex items-center gap-2 flex-wrap mt-0.5">
                 <span className="inline-flex items-center gap-1">
                   <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" className="text-stone-400">
@@ -280,24 +326,76 @@ export default function AdminAgenda() {
                   </svg>
                   {branches.find((b) => b.id === effectiveBranchId)?.name || "—"}
                 </span>
+                {/* Stats contextuales (día) */}
+                <span className="text-stone-300">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" className="text-brand">
+                    <rect x="3" y="4" width="14" height="14" rx="1.5" fillOpacity="0.2" />
+                    <rect x="3" y="4" width="14" height="3.5" rx="1.5" />
+                  </svg>
+                  <b className="font-semibold text-stone-700 tabular-nums">{stats?.appointmentCount ?? 0}</b>
+                  <span className="text-stone-400">citas</span>
+                </span>
+                <span className="text-stone-300">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" className="text-brand">
+                    <circle cx="10" cy="10" r="8" fillOpacity="0.2" />
+                    <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M10 6v4l2.5 1.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-stone-400">próxima</span>
+                  <b className="font-semibold text-stone-700 tabular-nums">
+                    {stats?.nextAppointmentTime ? formatTime(stats.nextAppointmentTime) : "—"}
+                  </b>
+                </span>
+                <span className="text-stone-300 hidden sm:inline">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" className="text-brand">
+                    <circle cx="10" cy="10" r="8" fillOpacity="0.2" />
+                    <path d="M10 5v10M7 8c0-1 1-1.5 3-1.5s3 .5 3 2-1.5 1.5-3 1.5-3 .5-3 2 1 1.5 3 1.5 3-.5 3-1.5" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+                  </svg>
+                  <b className="font-semibold text-stone-700 tabular-nums">
+                    {stats ? formatCLP(stats.todayRevenue) : "—"}
+                  </b>
+                </span>
                 {singleSelectedBarber && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 text-brand px-2 py-0.5 font-medium">
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: singleSelectedBarber.color || "#c87941" }}
-                    />
-                    {singleSelectedBarber.name}
-                    <button
-                      type="button"
-                      onClick={() => setBarberIds([])}
-                      className="ml-0.5 opacity-60 hover:opacity-100"
-                      aria-label="Quitar filtro de barbero"
-                    >
-                      ×
-                    </button>
-                  </span>
+                  <>
+                    <span className="text-stone-300">·</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 text-brand px-2 py-0.5 font-medium">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: singleSelectedBarber.color || "#c87941" }}
+                      />
+                      {singleSelectedBarber.name}
+                      <button
+                        type="button"
+                        onClick={() => setBarberIds([])}
+                        className="ml-0.5 opacity-60 hover:opacity-100"
+                        aria-label="Quitar filtro de barbero"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </>
                 )}
               </div>
+
+              {/* Popover del mini calendar */}
+              {datePickerOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Seleccionar fecha"
+                  className="absolute top-full left-0 mt-2 z-40 w-[260px] rounded-xl border border-[#e8e2dc] bg-white shadow-2xl p-3"
+                >
+                  <MiniMonthCalendar
+                    selectedDate={selectedDate}
+                    onSelectDate={(d) => {
+                      setSelectedDate(startOfDay(d));
+                      setDatePickerOpen(false);
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

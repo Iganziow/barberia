@@ -11,7 +11,6 @@ import type {
 import AgendaBarberSelect from "./AgendaBarberSelect";
 import AgendaStatusFilter from "./AgendaStatusFilter";
 import AgendaVisibleRangeSelect from "./AgendaVisibleRangeSelect";
-import MiniMonthCalendar from "./MiniMonthCalendar";
 
 /**
  * Sidebar izquierda de la agenda, inspirada en Agenda Pro.
@@ -34,9 +33,6 @@ export default function AgendaSidebar({
   visibleRange,
   onChangeVisibleRange,
 
-  selectedDate,
-  onSelectDate,
-
   onOpenQuickSearch,
 
   mobileOpen,
@@ -57,9 +53,6 @@ export default function AgendaSidebar({
 
   visibleRange: VisibleRange;
   onChangeVisibleRange: (r: VisibleRange) => void;
-
-  selectedDate: Date;
-  onSelectDate: (d: Date) => void;
 
   onOpenQuickSearch: () => void;
 
@@ -165,13 +158,6 @@ export default function AgendaSidebar({
         </button>
       </div>
 
-      {/* Mini calendar */}
-      <div className="px-4 py-3">
-        <MiniMonthCalendar
-          selectedDate={selectedDate}
-          onSelectDate={onSelectDate}
-        />
-      </div>
     </div>
   );
 
