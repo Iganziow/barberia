@@ -125,49 +125,64 @@ export default function AgendaBarberDayGrid({
     });
   }
 
-  // Con pocos barberos queremos columnas anchas que llenen el contenedor.
-  // Con muchos barberos, cada columna debe tener un mínimo razonable y aparece scroll horizontal.
-  const minColWidth = barbers.length <= 3 ? 0 : 160;
-  const useScroll = barbers.length > 4;
+  // Ancho de columna adaptativo según la cantidad de barberos:
+  // - 1–3 barberos: llenan todo el contenedor (sin mínimo).
+  // - 4–6 barberos: min 150px → puede aparecer scroll en pantallas angostas.
+  // - 7–9 barberos: min 130px.
+  // - 10+ barberos: min 110px (scroll siempre presente).
+  const n = barbers.length;
+  const minColWidth = n <= 3 ? 0 : n <= 6 ? 150 : n <= 9 ? 130 : 110;
+  // Scroll horizontal si el ancho mínimo total excede cualquier viewport razonable.
+  const useScroll = n >= 5;
 
   return (
-    <div className={`h-full w-full ${useScroll ? "overflow-auto" : "overflow-y-auto overflow-x-hidden"}`}>
+    <div
+      className={`relative h-full w-full ${useScroll ? "overflow-auto scroll-shadow-x" : "overflow-y-auto overflow-x-hidden"}`}
+      data-barber-count={n}
+    >
       <div
         className={`grid ${useScroll ? "min-w-max" : "w-full"}`}
         style={{
-          gridTemplateColumns: `56px repeat(${Math.max(barbers.length, 1)}, minmax(${minColWidth}px, 1fr))`,
+          gridTemplateColumns: `56px repeat(${Math.max(n, 1)}, minmax(${minColWidth}px, 1fr))`,
         }}
       >
         {/* Header: empty corner + barber headers */}
         <div className="sticky top-0 z-20 bg-white border-b border-[#e8e2dc] h-14" />
-        {barbers.map((b) => (
-          <div
-            key={`h-${b.id}`}
-            className="sticky top-0 z-20 bg-white border-b border-l border-[#e8e2dc] h-14 flex items-center justify-center"
-          >
-            <button
-              type="button"
-              onClick={() => onClickBarberHeader(b.id)}
-              className="group flex items-center gap-2 px-3 py-1 rounded-full hover:bg-stone-50 transition"
-              title={`Ver semana de ${b.name}`}
+        {barbers.map((b) => {
+          // Con muchos barberos, las columnas son angostas: ocultamos el nombre
+          // y dejamos solo el avatar; el nombre aparece en el tooltip nativo.
+          const compact = n >= 7;
+          return (
+            <div
+              key={`h-${b.id}`}
+              className="sticky top-0 z-20 bg-white border-b border-l border-[#e8e2dc] h-14 flex items-center justify-center min-w-0"
             >
-              <div
-                className="h-7 w-7 rounded-full grid place-items-center text-white text-[10px] font-bold shadow-sm ring-2 ring-white"
-                style={{ backgroundColor: b.color || "#c87941" }}
+              <button
+                type="button"
+                onClick={() => onClickBarberHeader(b.id)}
+                className="group flex items-center gap-2 px-2 py-1 rounded-full hover:bg-stone-50 transition min-w-0 max-w-full"
+                title={`Ver semana de ${b.name}`}
               >
-                {b.name
-                  .split(" ")
-                  .map((p) => p[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase()}
-              </div>
-              <span className="text-[13px] font-semibold text-stone-700 group-hover:text-stone-900 truncate max-w-[140px]">
-                {b.name}
-              </span>
-            </button>
-          </div>
-        ))}
+                <div
+                  className="h-7 w-7 rounded-full grid place-items-center text-white text-[10px] font-bold shadow-sm ring-2 ring-white shrink-0"
+                  style={{ backgroundColor: b.color || "#c87941" }}
+                >
+                  {b.name
+                    .split(" ")
+                    .map((p) => p[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
+                {!compact && (
+                  <span className="text-[13px] font-semibold text-stone-700 group-hover:text-stone-900 truncate">
+                    {b.name}
+                  </span>
+                )}
+              </button>
+            </div>
+          );
+        })}
 
         {/* Body */}
         {/* Left time column */}

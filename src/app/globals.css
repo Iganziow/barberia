@@ -277,3 +277,18 @@ button {
   transition: transform 0.22s cubic-bezier(0.2, 0, 0.2, 1),
     opacity 0.18s ease;
 }
+
+/* Scroll shadows — sutil gradiente en los bordes cuando hay overflow horizontal.
+   Se activa sobre cualquier contenedor con .scroll-shadow-x y usa background-attachment
+   local para que la sombra solo aparezca en los bordes que tienen contenido fuera de vista. */
+.scroll-shadow-x {
+  background:
+    /* sombra izquierda (aparece al scrollear) */
+    linear-gradient(to right, rgba(28, 25, 23, 0.08) 0%, transparent 12px) 0 0 / 12px 100% no-repeat local,
+    /* sombra derecha (aparece si hay contenido a la derecha) */
+    linear-gradient(to left, rgba(28, 25, 23, 0.08) 0%, transparent 12px) 100% 0 / 12px 100% no-repeat local,
+    /* "cover" blancas: ocultan la sombra cuando se llega al borde */
+    linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0)) 0 0 / 20px 100% no-repeat scroll,
+    linear-gradient(to left, #ffffff, rgba(255, 255, 255, 0)) 100% 0 / 20px 100% no-repeat scroll,
+    #ffffff;
+}
