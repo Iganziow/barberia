@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   isValidHHmm,
   isValidRange,
-  halfHourSteps,
+  fromSteps,
+  toSteps,
   DEFAULT_RANGE,
 } from "@/features/admin/agenda/agendaVisibleRange";
 
@@ -31,14 +32,21 @@ describe("isValidHHmm", () => {
 });
 
 describe("isValidRange", () => {
-  it("accepts from < to", () => {
+  it("accepts reasonable barber shop hours", () => {
     expect(isValidRange({ from: "09:00", to: "21:00" })).toBe(true);
-    expect(isValidRange({ from: "08:00", to: "08:30" })).toBe(true);
+    expect(isValidRange({ from: "08:00", to: "20:00" })).toBe(true);
+    expect(isValidRange({ from: "06:00", to: "23:00" })).toBe(true);
   });
 
-  it("rejects from >= to", () => {
+  it("rejects from >= to or too close", () => {
     expect(isValidRange({ from: "20:00", to: "08:00" })).toBe(false);
     expect(isValidRange({ from: "09:00", to: "09:00" })).toBe(false);
+    expect(isValidRange({ from: "09:00", to: "09:30" })).toBe(false);
+  });
+
+  it("rejects absurd early hours (before 06:00)", () => {
+    expect(isValidRange({ from: "00:30", to: "21:00" })).toBe(false);
+    expect(isValidRange({ from: "05:30", to: "21:00" })).toBe(false);
   });
 
   it("rejects invalid HHmm", () => {
@@ -46,13 +54,22 @@ describe("isValidRange", () => {
   });
 });
 
-describe("halfHourSteps", () => {
-  it("returns 48 steps", () => {
-    expect(halfHourSteps()).toHaveLength(48);
+describe("fromSteps", () => {
+  it("starts at 06:00", () => {
+    expect(fromSteps()[0]).toBe("06:00");
   });
-  it("starts at 00:00 and ends at 23:30", () => {
-    const steps = halfHourSteps();
-    expect(steps[0]).toBe("00:00");
+  it("ends at 20:30", () => {
+    const steps = fromSteps();
+    expect(steps[steps.length - 1]).toBe("20:30");
+  });
+});
+
+describe("toSteps", () => {
+  it("starts at 07:00", () => {
+    expect(toSteps()[0]).toBe("07:00");
+  });
+  it("ends at 23:30", () => {
+    const steps = toSteps();
     expect(steps[steps.length - 1]).toBe("23:30");
   });
 });

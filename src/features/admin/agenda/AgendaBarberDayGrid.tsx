@@ -196,17 +196,24 @@ export default function AgendaBarberDayGrid({
               gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
             }}
           >
-            {labels.map((l) => (
-              <div
-                key={l.label}
-                className={`pr-1 text-right text-[10px] leading-none flex items-start justify-end ${
-                  l.onTheHour ? "text-stone-500 font-medium" : "text-transparent"
-                }`}
-                style={{ gridRow: `${l.row} / span 1`, paddingTop: 0 }}
-              >
-                {l.label}
-              </div>
-            ))}
+            {labels.map((l) => {
+              const is30 = l.label.endsWith(":30");
+              return (
+                <div
+                  key={l.label}
+                  className={`pr-2 text-right text-[10px] leading-none flex items-start justify-end tabular-nums border-t ${
+                    l.onTheHour
+                      ? "text-stone-500 font-semibold border-stone-200"
+                      : is30
+                        ? "text-stone-400 border-stone-100"
+                        : "text-transparent border-stone-50"
+                  }`}
+                  style={{ gridRow: `${l.row} / span 1` }}
+                >
+                  {l.onTheHour || is30 ? l.label : ""}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -225,19 +232,22 @@ export default function AgendaBarberDayGrid({
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
                 }}
               >
-                {/* Background clickable slots */}
+                {/* Background clickable slots — líneas consistentes:
+                    - cada hora (idx%4===0): borde sólido medio
+                    - cada 30min (idx%2===0): borde sutil
+                    - cada 15min (impar): borde muy tenue */}
                 {Array.from({ length: rowCount }).map((_, idx) => (
                   <button
                     key={`slot-${b.id}-${idx}`}
                     type="button"
                     onClick={(e) => handleSlotClick(e, b.id, idx)}
-                    className={`text-left ${
+                    className={`text-left border-t hover:bg-brand/5 transition ${
                       idx % 4 === 0
-                        ? "border-t border-stone-200"
+                        ? "border-stone-200"
                         : idx % 2 === 0
-                          ? "border-t border-stone-100"
-                          : ""
-                    } hover:bg-brand/5 transition`}
+                          ? "border-stone-100"
+                          : "border-stone-50"
+                    }`}
                     style={{ gridRow: `${idx + 1} / span 1` }}
                     aria-label={`Crear evento en slot ${idx}`}
                   />

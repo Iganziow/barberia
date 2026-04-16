@@ -3,6 +3,10 @@ import type { VisibleRange } from "@/types/agenda";
 export const DEFAULT_RANGE: VisibleRange = { from: "09:00", to: "21:00" };
 export const STORAGE_KEY = "agenda_visible_range_v1";
 
+// Límites razonables para una barbería (ninguna abre antes de las 6am ni cierra después de las 23:30)
+const MIN_FROM_HOUR = 6;
+const MAX_TO_HOUR = 23;
+
 const HHMM = /^(\d{2}):(\d{2})$/;
 
 /**
@@ -22,20 +26,48 @@ export function isValidRange(range: VisibleRange): boolean {
   if (!isValidHHmm(range.from) || !isValidHHmm(range.to)) return false;
   const [fh, fm] = range.from.split(":").map(Number);
   const [th, tm] = range.to.split(":").map(Number);
-  return fh * 60 + fm < th * 60 + tm;
+  const fromMin = fh * 60 + fm;
+  const toMin = th * 60 + tm;
+  // Requiere al menos 1 hora de diferencia y dentro de rango razonable
+  if (fromMin >= toMin - 30) return false;
+  if (fh < MIN_FROM_HOUR) return false;
+  if (th > MAX_TO_HOUR || (th === MAX_TO_HOUR && tm > 30)) return false;
+  return true;
 }
 
 /**
- * Genera todos los valores HH:mm en pasos de 30min desde 00:00 hasta 23:30.
+ * Genera valores HH:mm en pasos de 30min para el selector de "desde".
+ * Solo horas razonables (06:00-20:00).
  */
-export function halfHourSteps(): string[] {
+export function fromSteps(): string[] {
   const steps: string[] = [];
-  for (let h = 0; h < 24; h++) {
+  for (let h = MIN_FROM_HOUR; h <= 20; h++) {
     for (const m of [0, 30]) {
       steps.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
   }
   return steps;
+}
+
+/**
+ * Genera valores HH:mm en pasos de 30min para el selector de "hasta".
+ * Solo horas razonables (07:00-23:30).
+ */
+export function toSteps(): string[] {
+  const steps: string[] = [];
+  for (let h = 7; h <= MAX_TO_HOUR; h++) {
+    for (const m of [0, 30]) {
+      steps.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return steps;
+}
+
+/**
+ * @deprecated Usa fromSteps() o toSteps() con rangos razonables.
+ */
+export function halfHourSteps(): string[] {
+  return fromSteps();
 }
 
 /**
