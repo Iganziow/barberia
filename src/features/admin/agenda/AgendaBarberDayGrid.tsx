@@ -203,7 +203,7 @@ export default function AgendaBarberDayGrid({
               return (
                 <div
                   key={l.label}
-                  className={`pr-2 text-right text-[10.4px] leading-none flex items-start justify-end tabular-nums border-t ${
+                  className={`pr-2 text-right text-[10.4px] leading-none flex items-start justify-end tabular-nums ${
                     l.onTheHour
                       ? "text-stone-500 font-semibold"
                       : is30
@@ -212,12 +212,13 @@ export default function AgendaBarberDayGrid({
                   }`}
                   style={{
                     gridRow: `${l.row} / span 1`,
+                    borderTopWidth: "1px",
+                    borderTopStyle: "solid",
                     borderTopColor: l.onTheHour
                       ? "#ddd7d0"
                       : is30
                         ? "#ebe7e2"
-                        : "transparent",
-                    borderTopStyle: !l.onTheHour && !is30 ? "dotted" : "solid",
+                        : "#f5f5f4",
                   }}
                 >
                   {l.onTheHour || is30 ? l.label : ""}
@@ -242,10 +243,10 @@ export default function AgendaBarberDayGrid({
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
                 }}
               >
-                {/* Background clickable slots — grid alineado con FullCalendar:
-                    - cada hora: #ddd7d0 (igual al fcGridBolder)
-                    - cada 30min: #ebe7e2
-                    - cada 15min: dotted muy sutil */}
+                {/* Background clickable slots — grid alineado con FullCalendar.
+                    Estilo inline COMPLETO (sin usar clases border-t) porque
+                    Tailwind v4 puede resetear border-color a currentColor
+                    y perder los colores #ddd7d0 / #ebe7e2. */}
                 {Array.from({ length: rowCount }).map((_, idx) => {
                   const isHour = idx % 4 === 0;
                   const is30 = idx % 2 === 0;
@@ -254,15 +255,16 @@ export default function AgendaBarberDayGrid({
                       key={`slot-${b.id}-${idx}`}
                       type="button"
                       onClick={(e) => handleSlotClick(e, b.id, idx)}
-                      className="text-left hover:bg-brand/5 transition border-t"
+                      className="text-left hover:bg-brand/5 transition"
                       style={{
                         gridRow: `${idx + 1} / span 1`,
+                        borderTopWidth: "1px",
+                        borderTopStyle: "solid",
                         borderTopColor: isHour
                           ? "#ddd7d0"
                           : is30
                             ? "#ebe7e2"
-                            : "transparent",
-                        borderTopStyle: !isHour && !is30 ? "dotted" : "solid",
+                            : "#f5f5f4",
                       }}
                       aria-label={`Crear evento en slot ${idx}`}
                     />
