@@ -196,10 +196,9 @@ export default function AgendaBarberDayGrid({
             className="grid"
             style={{
               gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
-              backgroundImage: `
-                linear-gradient(to bottom, #ddd7d0 1px, transparent 1px) 0 0 / 100% ${ROW_HEIGHT * 4}px,
-                linear-gradient(to bottom, #ebe7e2 1px, transparent 1px) 0 0 / 100% ${ROW_HEIGHT * 2}px
-              `,
+              backgroundImage: `linear-gradient(to bottom, #d4cec6 1px, transparent 1px), linear-gradient(to bottom, #e5e0d9 1px, transparent 1px), linear-gradient(to bottom, #f0ebe5 1px, transparent 1px)`,
+              backgroundSize: `100% ${ROW_HEIGHT * 4}px, 100% ${ROW_HEIGHT * 2}px, 100% ${ROW_HEIGHT}px`,
+              backgroundPosition: "0 0, 0 0, 0 0",
               backgroundRepeat: "repeat",
             }}
           >
@@ -227,16 +226,12 @@ export default function AgendaBarberDayGrid({
         {/* Barber columns */}
         {barbers.map((b) => {
           const colEvents = eventsByBarber.get(b.id) ?? [];
-          // Grid lines via background gradient — garantiza visibilidad en todo
-          // el ancho de la columna, sin depender de borders de slots individuales.
-          // Una hora = 4 slots × ROW_HEIGHT = 88px → líneas mayores cada 88px,
-          // menores cada 44px (30min).
-          const hourPx = ROW_HEIGHT * 4;
-          const halfHourPx = ROW_HEIGHT * 2;
-          const gridBg = `
-            linear-gradient(to bottom, #ddd7d0 1px, transparent 1px) 0 0 / 100% ${hourPx}px,
-            linear-gradient(to bottom, #ebe7e2 1px, transparent 1px) 0 0 / 100% ${halfHourPx}px
-          `;
+          // Grid lines via background-image gradient (3 capas: hora/30min/15min).
+          // Importante: en React style, backgroundImage SOLO acepta los gradients;
+          // size/position/repeat deben ir en propiedades separadas.
+          const hourPx = ROW_HEIGHT * 4;    // 88px
+          const halfHourPx = ROW_HEIGHT * 2; // 44px
+          const quarterPx = ROW_HEIGHT;      // 22px
           return (
             <div
               key={`col-${b.id}`}
@@ -247,7 +242,9 @@ export default function AgendaBarberDayGrid({
                 className="grid relative"
                 style={{
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
-                  backgroundImage: gridBg,
+                  backgroundImage: `linear-gradient(to bottom, #d4cec6 1px, transparent 1px), linear-gradient(to bottom, #e5e0d9 1px, transparent 1px), linear-gradient(to bottom, #f0ebe5 1px, transparent 1px)`,
+                  backgroundSize: `100% ${hourPx}px, 100% ${halfHourPx}px, 100% ${quarterPx}px`,
+                  backgroundPosition: "0 0, 0 0, 0 0",
                   backgroundRepeat: "repeat",
                 }}
               >
