@@ -2,17 +2,51 @@ import type { VisibleRange } from "@/types/agenda";
 import { hhmmToMinutes } from "./barberScheduleBlocks";
 
 /**
- * Resolución de la grilla: 15 minutos por fila.
+ * Resolución de la grilla por defecto: 15 minutos por fila.
+ * (Mantenido como constante para compatibilidad; usar slotMinutes param para overrides.)
  */
 export const SLOT_MINUTES = 15;
+
+/** Opciones válidas de granularidad (minutos por fila). */
+export const SLOT_MINUTES_OPTIONS = [5, 10, 15, 20, 30, 45, 60] as const;
+export type SlotMinutes = (typeof SLOT_MINUTES_OPTIONS)[number];
+
+/**
+ * Altura en px por fila según la granularidad elegida.
+ * Mayor granularidad = filas más compactas, menor = filas más espaciadas
+ * para que toda la información de ese intervalo se lea cómodamente.
+ */
+export function rowHeightFor(slotMinutes: number): number {
+  switch (slotMinutes) {
+    case 5:
+      return 14;
+    case 10:
+      return 18;
+    case 15:
+      return 22;
+    case 20:
+      return 26;
+    case 30:
+      return 36;
+    case 45:
+      return 52;
+    case 60:
+      return 64;
+    default:
+      return 22;
+  }
+}
 
 /**
  * Cuántas filas totales necesita la grilla para un rango visible.
  */
-export function gridRowCount(range: VisibleRange): number {
+export function gridRowCount(
+  range: VisibleRange,
+  slotMinutes: number = SLOT_MINUTES
+): number {
   const fromM = hhmmToMinutes(range.from);
   const toM = hhmmToMinutes(range.to);
-  return Math.max(0, Math.floor((toM - fromM) / SLOT_MINUTES));
+  return Math.max(0, Math.floor((toM - fromM) / slotMinutes));
 }
 
 /**
@@ -24,7 +58,8 @@ export function eventGridRows(
   startISO: string,
   endISO: string,
   rangeStartDate: Date, // día del calendario a las 00:00 local
-  range: VisibleRange
+  range: VisibleRange,
+  slotMinutes: number = SLOT_MINUTES
 ): { startRow: number; endRow: number } | null {
   const start = new Date(startISO);
   const end = new Date(endISO);
@@ -43,32 +78,45 @@ export function eventGridRows(
   if (clampedEnd <= clampedStart) return null;
 
   // grid-row es 1-indexed; row 1 = minute vFrom
-  const startRow = Math.floor((clampedStart - vFrom) / SLOT_MINUTES) + 1;
-  const endRow = Math.ceil((clampedEnd - vFrom) / SLOT_MINUTES) + 1;
+  const startRow = Math.floor((clampedStart - vFrom) / slotMinutes) + 1;
+  const endRow = Math.ceil((clampedEnd - vFrom) / slotMinutes) + 1;
 
   return { startRow, endRow };
 }
 
 /**
- * Las etiquetas de hora que aparecen en la columna izquierda (cada 15min).
- * Marca las que son "on the hour" para styling.
+ * Las etiquetas de hora que aparecen en la columna izquierda.
+ * Marca "onTheHour" cuando la hora es en punto, "onHalfHour" cuando es :30.
  */
-export function timeLabels(range: VisibleRange): Array<{
+export function timeLabels(
+  range: VisibleRange,
+  slotMinutes: number = SLOT_MINUTES
+): Array<{
   label: string;
   row: number;
   onTheHour: boolean;
+  onHalfHour: boolean;
+  minutes: number; // minutos desde medianoche
 }> {
   const vFrom = hhmmToMinutes(range.from);
   const vTo = hhmmToMinutes(range.to);
-  const result: Array<{ label: string; row: number; onTheHour: boolean }> = [];
+  const result: Array<{
+    label: string;
+    row: number;
+    onTheHour: boolean;
+    onHalfHour: boolean;
+    minutes: number;
+  }> = [];
   let row = 1;
-  for (let m = vFrom; m < vTo; m += SLOT_MINUTES) {
+  for (let m = vFrom; m < vTo; m += slotMinutes) {
     const h = Math.floor(m / 60);
     const min = m % 60;
     result.push({
       label: `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`,
       row,
       onTheHour: min === 0,
+      onHalfHour: min === 30,
+      minutes: m,
     });
     row++;
   }

@@ -4,15 +4,11 @@ import { useMemo } from "react";
 import type { AgendaEvent, BarberOption, VisibleRange } from "@/types/agenda";
 import { STATUS_CONFIG } from "@/lib/constants";
 import {
-  SLOT_MINUTES,
   eventGridRows,
   gridRowCount,
+  rowHeightFor,
   timeLabels,
 } from "./agendaGridMath";
-
-// 22px por slot de 15min → 88px por hora, alineado con FullCalendar (45px/30min)
-// para que el day view se vea igual de pulido que el week view.
-const ROW_HEIGHT = 22;
 
 function sameDay(a: Date, b: Date): boolean {
   return (
@@ -41,6 +37,7 @@ function formatHHmm(iso: string): string {
 export default function AgendaBarberDayGrid({
   date,
   visibleRange,
+  slotMinutes = 15,
   barbers,
   events,
   onSelectSlot,
@@ -49,6 +46,7 @@ export default function AgendaBarberDayGrid({
 }: {
   date: Date;
   visibleRange: VisibleRange;
+  slotMinutes?: number;
   barbers: BarberOption[];
   events: AgendaEvent[];
   onSelectSlot: (info: {
@@ -66,8 +64,16 @@ export default function AgendaBarberDayGrid({
     return d;
   }, [date]);
 
-  const rowCount = gridRowCount(visibleRange);
-  const labels = useMemo(() => timeLabels(visibleRange), [visibleRange]);
+  const ROW_HEIGHT = rowHeightFor(slotMinutes);
+  const rowCount = gridRowCount(visibleRange, slotMinutes);
+  const labels = useMemo(
+    () => timeLabels(visibleRange, slotMinutes),
+    [visibleRange, slotMinutes]
+  );
+
+  // Cada hora = (60 / slotMinutes) rows
+  const rowsPerHour = Math.round(60 / slotMinutes);
+  const rowsPerHalfHour = rowsPerHour / 2;
 
   // Eventos por barbero, filtrados al día visible
   const eventsByBarber = useMemo(() => {
@@ -98,8 +104,8 @@ export default function AgendaBarberDayGrid({
     const visFrom = fh * 60 + fm;
     const visTo = th * 60 + tm;
     if (minutes < visFrom || minutes > visTo) return null;
-    return (minutes - visFrom) / SLOT_MINUTES + 1;
-  }, [dayStart, visibleRange]);
+    return (minutes - visFrom) / slotMinutes + 1;
+  }, [dayStart, visibleRange, slotMinutes]);
 
   if (rowCount <= 0) {
     return (
@@ -116,7 +122,7 @@ export default function AgendaBarberDayGrid({
   ) {
     const rect = e.currentTarget.getBoundingClientRect();
     const [fh, fm] = visibleRange.from.split(":").map(Number);
-    const minutes = fh * 60 + fm + rowIndex * SLOT_MINUTES;
+    const minutes = fh * 60 + fm + rowIndex * slotMinutes;
     const slotDate = new Date(dayStart);
     slotDate.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
     onSelectSlot({
@@ -196,8 +202,9 @@ export default function AgendaBarberDayGrid({
             className="grid"
             style={{
               gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
+              // Líneas cada hora (más oscura), cada 30min (media), y por slot (sutil).
               backgroundImage: `linear-gradient(to bottom, #d4cec6 1px, transparent 1px), linear-gradient(to bottom, #e5e0d9 1px, transparent 1px), linear-gradient(to bottom, #f0ebe5 1px, transparent 1px)`,
-              backgroundSize: `100% ${ROW_HEIGHT * 4}px, 100% ${ROW_HEIGHT * 2}px, 100% ${ROW_HEIGHT}px`,
+              backgroundSize: `100% ${ROW_HEIGHT * rowsPerHour}px, 100% ${ROW_HEIGHT * rowsPerHalfHour}px, 100% ${ROW_HEIGHT}px`,
               backgroundPosition: "0 0, 0 0, 0 0",
               backgroundRepeat: "repeat",
             }}
@@ -226,12 +233,6 @@ export default function AgendaBarberDayGrid({
         {/* Barber columns */}
         {barbers.map((b) => {
           const colEvents = eventsByBarber.get(b.id) ?? [];
-          // Grid lines via background-image gradient (3 capas: hora/30min/15min).
-          // Importante: en React style, backgroundImage SOLO acepta los gradients;
-          // size/position/repeat deben ir en propiedades separadas.
-          const hourPx = ROW_HEIGHT * 4;    // 88px
-          const halfHourPx = ROW_HEIGHT * 2; // 44px
-          const quarterPx = ROW_HEIGHT;      // 22px
           return (
             <div
               key={`col-${b.id}`}
@@ -242,8 +243,9 @@ export default function AgendaBarberDayGrid({
                 className="grid relative"
                 style={{
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
+                  // 3 capas: hora (fuerte) / 30min (media) / por-slot (sutil)
                   backgroundImage: `linear-gradient(to bottom, #d4cec6 1px, transparent 1px), linear-gradient(to bottom, #e5e0d9 1px, transparent 1px), linear-gradient(to bottom, #f0ebe5 1px, transparent 1px)`,
-                  backgroundSize: `100% ${hourPx}px, 100% ${halfHourPx}px, 100% ${quarterPx}px`,
+                  backgroundSize: `100% ${ROW_HEIGHT * rowsPerHour}px, 100% ${ROW_HEIGHT * rowsPerHalfHour}px, 100% ${ROW_HEIGHT}px`,
                   backgroundPosition: "0 0, 0 0, 0 0",
                   backgroundRepeat: "repeat",
                 }}
@@ -263,7 +265,7 @@ export default function AgendaBarberDayGrid({
 
                 {/* Events */}
                 {colEvents.map((e) => {
-                  const rows = eventGridRows(e.start, e.end, dayStart, visibleRange);
+                  const rows = eventGridRows(e.start, e.end, dayStart, visibleRange, slotMinutes);
                   if (!rows) return null;
 
                   if (e.kind === "UNAVAILABLE") {
@@ -317,7 +319,8 @@ export default function AgendaBarberDayGrid({
                   const cfg = STATUS_CONFIG[e.status] || STATUS_CONFIG.RESERVED;
                   const [title, subtitle] = e.title.split("\n");
                   const spanRows = rows.endRow - rows.startRow;
-                  const isTall = spanRows >= 3; // ≥ 45min at ROW_HEIGHT=20
+                  // "alto" = al menos 30min dentro del grid para mostrar más info
+                  const isTall = spanRows * slotMinutes >= 30;
                   return (
                     <button
                       type="button"

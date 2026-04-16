@@ -5,6 +5,8 @@ import AgendaCalendar from "./AgendaCalendar";
 import AgendaBarberDayGrid from "./AgendaBarberDayGrid";
 import AgendaSidebar from "./AgendaSidebar";
 import AgendaViewToggle, { type AgendaViewMode } from "./AgendaViewToggle";
+import SlotMinutesPicker from "./SlotMinutesPicker";
+import { useSlotMinutes } from "@/hooks/use-slot-minutes";
 import MiniMonthCalendar from "./MiniMonthCalendar";
 import NewReservationModal from "./NewReservationModal";
 import BlockTimeModal from "./BlockTimeModal";
@@ -59,6 +61,7 @@ export default function AdminAgenda() {
   const [viewMode, setViewMode] = useState<AgendaViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(new Date()));
   const { range: visibleRange, setRange: setVisibleRange } = useVisibleRange();
+  const { slotMinutes, setSlotMinutes } = useSlotMinutes();
 
   // mobile sidebar
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -436,6 +439,9 @@ export default function AdminAgenda() {
                 ›
               </button>
             </div>
+            {viewMode === "day" && (
+              <SlotMinutesPicker value={slotMinutes} onChange={setSlotMinutes} />
+            )}
             <AgendaViewToggle mode={viewMode} onChange={setViewMode} />
             <button
               className="h-8 rounded-md bg-brand px-3.5 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-sm flex items-center gap-1.5"
@@ -473,6 +479,7 @@ export default function AdminAgenda() {
                 <AgendaBarberDayGrid
                   date={selectedDate}
                   visibleRange={visibleRange}
+                  slotMinutes={slotMinutes}
                   barbers={barbers.filter(
                     (b) => barberIds.length === 0 || barberIds.includes(b.id)
                   )}
