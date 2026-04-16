@@ -278,6 +278,28 @@ button {
     opacity 0.18s ease;
 }
 
+/* ── Admin nav rail: transición suave via CSS puro ──
+   Usamos data-attributes (no inline style) para que React no
+   reinicie la transición CSS en cada re-render. */
+.admin-nav {
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+.admin-nav[data-state="collapsed"] {
+  width: 56px;
+}
+.admin-nav[data-state="expanded"] {
+  width: 240px;
+}
+/* Spacer que reserva espacio en el flow (no se anima, solo snappea) */
+.admin-nav-spacer[data-state="collapsed"] {
+  width: 56px;
+}
+.admin-nav-spacer[data-state="expanded"] {
+  width: 240px;
+}
+
 /* Scroll shadows — sutil gradiente en los bordes cuando hay overflow horizontal.
    Se activa sobre cualquier contenedor con .scroll-shadow-x y usa background-attachment
    local para que la sombra solo aparezca en los bordes que tienen contenido fuera de vista. */

@@ -65,6 +65,25 @@ export default function BookingPage() {
   const [waitlistPosition, setWaitlistPosition] = useState<number | null>(null);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
 
+  // Filtro de rango horario para el paso 3 (selección de hora)
+  type TimePreset = "all" | "morning" | "afternoon" | "evening";
+  const [timePreset, setTimePreset] = useState<TimePreset>("all");
+
+  const TIME_PRESETS: { key: TimePreset; label: string; icon: string; from: number; to: number }[] = [
+    { key: "all", label: "Todo el día", icon: "☀️", from: 0, to: 24 },
+    { key: "morning", label: "Mañana", icon: "🌅", from: 7, to: 12 },
+    { key: "afternoon", label: "Tarde", icon: "☀️", from: 12, to: 18 },
+    { key: "evening", label: "Noche", icon: "🌙", from: 18, to: 23 },
+  ];
+
+  const filteredSlots = slots.filter((s) => {
+    if (timePreset === "all") return true;
+    const preset = TIME_PRESETS.find((p) => p.key === timePreset);
+    if (!preset) return true;
+    const hour = new Date(s.start).getHours();
+    return hour >= preset.from && hour < preset.to;
+  });
+
   useEffect(() => {
     fetch(`/api/book/services?slug=${slug}`)
       .then((r) => r.json())
@@ -464,6 +483,37 @@ export default function BookingPage() {
 
             <h2 className="text-base font-bold text-stone-900">Elige un horario</h2>
 
+            {/* Filtro de rango horario */}
+            {slots.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {TIME_PRESETS.map((p) => {
+                  const count = slots.filter((s) => {
+                    if (p.key === "all") return true;
+                    const h = new Date(s.start).getHours();
+                    return h >= p.from && h < p.to;
+                  }).length;
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => setTimePreset(p.key)}
+                      className={`shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition border ${
+                        timePreset === p.key
+                          ? "bg-brand text-white border-brand shadow-sm"
+                          : "bg-white text-stone-600 border-[#e8e2dc] hover:border-brand/40"
+                      }`}
+                    >
+                      <span className="mr-1">{p.icon}</span>
+                      {p.label}
+                      <span className={`ml-1.5 text-[10px] ${timePreset === p.key ? "text-white/70" : "text-stone-400"}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {loading ? (
               <p className="text-stone-400 text-sm py-4 text-center">Cargando horarios...</p>
             ) : slots.length === 0 ? (
@@ -511,13 +561,24 @@ export default function BookingPage() {
                   Probar otra fecha o profesional
                 </button>
               </div>
+            ) : filteredSlots.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#e8e2dc] bg-white/50 p-5 text-center">
+                <p className="text-sm text-stone-500">Sin horarios en este rango</p>
+                <button
+                  type="button"
+                  onClick={() => setTimePreset("all")}
+                  className="mt-2 text-xs text-brand hover:text-brand-hover font-medium"
+                >
+                  Ver todos los horarios
+                </button>
+              </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {slots.map((slot) => (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {filteredSlots.map((slot) => (
                   <button
                     key={slot.start}
                     onClick={() => handleSelectSlot(slot)}
-                    className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-2.5 text-center text-sm font-medium text-stone-700 hover:border-brand hover:bg-brand/5 hover:text-brand transition"
+                    className="rounded-lg border border-[#e8e2dc] bg-white px-2 py-2.5 text-center text-sm font-semibold text-stone-700 hover:border-brand hover:bg-brand/5 hover:text-brand transition tabular-nums"
                   >
                     {formatSlotTime(slot.start)}
                   </button>

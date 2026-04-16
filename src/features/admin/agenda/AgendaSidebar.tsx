@@ -165,17 +165,19 @@ export default function AgendaSidebar({
     <button
       type="button"
       onClick={() => setCollapsed(false)}
-      className="hidden lg:flex flex-col items-center justify-center gap-3 w-12 border-r border-[#e8e2dc] bg-white text-stone-400 hover:text-stone-700 hover:bg-stone-50 transition"
-      aria-label="Expandir sidebar"
-      title="Expandir"
+      className="hidden lg:flex flex-col items-start gap-2 w-11 border-r border-[#e8e2dc] bg-white text-stone-400 hover:text-stone-600 hover:bg-stone-50 transition pt-3"
+      aria-label="Mostrar filtros"
+      title="Mostrar filtros"
     >
-      <span className="text-lg">»</span>
-      <span
-        className="text-[10px] uppercase tracking-wider rotate-180"
-        style={{ writingMode: "vertical-rl" }}
-      >
-        Filtros
-      </span>
+      {/* Icono de filtro + flecha — reconocible como "abrir panel de filtros" */}
+      <div className="mx-auto flex flex-col items-center gap-3">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" className="text-stone-500">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 01.8 1.6L12 11v5a1 1 0 01-.6.9l-2 .8A1 1 0 018 16.8V11L3.2 4.6A1 1 0 014 3h-.01z" />
+        </svg>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-stone-400">
+          <path d="M3 1l4 4-4 4" />
+        </svg>
+      </div>
     </button>
   );
 

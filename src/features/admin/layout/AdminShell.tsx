@@ -163,24 +163,25 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        {/* Spacer: reserva el ancho del rail en el flow para que el contenido
-            no quede debajo del nav. Coincide con el ancho del aside cuando no
-            hay hover (el hover overlay crece a 240 pero no mueve el contenido). */}
-        <div className="hidden lg:block shrink-0" style={{ width: navCollapsed ? 56 : 240 }} />
+        {/* Spacer: reserva el ancho del rail en el flow. Coincide con el
+            aside cuando no hay hover (hover crece a 240 pero no mueve contenido). */}
+        <div
+          className="hidden lg:block shrink-0 admin-nav-spacer"
+          data-state={navCollapsed ? "collapsed" : "expanded"}
+        />
 
         {/* ── Sidebar (siempre fixed en desktop, overlay al expandir) ── */}
         <aside
           onMouseEnter={() => setNavHovered(true)}
           onMouseLeave={() => setNavHovered(false)}
+          data-state={isExpanded ? "expanded" : "collapsed"}
           className={cn(
-            "fixed inset-y-0 left-0 z-50 bg-[#1a1412] text-white overflow-hidden",
+            "admin-nav fixed inset-y-0 left-0 z-50 bg-[#1a1412] text-white overflow-hidden",
             "transition-transform duration-200",
             sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
             "lg:translate-x-0",
-            // Sombra al expandir sobre el contenido
             isExpanded ? "shadow-2xl shadow-black/30" : ""
           )}
-          style={{ width: isExpanded ? 240 : 56 }}
         >
           {/* Brand */}
           <div className="flex items-center justify-between px-4 py-3 h-[52px]">
