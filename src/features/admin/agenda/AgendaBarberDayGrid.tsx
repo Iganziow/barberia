@@ -10,7 +10,9 @@ import {
   timeLabels,
 } from "./agendaGridMath";
 
-const ROW_HEIGHT = 20; // px por slot de 15min — antes 14, ahora más legible
+// 22px por slot de 15min → 88px por hora, alineado con FullCalendar (45px/30min)
+// para que el day view se vea igual de pulido que el week view.
+const ROW_HEIGHT = 22;
 
 function sameDay(a: Date, b: Date): boolean {
   return (
@@ -146,8 +148,8 @@ export default function AgendaBarberDayGrid({
           gridTemplateColumns: `56px repeat(${Math.max(n, 1)}, minmax(${minColWidth}px, 1fr))`,
         }}
       >
-        {/* Header: empty corner + barber headers */}
-        <div className="sticky top-0 z-20 bg-white border-b border-[#e8e2dc] h-14" />
+        {/* Header: empty corner + barber headers (fondo suave como FullCalendar) */}
+        <div className="sticky top-0 z-20 bg-[#fafaf9] border-b border-[#ddd7d0] h-14" />
         {barbers.map((b) => {
           // Con muchos barberos, las columnas son angostas: ocultamos el nombre
           // y dejamos solo el avatar; el nombre aparece en el tooltip nativo.
@@ -155,7 +157,7 @@ export default function AgendaBarberDayGrid({
           return (
             <div
               key={`h-${b.id}`}
-              className="sticky top-0 z-20 bg-white border-b border-l border-[#e8e2dc] h-14 flex items-center justify-center min-w-0"
+              className="sticky top-0 z-20 bg-[#fafaf9] border-b border-l border-[#ddd7d0] h-14 flex items-center justify-center min-w-0"
             >
               <button
                 type="button"
@@ -187,7 +189,7 @@ export default function AgendaBarberDayGrid({
         {/* Body */}
         {/* Left time column */}
         <div
-          className="relative bg-white border-r border-[#e8e2dc]"
+          className="relative bg-white border-r border-[#ddd7d0]"
           style={{ gridRow: `2 / span 1` }}
         >
           <div
@@ -201,14 +203,22 @@ export default function AgendaBarberDayGrid({
               return (
                 <div
                   key={l.label}
-                  className={`pr-2 text-right text-[10px] leading-none flex items-start justify-end tabular-nums border-t ${
+                  className={`pr-2 text-right text-[10.4px] leading-none flex items-start justify-end tabular-nums border-t ${
                     l.onTheHour
-                      ? "text-stone-500 font-semibold border-stone-200"
+                      ? "text-stone-500 font-semibold"
                       : is30
-                        ? "text-stone-400 border-stone-100"
-                        : "text-transparent border-stone-50"
+                        ? "text-stone-400 font-medium"
+                        : "text-transparent"
                   }`}
-                  style={{ gridRow: `${l.row} / span 1` }}
+                  style={{
+                    gridRow: `${l.row} / span 1`,
+                    borderTopColor: l.onTheHour
+                      ? "#ddd7d0"
+                      : is30
+                        ? "#ebe7e2"
+                        : "transparent",
+                    borderTopStyle: !l.onTheHour && !is30 ? "dotted" : "solid",
+                  }}
                 >
                   {l.onTheHour || is30 ? l.label : ""}
                 </div>
@@ -223,7 +233,7 @@ export default function AgendaBarberDayGrid({
           return (
             <div
               key={`col-${b.id}`}
-              className="relative border-l border-[#e8e2dc] bg-white"
+              className="relative border-l border-[#ddd7d0] bg-white"
               style={{ gridRow: `2 / span 1` }}
             >
               <div
@@ -232,26 +242,32 @@ export default function AgendaBarberDayGrid({
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
                 }}
               >
-                {/* Background clickable slots — líneas consistentes:
-                    - cada hora (idx%4===0): borde sólido medio
-                    - cada 30min (idx%2===0): borde sutil
-                    - cada 15min (impar): borde muy tenue */}
-                {Array.from({ length: rowCount }).map((_, idx) => (
-                  <button
-                    key={`slot-${b.id}-${idx}`}
-                    type="button"
-                    onClick={(e) => handleSlotClick(e, b.id, idx)}
-                    className={`text-left border-t hover:bg-brand/5 transition ${
-                      idx % 4 === 0
-                        ? "border-stone-200"
-                        : idx % 2 === 0
-                          ? "border-stone-100"
-                          : "border-stone-50"
-                    }`}
-                    style={{ gridRow: `${idx + 1} / span 1` }}
-                    aria-label={`Crear evento en slot ${idx}`}
-                  />
-                ))}
+                {/* Background clickable slots — grid alineado con FullCalendar:
+                    - cada hora: #ddd7d0 (igual al fcGridBolder)
+                    - cada 30min: #ebe7e2
+                    - cada 15min: dotted muy sutil */}
+                {Array.from({ length: rowCount }).map((_, idx) => {
+                  const isHour = idx % 4 === 0;
+                  const is30 = idx % 2 === 0;
+                  return (
+                    <button
+                      key={`slot-${b.id}-${idx}`}
+                      type="button"
+                      onClick={(e) => handleSlotClick(e, b.id, idx)}
+                      className="text-left hover:bg-brand/5 transition border-t"
+                      style={{
+                        gridRow: `${idx + 1} / span 1`,
+                        borderTopColor: isHour
+                          ? "#ddd7d0"
+                          : is30
+                            ? "#ebe7e2"
+                            : "transparent",
+                        borderTopStyle: !isHour && !is30 ? "dotted" : "solid",
+                      }}
+                      aria-label={`Crear evento en slot ${idx}`}
+                    />
+                  );
+                })}
 
                 {/* Events */}
                 {colEvents.map((e) => {
@@ -262,12 +278,14 @@ export default function AgendaBarberDayGrid({
                     return (
                       <div
                         key={e.id}
-                        className="mx-0.5 rounded-md bg-stone-100/80 border border-dashed border-stone-300 text-[10px] text-stone-500 p-1.5 pointer-events-none select-none"
+                        className="mx-0.5 text-[10px] text-stone-400 px-2 py-1 pointer-events-none select-none rounded-md"
                         style={{
                           gridRow: `${rows.startRow} / ${rows.endRow}`,
+                          background:
+                            "repeating-linear-gradient(45deg, #f5f5f4 0, #f5f5f4 8px, #efefec 8px, #efefec 12px)",
                         }}
                       >
-                        <div className="opacity-80">Profesional no disponible</div>
+                        <div className="opacity-80 italic">No disponible</div>
                         <div className="text-[9px] opacity-60">
                           {formatHHmm(e.start)} – {formatHHmm(e.end)}
                         </div>
@@ -284,9 +302,10 @@ export default function AgendaBarberDayGrid({
                           ev.stopPropagation();
                           onClickEvent(e.id);
                         }}
-                        className="text-left mx-0.5 rounded-md bg-stone-200 border-l-4 border-stone-400 text-[10px] text-stone-700 p-1.5 hover:shadow-sm transition"
+                        className="text-left mx-0.5 rounded-md bg-stone-100 border-l-[4px] border-stone-400 text-[10px] text-stone-700 px-2 py-1 hover:shadow-md transition overflow-hidden"
                         style={{
                           gridRow: `${rows.startRow} / ${rows.endRow}`,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                         }}
                       >
                         <div className="font-medium flex items-center gap-1">
@@ -316,10 +335,11 @@ export default function AgendaBarberDayGrid({
                         onClickEvent(e.id);
                       }}
                       title={`${title} · ${subtitle || ""}\n${formatHHmm(e.start)} – ${formatHHmm(e.end)} · ${cfg.label}${e.paid ? " · Pagado" : ""}`}
-                      className={`group/card text-left mx-0.5 rounded-lg ${cfg.bg} border-l-[3px] ${cfg.text} px-2 py-1 hover:shadow-lg hover:-translate-y-px transition-all overflow-hidden cursor-pointer`}
+                      className={`group/card text-left mx-0.5 rounded-md ${cfg.bg} border-l-[4px] ${cfg.text} px-2 py-1 hover:shadow-md hover:-translate-y-px transition-all overflow-hidden cursor-pointer`}
                       style={{
                         gridRow: `${rows.startRow} / ${rows.endRow}`,
                         borderLeftColor: cfg.color,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                       }}
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -353,7 +373,7 @@ export default function AgendaBarberDayGrid({
                   );
                 })}
 
-                {/* Now line */}
+                {/* Now line — marcador visible del momento actual */}
                 {nowLineRow !== null && (
                   <div
                     className="absolute left-0 right-0 pointer-events-none z-10"
@@ -361,8 +381,12 @@ export default function AgendaBarberDayGrid({
                       top: `${(nowLineRow - 1) * ROW_HEIGHT}px`,
                     }}
                   >
-                    <div className="relative h-0 border-t-2 border-red-500">
-                      <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-red-500" />
+                    <div className="relative">
+                      <div
+                        className="absolute inset-x-0 border-t-[2px] border-red-500"
+                        style={{ boxShadow: "0 0 4px rgba(239, 68, 68, 0.4)" }}
+                      />
+                      <span className="absolute -left-1.5 -top-1.5 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
                     </div>
                   </div>
                 )}

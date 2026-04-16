@@ -468,31 +468,35 @@ export default function AdminAgenda() {
         {/* Calendar area */}
         <div className="flex-1 overflow-hidden bg-white">
           {viewMode === "day" ? (
-            <AgendaBarberDayGrid
-              date={selectedDate}
-              visibleRange={visibleRange}
-              barbers={barbers.filter(
-                (b) => barberIds.length === 0 || barberIds.includes(b.id)
-              )}
-              events={filteredEvents}
-              onSelectSlot={({ isoStart, barberId: b, x, y }) => {
-                setSlotISO(isoStart);
-                setSlotBarberId(b);
-                setSlotMenuPos({ x, y });
-                setSlotMenuOpen(true);
-              }}
-              onClickEvent={(eventId) => {
-                const ev = events.find((e) => e.id === eventId);
-                if (ev?.kind === "APPOINTMENT") {
-                  setDetailEventId(eventId);
-                  setDetailOpen(true);
-                }
-              }}
-              onClickBarberHeader={(barberId) => {
-                setBarberIds([barberId]);
-                setViewMode("week");
-              }}
-            />
+            <div className="p-3 h-full">
+              <div className="h-full rounded-xl border border-[#eae6e1] bg-white shadow-sm overflow-hidden">
+                <AgendaBarberDayGrid
+                  date={selectedDate}
+                  visibleRange={visibleRange}
+                  barbers={barbers.filter(
+                    (b) => barberIds.length === 0 || barberIds.includes(b.id)
+                  )}
+                  events={filteredEvents}
+                  onSelectSlot={({ isoStart, barberId: b, x, y }) => {
+                    setSlotISO(isoStart);
+                    setSlotBarberId(b);
+                    setSlotMenuPos({ x, y });
+                    setSlotMenuOpen(true);
+                  }}
+                  onClickEvent={(eventId) => {
+                    const ev = events.find((e) => e.id === eventId);
+                    if (ev?.kind === "APPOINTMENT") {
+                      setDetailEventId(eventId);
+                      setDetailOpen(true);
+                    }
+                  }}
+                  onClickBarberHeader={(barberId) => {
+                    setBarberIds([barberId]);
+                    setViewMode("week");
+                  }}
+                />
+              </div>
+            </div>
           ) : (
             <div className="p-3">
               <AgendaCalendar
