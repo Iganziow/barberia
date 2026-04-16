@@ -254,9 +254,11 @@ export default function AdminAgenda() {
     }
   }
 
-  // Cuando se filtra a 1 barbero en vista semana, muestra chip con X
+  // Cuando se filtra a 1 barbero, muestra chip con X para deseleccionarlo.
+  // Aplica tanto en vista Día como Semana para que siempre haya una forma
+  // clara de volver a ver a todos los barberos.
   const singleSelectedBarber =
-    viewMode === "week" && barberIds.length === 1
+    barberIds.length === 1
       ? barbers.find((b) => b.id === barberIds[0])
       : null;
 
