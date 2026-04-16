@@ -7,6 +7,7 @@ import AgendaSidebar from "./AgendaSidebar";
 import AgendaViewToggle, { type AgendaViewMode } from "./AgendaViewToggle";
 import SlotMinutesPicker from "./SlotMinutesPicker";
 import { useSlotMinutes } from "@/hooks/use-slot-minutes";
+import { useAgendaModals } from "./useAgendaModals";
 import MiniMonthCalendar from "./MiniMonthCalendar";
 import NewReservationModal from "./NewReservationModal";
 import BlockTimeModal from "./BlockTimeModal";
@@ -151,26 +152,19 @@ export default function AdminAgenda() {
     });
   }, [events, unavailableBlocks, barberIds, activeStatuses]);
 
-  // modals
-  const [newOpen, setNewOpen] = useState(false);
-  const [selectedStartISO, setSelectedStartISO] = useState<string | null>(null);
-  const [preselectedBarberId, setPreselectedBarberId] = useState<string>("");
-  const [preselectedServiceId, setPreselectedServiceId] = useState<string>("");
-  const [preselectedEndISO, setPreselectedEndISO] = useState<string | null>(null);
-
-  const [blockOpen, setBlockOpen] = useState(false);
-  const [blockStartISO, setBlockStartISO] = useState<string | null>(null);
-
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailEventId, setDetailEventId] = useState<string | null>(null);
-
-  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
-
-  // slot context menu
-  const [slotMenuOpen, setSlotMenuOpen] = useState(false);
-  const [slotMenuPos, setSlotMenuPos] = useState({ x: 240, y: 160 });
-  const [slotISO, setSlotISO] = useState<string | null>(null);
-  const [slotBarberId, setSlotBarberId] = useState<string>("");
+  // Modales centralizados: un único reducer garantiza que cerrar uno
+  // limpia automáticamente todo el state asociado (preselects, IDs, etc.).
+  const {
+    modal,
+    slotMenu,
+    close: closeModal,
+    openNew,
+    openBlock,
+    openDetail,
+    openQuickSearch,
+    openSlotMenu,
+    closeSlotMenu,
+  } = useAgendaModals();
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -284,7 +278,7 @@ export default function AdminAgenda() {
         onChangeVisibleRange={setVisibleRange}
         selectedDate={selectedDate}
         onSelectDate={(d) => setSelectedDate(startOfDay(d))}
-        onOpenQuickSearch={() => setQuickSearchOpen(true)}
+        onOpenQuickSearch={openQuickSearch}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
@@ -292,7 +286,7 @@ export default function AdminAgenda() {
       {/* Main area */}
       <div className="flex-1 min-w-0 flex flex-col bg-white">
         {/* Header */}
-        <div className="border-b border-[#e8e2dc] bg-white px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div className="border-b border-[#e8e2dc] bg-white px-3 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
@@ -313,12 +307,21 @@ export default function AdminAgenda() {
                 aria-haspopup="dialog"
                 title="Elegir fecha"
               >
-                <h1 className="text-[17px] font-bold tracking-tight text-stone-900 leading-tight truncate capitalize group-hover:text-brand">
-                  {selectedDate.toLocaleDateString("es-CL", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
+                <h1 className="text-[15px] sm:text-[17px] font-bold tracking-tight text-stone-900 leading-tight truncate capitalize group-hover:text-brand">
+                  <span className="hidden sm:inline">
+                    {selectedDate.toLocaleDateString("es-CL", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    })}
+                  </span>
+                  <span className="sm:hidden">
+                    {selectedDate.toLocaleDateString("es-CL", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </span>
                   <span className="text-stone-400 font-medium ml-1.5">
                     {selectedDate.getFullYear()}
                   </span>
@@ -450,19 +453,21 @@ export default function AdminAgenda() {
             )}
             <AgendaViewToggle mode={viewMode} onChange={setViewMode} />
             <button
-              className="h-8 rounded-md bg-brand px-3.5 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-sm flex items-center gap-1.5"
+              className="h-8 rounded-md bg-brand px-2.5 sm:px-3.5 text-xs font-semibold text-white hover:bg-brand-hover transition shadow-sm flex items-center gap-1.5"
               onClick={() => {
                 const x = Math.min(window.innerWidth - 240, window.innerWidth - 260);
-                setSlotMenuPos({ x, y: 140 });
-                setSlotISO(new Date().toISOString());
-                setSlotBarberId("");
-                setSlotMenuOpen(true);
+                openSlotMenu({
+                  x,
+                  y: 140,
+                  isoStart: new Date().toISOString(),
+                });
               }}
+              aria-label="Nueva reserva"
             >
               <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M7 1v12M1 7h12" />
               </svg>
-              Nuevo
+              <span className="hidden sm:inline">Nuevo</span>
             </button>
 
             {/* Avatar del usuario (desktop only — mobile usa topbar) */}
@@ -490,18 +495,12 @@ export default function AdminAgenda() {
                     (b) => barberIds.length === 0 || barberIds.includes(b.id)
                   )}
                   events={filteredEvents}
-                  onSelectSlot={({ isoStart, barberId: b, x, y }) => {
-                    setSlotISO(isoStart);
-                    setSlotBarberId(b);
-                    setSlotMenuPos({ x, y });
-                    setSlotMenuOpen(true);
-                  }}
+                  onSelectSlot={({ isoStart, barberId: b, x, y }) =>
+                    openSlotMenu({ x, y, isoStart, barberId: b })
+                  }
                   onClickEvent={(eventId) => {
                     const ev = events.find((e) => e.id === eventId);
-                    if (ev?.kind === "APPOINTMENT") {
-                      setDetailEventId(eventId);
-                      setDetailOpen(true);
-                    }
+                    if (ev?.kind === "APPOINTMENT") openDetail(eventId);
                   }}
                   onClickBarberHeader={(barberId) => {
                     setBarberIds([barberId]);
@@ -516,18 +515,12 @@ export default function AdminAgenda() {
                 events={filteredEvents}
                 visibleRange={visibleRange}
                 initialDate={selectedDate.toISOString()}
-                onSelectSlot={({ isoStart, x, y }) => {
-                  setSlotISO(isoStart);
-                  setSlotBarberId("");
-                  setSlotMenuPos({ x, y });
-                  setSlotMenuOpen(true);
-                }}
+                onSelectSlot={({ isoStart, x, y }) =>
+                  openSlotMenu({ x, y, isoStart })
+                }
                 onClickEvent={(eventId) => {
                   const ev = events.find((e) => e.id === eventId);
-                  if (ev?.kind === "APPOINTMENT") {
-                    setDetailEventId(eventId);
-                    setDetailOpen(true);
-                  }
+                  if (ev?.kind === "APPOINTMENT") openDetail(eventId);
                 }}
               />
             </div>
@@ -535,33 +528,34 @@ export default function AdminAgenda() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modals centralizados via useAgendaModals */}
       <NewReservationModal
-        open={newOpen}
-        onClose={() => {
-          setNewOpen(false);
-          setPreselectedServiceId("");
-          setPreselectedBarberId("");
-          setPreselectedEndISO(null);
-        }}
-        startISO={selectedStartISO}
-        endISO={preselectedEndISO}
+        open={modal.type === "new"}
+        onClose={closeModal}
+        startISO={modal.type === "new" ? modal.startISO : null}
+        endISO={modal.type === "new" ? modal.endISO : null}
         barberId={
-          preselectedBarberId || slotBarberId || barberIds[0] || barbers[0]?.id || ""
+          (modal.type === "new" && modal.barberId) ||
+          (slotMenu.open ? slotMenu.barberId : "") ||
+          barberIds[0] ||
+          barbers[0]?.id ||
+          ""
         }
-        serviceId={preselectedServiceId || undefined}
+        serviceId={modal.type === "new" ? modal.serviceId : undefined}
         barbers={barbers}
         services={services}
         existingEvents={events}
         onCreate={handleCreateAppointment}
       />
 
-      {blockOpen && (
+      {modal.type === "block" && (
         <BlockTimeModal
-          open={blockOpen}
-          onClose={() => setBlockOpen(false)}
-          startISO={blockStartISO}
-          defaultBarberId={slotBarberId || barberIds[0] || barbers[0]?.id || ""}
+          open
+          onClose={closeModal}
+          startISO={modal.startISO}
+          defaultBarberId={
+            modal.barberId || barberIds[0] || barbers[0]?.id || ""
+          }
           barbers={barbers}
           existingEvents={events}
           onCreateMany={handleCreateBlocks}
@@ -569,44 +563,48 @@ export default function AdminAgenda() {
       )}
 
       <AppointmentDetailModal
-        open={detailOpen}
-        appointmentId={detailEventId}
-        onClose={() => {
-          setDetailOpen(false);
-          setDetailEventId(null);
-        }}
+        open={modal.type === "detail"}
+        appointmentId={modal.type === "detail" ? modal.appointmentId : null}
+        onClose={closeModal}
         onStatusChange={refetch}
       />
 
       <QuickTimeSearchModal
-        open={quickSearchOpen}
-        onClose={() => setQuickSearchOpen(false)}
+        open={modal.type === "quickSearch"}
+        onClose={closeModal}
         branchId={effectiveBranchId}
         barbers={barbers}
         services={services}
         onSelectSlot={({ barberId: b, startISO, endISO, serviceId }) => {
-          setQuickSearchOpen(false);
-          setSelectedStartISO(startISO);
-          setPreselectedEndISO(endISO);
-          setPreselectedBarberId(b);
-          setPreselectedServiceId(serviceId);
-          setNewOpen(true);
+          openNew({ startISO, endISO, barberId: b, serviceId });
         }}
       />
 
       <SlotActionMenu
-        open={slotMenuOpen}
-        x={slotMenuPos.x}
-        y={slotMenuPos.y}
-        timeLabel={slotISO ? new Date(slotISO).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }) : undefined}
-        onClose={() => setSlotMenuOpen(false)}
+        open={slotMenu.open}
+        x={slotMenu.open ? slotMenu.x : 0}
+        y={slotMenu.open ? slotMenu.y : 0}
+        timeLabel={
+          slotMenu.open
+            ? new Date(slotMenu.isoStart).toLocaleTimeString("es-CL", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
+            : undefined
+        }
+        onClose={closeSlotMenu}
         onReserve={() => {
-          setSelectedStartISO(slotISO);
-          setNewOpen(true);
+          if (!slotMenu.open) return;
+          const { isoStart, barberId } = slotMenu;
+          closeSlotMenu();
+          openNew({ startISO: isoStart, barberId });
         }}
         onBlock={() => {
-          setBlockStartISO(slotISO);
-          setBlockOpen(true);
+          if (!slotMenu.open) return;
+          const { isoStart, barberId } = slotMenu;
+          closeSlotMenu();
+          openBlock({ startISO: isoStart, barberId });
         }}
       />
 
