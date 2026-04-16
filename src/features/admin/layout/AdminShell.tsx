@@ -163,9 +163,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
         )}
 
-        {/* Spacer: reserva 56px en el flow para que el contenido no quede
-            debajo del rail. Solo aplica en desktop (mobile usa drawer). */}
-        <div className="hidden lg:block shrink-0" style={{ width: 56 }} />
+        {/* Spacer: reserva el ancho del rail en el flow para que el contenido
+            no quede debajo del nav. Coincide con el ancho del aside cuando no
+            hay hover (el hover overlay crece a 240 pero no mueve el contenido). */}
+        <div className="hidden lg:block shrink-0" style={{ width: navCollapsed ? 56 : 240 }} />
 
         {/* ── Sidebar (siempre fixed en desktop, overlay al expandir) ── */}
         <aside
