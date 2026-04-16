@@ -84,8 +84,17 @@ function IconPlug({ className }: { className?: string }) {
   );
 }
 
+function IconBuilding({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 9h.01M15 9h.01M9 13h.01M15 13h.01" />
+    </svg>
+  );
+}
+
 const NAV = [
   { href: "/admin", label: "Agenda", Icon: IconCalendar, tourId: "nav-agenda" },
+  { href: "/admin/branches", label: "Sucursales", Icon: IconBuilding, tourId: "nav-sucursales" },
   { href: "/admin/barbers", label: "Barberos", Icon: IconTeam, tourId: "nav-barberos" },
   { href: "/admin/schedule", label: "Horarios", Icon: IconClock2, tourId: "nav-horarios" },
   { href: "/admin/services", label: "Servicios", Icon: IconScissors, tourId: "nav-servicios" },
