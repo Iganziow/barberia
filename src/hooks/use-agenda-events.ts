@@ -61,6 +61,7 @@ export function useAgendaEvents(filters: Filters) {
           end: string;
           barberId: string;
           status: string;
+          paid?: boolean;
         }) => ({
           id: a.id,
           title: `${a.clientName}\n${a.serviceName}`,
@@ -69,6 +70,8 @@ export function useAgendaEvents(filters: Filters) {
           kind: "APPOINTMENT" as const,
           barberId: a.barberId,
           status: normalizeStatus(a.status),
+          paid: !!a.paid,
+          serviceName: a.serviceName,
         })
       );
 

@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(find /c/Users/ignac/Documents/barber-booking -maxdepth 1 -name tailwind* -o -name *.config.*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -307,14 +307,11 @@ export default function NewReservationModal({
       }
     >
       <div className="space-y-4">
-        {/* Status */}
+        {/* Status — solo estados iniciales válidos al crear */}
         <div className="flex justify-end">
           <select className="input-field w-auto" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
             <option value="RESERVED">Reservado</option>
             <option value="CONFIRMED">Confirmado</option>
-            <option value="ARRIVED">Llegó</option>
-            <option value="DONE">Realizado</option>
-            <option value="CANCELED">Cancelado</option>
           </select>
         </div>
 

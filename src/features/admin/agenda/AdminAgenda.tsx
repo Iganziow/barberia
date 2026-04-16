@@ -581,6 +581,7 @@ export default function AdminAgenda() {
         open={slotMenuOpen}
         x={slotMenuPos.x}
         y={slotMenuPos.y}
+        timeLabel={slotISO ? new Date(slotISO).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }) : undefined}
         onClose={() => setSlotMenuOpen(false)}
         onReserve={() => {
           setSelectedStartISO(slotISO);

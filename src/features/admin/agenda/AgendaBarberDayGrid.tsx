@@ -10,7 +10,7 @@ import {
   timeLabels,
 } from "./agendaGridMath";
 
-const ROW_HEIGHT = 14; // px por slot de 15min
+const ROW_HEIGHT = 20; // px por slot de 15min — antes 14, ahora más legible
 
 function sameDay(a: Date, b: Date): boolean {
   return (
@@ -295,6 +295,8 @@ export default function AgendaBarberDayGrid({
                   // APPOINTMENT
                   const cfg = STATUS_CONFIG[e.status] || STATUS_CONFIG.RESERVED;
                   const [title, subtitle] = e.title.split("\n");
+                  const spanRows = rows.endRow - rows.startRow;
+                  const isTall = spanRows >= 3; // ≥ 45min at ROW_HEIGHT=20
                   return (
                     <button
                       type="button"
@@ -303,26 +305,40 @@ export default function AgendaBarberDayGrid({
                         ev.stopPropagation();
                         onClickEvent(e.id);
                       }}
-                      className={`text-left mx-0.5 rounded-md ${cfg.bg} border-l-4 ${cfg.text} p-1.5 hover:shadow-md transition overflow-hidden`}
+                      title={`${title} · ${subtitle || ""}\n${formatHHmm(e.start)} – ${formatHHmm(e.end)} · ${cfg.label}${e.paid ? " · Pagado" : ""}`}
+                      className={`group/card text-left mx-0.5 rounded-lg ${cfg.bg} border-l-[3px] ${cfg.text} px-2 py-1 hover:shadow-lg hover:-translate-y-px transition-all overflow-hidden cursor-pointer`}
                       style={{
                         gridRow: `${rows.startRow} / ${rows.endRow}`,
                         borderLeftColor: cfg.color,
                       }}
                     >
-                      <div className="flex items-center gap-1 font-semibold text-[11px] truncate">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${cfg.dot} shrink-0`}
+                          className={`h-2 w-2 rounded-full ${cfg.dot} shrink-0 ring-1 ring-white`}
                         />
-                        <span className="truncate">{title}</span>
+                        <span className="font-semibold text-[11px] truncate flex-1">{title}</span>
+                        {/* Indicador pagado */}
+                        {e.paid && (
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-emerald-500" aria-label="Pagado">
+                            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.7 5.3a.5.5 0 010 .7l-4 4a.5.5 0 01-.7 0l-2-2a.5.5 0 01.7-.7L7.3 10l3.7-3.7a.5.5 0 01.7 0z" />
+                          </svg>
+                        )}
+                        {!e.paid && e.status === "DONE" && (
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-amber-500" aria-label="Sin pago">
+                            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.5 3a.5.5 0 011 0v4a.5.5 0 01-1 0V4zm.5 7a.6.6 0 110-1.2.6.6 0 010 1.2z" />
+                          </svg>
+                        )}
                       </div>
-                      {subtitle && (
-                        <div className="text-[10px] opacity-75 truncate">
+                      {isTall && subtitle && (
+                        <div className="text-[10px] opacity-70 truncate mt-0.5 pl-3.5">
                           {subtitle}
                         </div>
                       )}
-                      <div className="text-[9px] opacity-60 mt-0.5">
-                        {formatHHmm(e.start)} – {formatHHmm(e.end)}
-                      </div>
+                      {isTall && (
+                        <div className="text-[9px] opacity-50 mt-0.5 pl-3.5 tabular-nums">
+                          {formatHHmm(e.start)} – {formatHHmm(e.end)}
+                        </div>
+                      )}
                     </button>
                   );
                 })}

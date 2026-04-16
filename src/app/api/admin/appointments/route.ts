@@ -44,6 +44,7 @@ export const GET = withAdmin(async (req, { orgId }) => {
       serviceName: a.service.name,
       clientId: a.clientId,
       clientName: a.client.user.name,
+      paid: !!a.payment,
     })),
   });
 });

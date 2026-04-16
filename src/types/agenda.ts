@@ -67,6 +67,10 @@ export type AgendaEvent = {
    * Para BLOCK / UNAVAILABLE: se fija en "ACTIVE" (solo usado para filtros).
    */
   status: AppointmentStatusCode | "ACTIVE";
+  /** true si la cita tiene un pago registrado (solo para APPOINTMENT). */
+  paid?: boolean;
+  /** Nombre del servicio (para tooltip). */
+  serviceName?: string;
 };
 
 // Horario de trabajo de un barbero para un día de la semana (espejo de BarberSchedule).

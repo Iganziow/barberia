@@ -85,6 +85,7 @@ export default function AppointmentDetailModal({
   // Payment form
   const [showPayment, setShowPayment] = useState(false);
   const [payAmount, setPayAmount] = useState(0);
+  const [payTip, setPayTip] = useState(0);
   const [editingPayment, setEditingPayment] = useState(false);
   const [payMethod, setPayMethod] = useState<string>("CASH");
 
@@ -130,7 +131,7 @@ export default function AppointmentDetailModal({
           body: JSON.stringify({
             appointmentId: apt.id,
             amount: payAmount,
-            tip: 0,
+            tip: payTip,
             method: payMethod,
           }),
         });
@@ -281,18 +282,31 @@ export default function AppointmentDetailModal({
 
           {/* Payment info — editable */}
           {apt.payment && !editingPayment && (
-            <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-medium text-green-600 uppercase tracking-wide">
-                  Pago registrado
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="text-emerald-500">
+                    <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.7 5.3a.5.5 0 010 .7l-4 4a.5.5 0 01-.7 0l-2-2a.5.5 0 01.7-.7L7.3 10l3.7-3.7a.5.5 0 01.7 0z" />
+                  </svg>
+                  Pagado
                 </p>
-                <button type="button" className="text-xs text-brand hover:text-brand-hover font-medium" onClick={() => { if (apt.payment) { setPayAmount(apt.payment.amount); setPayMethod(apt.payment.method); } setEditingPayment(true); }}>
+                <button type="button" className="text-[11px] text-stone-500 hover:text-brand font-medium" onClick={() => { if (apt.payment) { setPayAmount(apt.payment.amount); setPayTip(apt.payment.tip); setPayMethod(apt.payment.method); } setEditingPayment(true); }}>
                   Editar
                 </button>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>{formatCLP(apt.payment.amount)}</span>
-                <span className="text-green-700 font-medium">
+              <div className="flex items-center justify-between text-sm">
+                <div>
+                  <span className="font-bold text-stone-900 text-base tabular-nums">{formatCLP(apt.payment.amount)}</span>
+                  {apt.payment.tip > 0 && (
+                    <span className="ml-2 text-xs text-emerald-600 font-medium">+ {formatCLP(apt.payment.tip)} propina</span>
+                  )}
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-stone-700 border border-stone-200">
+                  {apt.payment.method === "CASH" && "💵"}
+                  {apt.payment.method === "DEBIT_CARD" && "💳"}
+                  {apt.payment.method === "CREDIT_CARD" && "💳"}
+                  {apt.payment.method === "TRANSFER" && "🏦"}
+                  {apt.payment.method === "OTHER" && "📝"}
                   {({ CASH: "Efectivo", DEBIT_CARD: "Débito", CREDIT_CARD: "Crédito", TRANSFER: "Transferencia", OTHER: "Otro" } as Record<string, string>)[apt.payment.method] || apt.payment.method}
                 </span>
               </div>
@@ -301,10 +315,14 @@ export default function AppointmentDetailModal({
           {apt.payment && editingPayment && (
             <div className="rounded-xl border border-brand/20 bg-brand/5 p-4 space-y-3">
               <p className="text-xs font-semibold text-stone-700">Editar pago</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="field-label">Monto</label>
                   <input type="number" className="input-field" value={payAmount} onChange={(e) => setPayAmount(Number(e.target.value))} />
+                </div>
+                <div>
+                  <label className="field-label">Propina</label>
+                  <input type="number" className="input-field" value={payTip} onChange={(e) => setPayTip(Number(e.target.value))} />
                 </div>
                 <div>
                   <label className="field-label">Método</label>
@@ -323,7 +341,7 @@ export default function AppointmentDetailModal({
                   const pid = apt.payment?.id;
                   if (!pid) return;
                   setUpdating(true);
-                  await fetch(`/api/admin/payments/${pid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: payAmount, method: payMethod }) });
+                  await fetch(`/api/admin/payments/${pid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: payAmount, tip: payTip, method: payMethod }) });
                   setEditingPayment(false);
                   setUpdating(false);
                   onClose();
@@ -342,30 +360,46 @@ export default function AppointmentDetailModal({
               </p>
 
               {showPayment && (
-                <div className="mb-3 rounded-xl border border-green-200 bg-green-50/50 p-4 space-y-3">
-                  <p className="text-sm font-semibold text-green-900">
-                    Registrar pago
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-emerald-900">
+                      Registrar pago para completar
+                    </p>
+                    <span className="text-xs text-stone-500">
+                      Precio: {formatCLP(apt.price)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="field-label">Monto</label>
+                      <label className="field-label">Monto *</label>
                       <input type="number" className="input-field" value={payAmount} onChange={(e) => setPayAmount(Number(e.target.value))} />
                     </div>
                     <div>
-                      <label className="field-label">Método</label>
+                      <label className="field-label">Propina</label>
+                      <input type="number" className="input-field" value={payTip} min={0} placeholder="0" onChange={(e) => setPayTip(Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <label className="field-label">Método *</label>
                       <select className="input-field" value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
-                        <option value="CASH">Efectivo</option>
-                        <option value="DEBIT_CARD">Débito</option>
-                        <option value="CREDIT_CARD">Crédito</option>
-                        <option value="TRANSFER">Transferencia</option>
-                        <option value="OTHER">Otro</option>
+                        <option value="CASH">💵 Efectivo</option>
+                        <option value="DEBIT_CARD">💳 Débito</option>
+                        <option value="CREDIT_CARD">💳 Crédito</option>
+                        <option value="TRANSFER">🏦 Transferencia</option>
+                        <option value="OTHER">📝 Otro</option>
                       </select>
                     </div>
                   </div>
+                  {payTip > 0 && (
+                    <p className="text-xs text-emerald-700">
+                      Total cobrado: {formatCLP(payAmount + payTip)} ({formatCLP(payAmount)} + {formatCLP(payTip)} propina)
+                    </p>
+                  )}
                   <div className="flex gap-2 pt-1">
-                    <button type="button" className="btn-secondary text-sm" onClick={() => setShowPayment(false)}>Volver</button>
-                    <button type="button" className="btn-primary text-sm" disabled={updating} onClick={() => handleStatusChange("DONE")}>
-                      {updating ? "..." : "Registrar pago"}
+                    <button type="button" className="btn-secondary text-sm" onClick={() => setShowPayment(false)}>
+                      Cancelar (no cambiar estado)
+                    </button>
+                    <button type="button" className="bg-emerald-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50" disabled={updating || payAmount <= 0} onClick={() => handleStatusChange("DONE")}>
+                      {updating ? "Procesando..." : "✓ Completar y registrar pago"}
                     </button>
                   </div>
                 </div>
@@ -401,23 +435,37 @@ export default function AppointmentDetailModal({
 
               {!showCancelInput && !showPayment && (
                 <div className="flex flex-wrap gap-2">
-                  {transitions.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      disabled={updating}
-                      onClick={() => handleStatusChange(s)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition ${
-                        s === "CANCELED" || s === "NO_SHOW"
-                          ? "border border-red-200 text-red-700 hover:bg-red-50"
-                          : s === "DONE"
-                            ? "bg-green-600 text-white hover:bg-green-700"
-                            : "bg-brand text-white hover:bg-brand-hover"
-                      }`}
-                    >
-                      {STATUS_LABELS[s] || s}
-                    </button>
-                  ))}
+                  {transitions.map((s) => {
+                    const cfg = STATUS_CONFIG[s];
+                    const isDestructive = s === "CANCELED" || s === "NO_SHOW";
+                    const isDone = s === "DONE";
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={updating}
+                        onClick={() => handleStatusChange(s)}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition flex items-center gap-2 ${
+                          isDestructive
+                            ? "border border-red-200 text-red-700 hover:bg-red-50"
+                            : isDone
+                              ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                              : `border-2 hover:shadow-sm`
+                        }`}
+                        style={
+                          !isDestructive && !isDone
+                            ? { borderColor: cfg?.color, color: cfg?.color }
+                            : undefined
+                        }
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: cfg?.color }}
+                        />
+                        {cfg?.label || s}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

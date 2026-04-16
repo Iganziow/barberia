@@ -6,6 +6,7 @@ export default function SlotActionMenu({
   open,
   x,
   y,
+  timeLabel,
   onClose,
   onReserve,
   onBlock,
@@ -13,6 +14,8 @@ export default function SlotActionMenu({
   open: boolean;
   x: number;
   y: number;
+  /** Hora del slot clickeado, ej: "10:30" */
+  timeLabel?: string;
   onClose: () => void;
   onReserve: () => void;
   onBlock: () => void;
@@ -48,7 +51,9 @@ export default function SlotActionMenu({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#e8e2dc]">
-          <span className="text-sm font-semibold text-stone-800">Agregar</span>
+          <span className="text-sm font-semibold text-stone-800">
+            {timeLabel ? `Agregar a las ${timeLabel}` : "Agregar"}
+          </span>
           <button
             className="grid h-6 w-6 place-items-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition"
             onClick={onClose}
