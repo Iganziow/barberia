@@ -18,6 +18,7 @@ import { useAgendaEvents } from "@/hooks/use-agenda-events";
 import { useBarberSchedules } from "@/hooks/use-barber-schedules";
 import { useVisibleRange } from "@/hooks/use-visible-range";
 import { useQuickStats } from "@/hooks/use-quick-stats";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import { formatCLP, formatTime } from "@/lib/format";
 import type { AppointmentStatusCode, StatusPreset } from "@/types/agenda";
 import {
@@ -84,8 +85,15 @@ export default function AdminAgenda() {
     };
   }, [datePickerOpen]);
 
-  // Stats del día (hoy). Puente para mostrarlos contextualmente en el header.
+  // Stats del día y perfil del usuario (para mostrar avatar en el header).
   const stats = useQuickStats();
+  const { user } = useAuthUser();
+  const userInitials = (user?.name ?? "")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   // datos
   const { branches } = useBranches();
@@ -250,10 +258,9 @@ export default function AdminAgenda() {
       : null;
 
   return (
-    // Escapamos el padding del <main> (px-4 py-4 lg:px-6 lg:py-5) y el max-w-[1400px]
-    // para que la agenda ocupe todo el ancho del content area del AdminShell,
-    // mostrando sidebar + canvas como un único panel (estilo Agenda Pro).
-    <div className="flex -mx-4 -my-4 lg:-mx-6 lg:-my-5 min-h-[calc(100dvh-64px)] bg-white border-t border-[#e8e2dc]">
+    // El main del AdminShell ya NO tiene padding/max-width en desktop (lg:px-0 lg:py-0
+    // lg:max-w-none). La agenda se extiende al 100% del área disponible.
+    <div className="flex -mx-4 -my-4 lg:mx-0 lg:my-0 min-h-[calc(100dvh-56px)] lg:min-h-screen bg-white border-t border-[#e8e2dc] lg:border-t-0">
       {/* Sidebar */}
       <AgendaSidebar
         branches={branches}
@@ -445,6 +452,16 @@ export default function AdminAgenda() {
               </svg>
               Nuevo
             </button>
+
+            {/* Avatar del usuario (desktop only — mobile usa topbar) */}
+            {user && (
+              <div className="hidden lg:flex items-center gap-2 rounded-full border border-[#e8e2dc] bg-white pl-1.5 pr-3 py-1 ml-1">
+                <div className="grid h-6 w-6 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
+                  {userInitials}
+                </div>
+                <span className="text-[12px] font-medium text-stone-700">{user.name?.split(" ")[0]}</span>
+              </div>
+            )}
           </div>
         </div>
 
