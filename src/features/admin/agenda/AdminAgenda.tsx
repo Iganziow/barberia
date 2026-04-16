@@ -7,6 +7,8 @@ import AgendaMonthView from "./AgendaMonthView";
 import AgendaSidebar from "./AgendaSidebar";
 import AgendaViewToggle, { type AgendaViewMode } from "./AgendaViewToggle";
 import SlotMinutesPicker from "./SlotMinutesPicker";
+import AppointmentSearch from "./AppointmentSearch";
+import AgendaActionsMenu from "./AgendaActionsMenu";
 import { useSlotMinutes } from "@/hooks/use-slot-minutes";
 import { useAgendaModals } from "./useAgendaModals";
 import { toLocalDateString } from "@/lib/date-utils";
@@ -498,6 +500,26 @@ export default function AdminAgenda() {
                 ›
               </button>
             </div>
+            <AppointmentSearch
+              onSelectAppointment={(aptId, startISO) => {
+                setSelectedDate(startOfDay(new Date(startISO)));
+                openDetail(aptId);
+              }}
+            />
+            <AgendaActionsMenu
+              onPrint={() => window.print()}
+              exportUrl={(format) => {
+                const params = new URLSearchParams();
+                params.set("format", format);
+                if (effectiveBranchId) params.set("branchId", effectiveBranchId);
+                params.set("from", dateRange.from.toISOString());
+                params.set(
+                  "to",
+                  new Date(dateRange.to.getTime() + 86_400_000 - 1).toISOString()
+                );
+                return `/api/admin/appointments/export?${params.toString()}`;
+              }}
+            />
             {viewMode === "day" && (
               <SlotMinutesPicker value={slotMinutes} onChange={setSlotMinutes} />
             )}

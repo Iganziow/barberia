@@ -29,7 +29,7 @@ export async function getAppointments(filters: AppointmentFilters) {
     include: {
       barber: { include: { user: { select: { name: true } } } },
       service: { select: { name: true } },
-      client: { include: { user: { select: { name: true } } } },
+      client: { include: { user: { select: { name: true, phone: true } } } },
       payment: { select: { id: true } },
     },
     orderBy: { start: "asc" },
