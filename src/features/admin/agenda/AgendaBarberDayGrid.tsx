@@ -9,6 +9,7 @@ import {
   rowHeightFor,
   timeLabels,
 } from "./agendaGridMath";
+import FastTooltip from "./FastTooltip";
 
 function sameDay(a: Date, b: Date): boolean {
   return (
@@ -160,34 +161,49 @@ export default function AgendaBarberDayGrid({
           // Con muchos barberos, las columnas son angostas: ocultamos el nombre
           // y dejamos solo el avatar; el nombre aparece en el tooltip nativo.
           const compact = n >= 7;
+          const avatar = (
+            <div
+              className="h-7 w-7 rounded-full grid place-items-center text-white text-[10px] font-bold shadow-sm ring-2 ring-white shrink-0"
+              style={{ backgroundColor: b.color || "#c87941" }}
+            >
+              {b.name
+                .split(" ")
+                .map((p) => p[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </div>
+          );
           return (
             <div
               key={`h-${b.id}`}
               className="sticky top-0 z-20 bg-[#fafaf9] border-b border-l border-[#ddd7d0] h-14 flex items-center justify-center min-w-0"
             >
+              {compact ? (
+                <FastTooltip label={`${b.name} — ver semana`}>
+                  <button
+                    type="button"
+                    onClick={() => onClickBarberHeader(b.id)}
+                    className="group flex items-center gap-2 px-2 py-1 rounded-full hover:bg-stone-50 transition"
+                  >
+                    {avatar}
+                  </button>
+                </FastTooltip>
+              ) : (
               <button
                 type="button"
                 onClick={() => onClickBarberHeader(b.id)}
                 className="group flex items-center gap-2 px-2 py-1 rounded-full hover:bg-stone-50 transition min-w-0 max-w-full"
                 title={`Ver semana de ${b.name}`}
               >
-                <div
-                  className="h-7 w-7 rounded-full grid place-items-center text-white text-[10px] font-bold shadow-sm ring-2 ring-white shrink-0"
-                  style={{ backgroundColor: b.color || "#c87941" }}
-                >
-                  {b.name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </div>
+                {avatar}
                 {!compact && (
                   <span className="text-[13px] font-semibold text-stone-700 group-hover:text-stone-900 truncate">
                     {b.name}
                   </span>
                 )}
               </button>
+              )}
             </div>
           );
         })}
@@ -203,7 +219,7 @@ export default function AgendaBarberDayGrid({
             style={{
               gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
               // Líneas cada hora (más oscura), cada 30min (media), y por slot (sutil).
-              backgroundImage: `linear-gradient(to bottom, #d4cec6 1px, transparent 1px), linear-gradient(to bottom, #e5e0d9 1px, transparent 1px), linear-gradient(to bottom, #f0ebe5 1px, transparent 1px)`,
+              backgroundImage: `linear-gradient(to bottom, #ddd7d0 1px, transparent 1px), linear-gradient(to bottom, #ebe7e2 1px, transparent 1px), linear-gradient(to bottom, #f5f2ee 1px, transparent 1px)`,
               backgroundSize: `100% ${ROW_HEIGHT * rowsPerHour}px, 100% ${ROW_HEIGHT * rowsPerHalfHour}px, 100% ${ROW_HEIGHT}px`,
               backgroundPosition: "0 0, 0 0, 0 0",
               backgroundRepeat: "repeat",
@@ -244,7 +260,7 @@ export default function AgendaBarberDayGrid({
                 style={{
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
                   // 3 capas: hora (fuerte) / 30min (media) / por-slot (sutil)
-                  backgroundImage: `linear-gradient(to bottom, #d4cec6 1px, transparent 1px), linear-gradient(to bottom, #e5e0d9 1px, transparent 1px), linear-gradient(to bottom, #f0ebe5 1px, transparent 1px)`,
+                  backgroundImage: `linear-gradient(to bottom, #ddd7d0 1px, transparent 1px), linear-gradient(to bottom, #ebe7e2 1px, transparent 1px), linear-gradient(to bottom, #f5f2ee 1px, transparent 1px)`,
                   backgroundSize: `100% ${ROW_HEIGHT * rowsPerHour}px, 100% ${ROW_HEIGHT * rowsPerHalfHour}px, 100% ${ROW_HEIGHT}px`,
                   backgroundPosition: "0 0, 0 0, 0 0",
                   backgroundRepeat: "repeat",

@@ -58,7 +58,7 @@ export default function SlotMinutesPicker({
       {open && (
         <div
           role="listbox"
-          className="absolute top-full left-0 mt-1 z-30 w-36 rounded-lg border border-[#e8e2dc] bg-white shadow-xl overflow-hidden"
+          className="absolute top-full right-0 mt-1 z-30 w-36 rounded-lg border border-[#e8e2dc] bg-white shadow-xl overflow-hidden max-[640px]:left-0 max-[640px]:right-auto"
         >
           {SLOT_MINUTES_OPTIONS.map((opt) => {
             const selected = opt === value;

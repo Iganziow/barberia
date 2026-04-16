@@ -104,7 +104,7 @@ export default function AgendaCalendar({
   const slotMax = normalizeTime(visibleRange?.to, "21:00:00");
 
   return (
-    <div className="fc-wrapper overflow-x-auto">
+    <div className="fc-wrapper overflow-x-auto h-full">
       <FullCalendar
         ref={calRef}
         plugins={[timeGridPlugin, interactionPlugin]}
@@ -124,7 +124,7 @@ export default function AgendaCalendar({
         nowIndicator={true}
         stickyHeaderDates={true}
         hiddenDays={[0]}
-        height="calc(100dvh - 185px)"
+        height="100%"
         expandRows={true}
         events={fcEvents}
         editable={false}

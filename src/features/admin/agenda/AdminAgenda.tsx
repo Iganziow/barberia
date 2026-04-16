@@ -99,9 +99,9 @@ export default function AdminAgenda() {
     .slice(0, 2);
 
   // datos
-  const { branches } = useBranches();
+  const { branches, loading: loadingBranches } = useBranches();
   const effectiveBranchId = branchId || (branches.length > 0 ? branches[0].id : "");
-  const { barbers } = useBarbers(effectiveBranchId || undefined);
+  const { barbers, loading: loadingBarbers } = useBarbers(effectiveBranchId || undefined);
   const { services } = useServices();
   const { schedules } = useBarberSchedules(effectiveBranchId || undefined);
 
@@ -271,9 +271,11 @@ export default function AdminAgenda() {
         branches={branches}
         branchId={effectiveBranchId}
         onChangeBranch={setBranchId}
+        loadingBranches={loadingBranches}
         barbers={barbers}
         barberIds={barberIds}
         onChangeBarberIds={setBarberIds}
+        loadingBarbers={loadingBarbers}
         statusPreset={statusPreset}
         customStatuses={customStatuses}
         onChangeStatusPreset={setStatusPreset}
@@ -399,7 +401,7 @@ export default function AdminAgenda() {
                 <div
                   role="dialog"
                   aria-label="Seleccionar fecha"
-                  className="absolute top-full left-0 mt-2 z-40 w-[260px] rounded-xl border border-[#e8e2dc] bg-white shadow-2xl p-3"
+                  className="absolute top-full left-0 mt-2 z-40 w-[260px] max-w-[calc(100vw-2rem)] rounded-xl border border-[#e8e2dc] bg-white shadow-2xl p-3"
                 >
                   <MiniMonthCalendar
                     selectedDate={selectedDate}
@@ -509,7 +511,7 @@ export default function AdminAgenda() {
               </div>
             </div>
           ) : (
-            <div className="p-3">
+            <div className="p-3 h-full">
               <AgendaCalendar
                 events={filteredEvents}
                 visibleRange={visibleRange}

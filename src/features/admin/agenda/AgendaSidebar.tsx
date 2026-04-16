@@ -21,10 +21,12 @@ export default function AgendaSidebar({
   branches,
   branchId,
   onChangeBranch,
+  loadingBranches = false,
 
   barbers,
   barberIds,
   onChangeBarberIds,
+  loadingBarbers = false,
 
   statusPreset,
   customStatuses,
@@ -45,10 +47,12 @@ export default function AgendaSidebar({
   branches: BranchOption[];
   branchId: string;
   onChangeBranch: (id: string) => void;
+  loadingBranches?: boolean;
 
   barbers: BarberOption[];
   barberIds: string[];
   onChangeBarberIds: (ids: string[]) => void;
+  loadingBarbers?: boolean;
 
   statusPreset: StatusPreset;
   customStatuses: AppointmentStatusCode[];
@@ -99,27 +103,40 @@ export default function AgendaSidebar({
       {/* Sucursal */}
       <div className="px-4 py-3">
         <label className={labelClass}>Sucursal</label>
-        <select
-          value={branchId}
-          onChange={(e) => onChangeBranch(e.target.value)}
-          className="h-8 w-full rounded-md border border-[#e8e2dc] bg-white px-2.5 text-[13px] text-stone-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+        {loadingBranches && branches.length === 0 ? (
+          <div className="h-8 w-full rounded-md bg-stone-100 animate-pulse" />
+        ) : (
+          <select
+            value={branchId}
+            onChange={(e) => onChangeBranch(e.target.value)}
+            className="h-8 w-full rounded-md border border-[#e8e2dc] bg-white px-2.5 text-[13px] text-stone-700 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Profesional */}
       <div className="px-4 py-3">
         <label className={labelClass}>Profesional</label>
-        <AgendaBarberSelect
-          barbers={barbers}
-          selected={barberIds}
-          onChange={onChangeBarberIds}
-        />
+        {loadingBarbers && barbers.length === 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            <div className="h-6 w-14 rounded-full bg-stone-100 animate-pulse" />
+            <div className="h-6 w-20 rounded-full bg-stone-100 animate-pulse" />
+            <div className="h-6 w-16 rounded-full bg-stone-100 animate-pulse" />
+            <div className="h-6 w-24 rounded-full bg-stone-100 animate-pulse" />
+          </div>
+        ) : (
+          <AgendaBarberSelect
+            barbers={barbers}
+            selected={barberIds}
+            onChange={onChangeBarberIds}
+          />
+        )}
       </div>
 
       {/* Estado */}
@@ -179,7 +196,7 @@ export default function AgendaSidebar({
     <button
       type="button"
       onClick={() => setCollapsed(false)}
-      className="hidden lg:flex flex-col items-start gap-2 w-11 border-r border-[#e8e2dc] bg-white text-stone-400 hover:text-stone-600 hover:bg-stone-50 transition pt-3"
+      className="flex h-full flex-col items-start gap-2 w-11 border-r border-[#e8e2dc] bg-white text-stone-400 hover:text-stone-600 hover:bg-stone-50 transition pt-3"
       aria-label="Mostrar filtros"
       title="Mostrar filtros"
     >
@@ -197,12 +214,14 @@ export default function AgendaSidebar({
 
   return (
     <>
-      {/* Desktop */}
+      {/* Desktop — sticky para que no se extienda con la altura del calendario */}
       {collapsed ? (
-        collapsedRail
+        <div className="hidden lg:block sticky top-0 self-start h-[calc(100dvh-52px)]">
+          {collapsedRail}
+        </div>
       ) : (
         <aside
-          className="hidden lg:block shrink-0 border-r border-[#e8e2dc] bg-white overflow-y-auto overflow-x-hidden"
+          className="hidden lg:block shrink-0 border-r border-[#e8e2dc] bg-white overflow-y-auto overflow-x-hidden sticky top-0 self-start h-[calc(100dvh-52px)] scroll-chips"
           style={{ width: 240 }}
         >
           {body}
