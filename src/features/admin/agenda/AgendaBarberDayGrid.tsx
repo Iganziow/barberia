@@ -145,7 +145,7 @@ export default function AgendaBarberDayGrid({
 
   return (
     <div
-      className={`relative h-full w-full ${useScroll ? "overflow-auto scroll-shadow-x" : "overflow-y-auto overflow-x-hidden"}`}
+      className={`relative h-full w-full ${useScroll ? "overflow-auto scroll-shadow-x day-grid-scroll" : "overflow-y-auto overflow-x-hidden day-grid-scroll"}`}
       data-barber-count={n}
     >
       <div

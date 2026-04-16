@@ -26,8 +26,18 @@ export default function AgendaBarberSelect({
     }
   }
 
+  // Con muchos barberos, la sección ocuparía demasiado espacio vertical.
+  // Limitamos altura a ~5 filas y agregamos scroll interno.
+  const needsScroll = barbers.length > 8;
+
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div
+      className={`flex flex-wrap gap-1.5 ${
+        needsScroll
+          ? "max-h-[160px] overflow-y-auto pr-1 scroll-chips -mr-1"
+          : ""
+      }`}
+    >
       <button
         type="button"
         onClick={() => onChange([])}
