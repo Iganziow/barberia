@@ -29,6 +29,8 @@ export type SlotMenuState =
       y: number;
       isoStart: string;
       barberId: string;
+      /** Timestamp del momento en que se abrió el menú (para comparar isPast). */
+      openedAt: number;
     };
 
 type ModalAction =
@@ -87,6 +89,7 @@ function slotMenuReducer(_: SlotMenuState, action: SlotMenuAction): SlotMenuStat
     y: action.y,
     isoStart: action.isoStart,
     barberId: action.barberId ?? "",
+    openedAt: Date.now(),
   };
 }
 

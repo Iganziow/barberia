@@ -13,6 +13,13 @@ interface AgendaCalendarProps {
   events: AgendaEvent[];
   onSelectSlot: (info: { isoStart: string; x: number; y: number }) => void;
   onClickEvent: (eventId: string) => void;
+  /** Invocado al arrastrar o redimensionar una cita. */
+  onEventReschedule?: (info: {
+    eventId: string;
+    startISO: string;
+    endISO: string;
+    revert: () => void;
+  }) => void;
   visibleRange?: VisibleRange;
   initialDate?: string; // ISO date
 }
@@ -56,6 +63,7 @@ export default function AgendaCalendar({
   events,
   onSelectSlot,
   onClickEvent,
+  onEventReschedule,
   visibleRange,
   initialDate,
 }: AgendaCalendarProps) {
@@ -86,6 +94,12 @@ export default function AgendaCalendar({
 
   const fcEvents = events.map((e) => {
     const colors = eventStyle(e);
+    // Solo APPOINTMENT activas pueden reprogramarse.
+    const draggable =
+      e.kind === "APPOINTMENT" &&
+      e.status !== "DONE" &&
+      e.status !== "CANCELED" &&
+      e.status !== "NO_SHOW";
     return {
       id: e.id,
       title: e.title,
@@ -95,6 +109,9 @@ export default function AgendaCalendar({
       borderColor: colors.borderColor,
       textColor: colors.textColor,
       display: e.kind === "UNAVAILABLE" ? "background" : undefined,
+      editable: draggable,
+      startEditable: draggable,
+      durationEditable: draggable,
       extendedProps: { kind: e.kind, barberId: e.barberId, status: e.status },
     };
   });
@@ -127,8 +144,49 @@ export default function AgendaCalendar({
         height="100%"
         expandRows={true}
         events={fcEvents}
-        editable={false}
+        editable={!!onEventReschedule}
+        eventStartEditable={!!onEventReschedule}
+        eventDurationEditable={!!onEventReschedule}
+        eventResizableFromStart={false}
         selectable={false}
+        eventDrop={(info) => {
+          const kind = info.event.extendedProps?.kind;
+          if (kind !== "APPOINTMENT" || !onEventReschedule) {
+            info.revert();
+            return;
+          }
+          const start = info.event.start?.toISOString();
+          const end = info.event.end?.toISOString();
+          if (!start || !end) {
+            info.revert();
+            return;
+          }
+          onEventReschedule({
+            eventId: info.event.id,
+            startISO: start,
+            endISO: end,
+            revert: () => info.revert(),
+          });
+        }}
+        eventResize={(info) => {
+          const kind = info.event.extendedProps?.kind;
+          if (kind !== "APPOINTMENT" || !onEventReschedule) {
+            info.revert();
+            return;
+          }
+          const start = info.event.start?.toISOString();
+          const end = info.event.end?.toISOString();
+          if (!start || !end) {
+            info.revert();
+            return;
+          }
+          onEventReschedule({
+            eventId: info.event.id,
+            startISO: start,
+            endISO: end,
+            revert: () => info.revert(),
+          });
+        }}
         dateClick={(info) => {
           const rect = (info.jsEvent.target as HTMLElement).getBoundingClientRect();
           onSelectSlot({

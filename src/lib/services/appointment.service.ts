@@ -115,3 +115,60 @@ export async function updateAppointmentStatus(
 
   return updated;
 }
+
+/**
+ * Reprogramar una cita (drag-to-reschedule o cambio de barbero).
+ * Valida overlap con otras citas/bloqueos del mismo barbero.
+ */
+export async function rescheduleAppointment(
+  id: string,
+  data: { start: string; end: string; barberId?: string },
+  orgId: string
+) {
+  const existing = await prisma.appointment.findFirst({
+    where: { id, branch: { orgId } },
+    select: { id: true, barberId: true },
+  });
+  if (!existing) return null;
+
+  const newStart = new Date(data.start);
+  const newEnd = new Date(data.end);
+  const targetBarberId = data.barberId || existing.barberId;
+
+  // Check overlap con otras citas activas del barbero
+  const overlappingApt = await prisma.appointment.findFirst({
+    where: {
+      id: { not: id },
+      barberId: targetBarberId,
+      status: { notIn: ["CANCELED", "NO_SHOW"] },
+      start: { lt: newEnd },
+      end: { gt: newStart },
+    },
+    select: { id: true },
+  });
+  if (overlappingApt) {
+    throw new Error("Overlap con otra cita del barbero");
+  }
+
+  // Check overlap con bloqueos
+  const overlappingBlock = await prisma.blockTime.findFirst({
+    where: {
+      barberId: targetBarberId,
+      start: { lt: newEnd },
+      end: { gt: newStart },
+    },
+    select: { id: true },
+  });
+  if (overlappingBlock) {
+    throw new Error("Overlap con horario bloqueado");
+  }
+
+  return prisma.appointment.update({
+    where: { id },
+    data: {
+      start: newStart,
+      end: newEnd,
+      ...(data.barberId ? { barberId: data.barberId } : {}),
+    },
+  });
+}

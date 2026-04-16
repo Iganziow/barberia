@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgendaCalendar from "./AgendaCalendar";
 import AgendaBarberDayGrid from "./AgendaBarberDayGrid";
+import AgendaMonthView from "./AgendaMonthView";
 import AgendaSidebar from "./AgendaSidebar";
 import AgendaViewToggle, { type AgendaViewMode } from "./AgendaViewToggle";
 import SlotMinutesPicker from "./SlotMinutesPicker";
 import { useSlotMinutes } from "@/hooks/use-slot-minutes";
 import { useAgendaModals } from "./useAgendaModals";
+import { toLocalDateString } from "@/lib/date-utils";
 import MiniMonthCalendar from "./MiniMonthCalendar";
 import NewReservationModal from "./NewReservationModal";
 import BlockTimeModal from "./BlockTimeModal";
@@ -106,13 +108,32 @@ export default function AdminAgenda() {
   const { services } = useServices();
   const { schedules } = useBarberSchedules(effectiveBranchId || undefined);
 
-  // date range para fetch (día o semana completa)
+  // date range para fetch (día, semana o mes completo).
+  // Para el mes incluimos días del mes anterior/siguiente visibles en el grid
+  // de 6 semanas de FullCalendar.
   const dateRange = useMemo(() => {
     if (viewMode === "day") {
       return { from: startOfDay(selectedDate), to: startOfDay(selectedDate) };
     }
-    const start = startOfWeek(selectedDate);
-    return { from: start, to: addDays(start, 6) };
+    if (viewMode === "week") {
+      const start = startOfWeek(selectedDate);
+      return { from: start, to: addDays(start, 6) };
+    }
+    // month: desde el lunes de la primera semana que contiene el día 1
+    // hasta el domingo de la semana del último día del mes.
+    const firstOfMonth = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      1
+    );
+    const lastOfMonth = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1,
+      0
+    );
+    const from = startOfWeek(firstOfMonth);
+    const to = addDays(startOfWeek(lastOfMonth), 6);
+    return { from, to };
   }, [viewMode, selectedDate]);
 
   const { events, refetch } = useAgendaEvents({
@@ -245,6 +266,35 @@ export default function AdminAgenda() {
       refetch();
     } catch {
       showToast("Error de conexión al crear bloqueos", "error");
+    }
+  }
+
+  async function handleEventReschedule(info: {
+    eventId: string;
+    startISO: string;
+    endISO: string;
+    revert: () => void;
+  }) {
+    try {
+      const res = await fetch(`/api/admin/appointments/${info.eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start: info.startISO,
+          end: info.endISO,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Error" }));
+        showToast(err.message || "No se pudo reprogramar", "error");
+        info.revert();
+        return;
+      }
+      showToast("Cita reprogramada");
+      refetch();
+    } catch {
+      showToast("Error de conexión al reprogramar", "error");
+      info.revert();
     }
   }
 
@@ -509,15 +559,33 @@ export default function AdminAgenda() {
                 />
               </div>
             </div>
-          ) : (
+          ) : viewMode === "week" ? (
             <div className="p-3 h-full">
               <AgendaCalendar
                 events={filteredEvents}
                 visibleRange={visibleRange}
-                initialDate={selectedDate.toISOString()}
+                initialDate={toLocalDateString(selectedDate)}
                 onSelectSlot={({ isoStart, x, y }) =>
                   openSlotMenu({ x, y, isoStart })
                 }
+                onClickEvent={(eventId) => {
+                  const ev = events.find((e) => e.id === eventId);
+                  if (ev?.kind === "APPOINTMENT") openDetail(eventId);
+                }}
+                onEventReschedule={handleEventReschedule}
+              />
+            </div>
+          ) : (
+            /* viewMode === "month" */
+            <div className="p-3 h-full">
+              <AgendaMonthView
+                events={filteredEvents}
+                initialDate={toLocalDateString(selectedDate)}
+                onClickDay={(dateStr) => {
+                  const [y, m, d] = dateStr.split("-").map(Number);
+                  setSelectedDate(new Date(y, (m ?? 1) - 1, d ?? 1));
+                  setViewMode("day");
+                }}
                 onClickEvent={(eventId) => {
                   const ev = events.find((e) => e.id === eventId);
                   if (ev?.kind === "APPOINTMENT") openDetail(eventId);
@@ -593,6 +661,7 @@ export default function AdminAgenda() {
               })
             : undefined
         }
+        isPast={slotMenu.open && new Date(slotMenu.isoStart).getTime() < slotMenu.openedAt}
         onClose={closeSlotMenu}
         onReserve={() => {
           if (!slotMenu.open) return;

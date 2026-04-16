@@ -1,6 +1,12 @@
 "use client";
 
-export type AgendaViewMode = "day" | "week";
+export type AgendaViewMode = "day" | "week" | "month";
+
+const LABELS: Record<AgendaViewMode, string> = {
+  day: "Día",
+  week: "Semana",
+  month: "Mes",
+};
 
 export default function AgendaViewToggle({
   mode,
@@ -15,7 +21,7 @@ export default function AgendaViewToggle({
       role="tablist"
       aria-label="Vista del calendario"
     >
-      {(["day", "week"] as const).map((m) => (
+      {(["day", "week", "month"] as const).map((m) => (
         <button
           key={m}
           type="button"
@@ -28,7 +34,7 @@ export default function AgendaViewToggle({
               : "text-stone-500 hover:text-stone-800"
           }`}
         >
-          {m === "day" ? "Día" : "Semana"}
+          {LABELS[m]}
         </button>
       ))}
     </div>

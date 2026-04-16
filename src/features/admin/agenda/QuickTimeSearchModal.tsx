@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Modal from "@/components/ui/modal";
 import type { BarberOption, ServiceOption } from "@/types/agenda";
+import { todayLocalDateString } from "@/lib/date-utils";
 
 type Slot = { start: string; end: string };
 
@@ -39,7 +40,7 @@ export default function QuickTimeSearchModal({
     serviceId: string;
   }) => void;
 }) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocalDateString();
   const [serviceId, setServiceId] = useState<string>(services[0]?.id || "");
   const [date, setDate] = useState<string>(today);
   const [barberId, setBarberId] = useState<string>("");
