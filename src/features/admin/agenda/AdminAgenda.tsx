@@ -280,6 +280,8 @@ export default function AdminAgenda() {
         onChangeCustomStatuses={setCustomStatuses}
         visibleRange={visibleRange}
         onChangeVisibleRange={setVisibleRange}
+        selectedDate={selectedDate}
+        onSelectDate={(d) => setSelectedDate(startOfDay(d))}
         onOpenQuickSearch={() => setQuickSearchOpen(true)}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
