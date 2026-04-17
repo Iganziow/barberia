@@ -93,7 +93,6 @@ export default function BarbersPage() {
   }
 
   function toggleService(sid: string) { setAssignments(p => p.find(a => a.serviceId === sid) ? p.filter(a => a.serviceId !== sid) : [...p, { serviceId: sid, customPrice: null, customDuration: null }]); }
-  function updateCustom(sid: string, f: "customPrice" | "customDuration", v: string) { setAssignments(p => p.map(a => a.serviceId === sid ? { ...a, [f]: v ? Number(v) : null } : a)); }
   async function saveAssignments() { if (!selectedBarber) return; setSaving(true); await fetch(`/api/admin/barbers/${selectedBarber}/services`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ services: assignments }) }); setSaving(false); showToast("Servicios guardados"); }
   async function saveCommission() { if (!selectedBarber) return; setSavingCommission(true); await fetch(`/api/admin/barbers/${selectedBarber}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commissionType, commissionValue: Number(commissionValue) }) }); setBarbers(p => p.map(b => b.id === selectedBarber ? { ...b, commissionType, commissionValue: Number(commissionValue) } : b)); setSavingCommission(false); setCommissionSaved(true); }
 
@@ -168,17 +167,11 @@ export default function BarbersPage() {
                         {allServices.map(svc => {
                           const asgn = assignments.find(a => a.serviceId === svc.id);
                           return (
-                            <div key={svc.id} className="border-b border-[#e8e2dc] last:border-0 py-3">
-                              <label className="flex items-start gap-3 cursor-pointer">
-                                <input type="checkbox" checked={!!asgn} onChange={() => toggleService(svc.id)} className="mt-1 h-4 w-4 rounded accent-brand" />
-                                <div className="flex-1"><p className="text-sm font-medium text-stone-800">{svc.name}</p><p className="text-xs text-stone-400">{svc.durationMin} min - {formatCLP(svc.price)}</p></div>
+                            <div key={svc.id} className="border-b border-[#e8e2dc] last:border-0 py-2.5">
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked={!!asgn} onChange={() => toggleService(svc.id)} className="h-4 w-4 rounded accent-brand" />
+                                <div className="flex-1"><p className="text-sm font-medium text-stone-800">{svc.name}</p><p className="text-xs text-stone-400">{svc.durationMin} min · {formatCLP(svc.price)}</p></div>
                               </label>
-                              {asgn && (
-                                <div className="ml-7 mt-2 flex gap-3">
-                                  <div><label className="text-[10px] text-stone-400 uppercase">Precio</label><input type="number" className="input-field text-xs mt-0.5" placeholder={String(svc.price)} value={asgn.customPrice ?? ""} onChange={e => updateCustom(svc.id, "customPrice", e.target.value)} /></div>
-                                  <div><label className="text-[10px] text-stone-400 uppercase">Duracion</label><input type="number" className="input-field text-xs mt-0.5" placeholder={String(svc.durationMin)} value={asgn.customDuration ?? ""} onChange={e => updateCustom(svc.id, "customDuration", e.target.value)} /></div>
-                                </div>
-                              )}
                             </div>
                           );
                         })}
