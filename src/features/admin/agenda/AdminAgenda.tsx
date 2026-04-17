@@ -9,6 +9,7 @@ import AgendaViewToggle, { type AgendaViewMode } from "./AgendaViewToggle";
 import SlotMinutesPicker from "./SlotMinutesPicker";
 import AppointmentSearch from "./AppointmentSearch";
 import AgendaActionsMenu from "./AgendaActionsMenu";
+import UserMenu from "./UserMenu";
 import { useSlotMinutes } from "@/hooks/use-slot-minutes";
 import { useAgendaModals } from "./useAgendaModals";
 import { toLocalDateString } from "@/lib/date-utils";
@@ -542,13 +543,14 @@ export default function AdminAgenda() {
               <span className="hidden sm:inline">Nuevo</span>
             </button>
 
-            {/* Avatar del usuario (desktop only — mobile usa topbar) */}
+            {/* Menú del usuario (desktop only — mobile lo maneja el topbar del AdminShell) */}
             {user && (
-              <div className="hidden lg:flex items-center gap-2 rounded-full border border-[#e8e2dc] bg-white pl-1.5 pr-3 py-1 ml-1">
-                <div className="grid h-6 w-6 place-items-center rounded-full bg-brand text-[10px] font-bold text-white">
-                  {userInitials}
-                </div>
-                <span className="text-[12px] font-medium text-stone-700">{user.name?.split(" ")[0]}</span>
+              <div className="hidden lg:block ml-1">
+                <UserMenu
+                  name={user.name ?? ""}
+                  role={user.role}
+                  initials={userInitials}
+                />
               </div>
             )}
           </div>
