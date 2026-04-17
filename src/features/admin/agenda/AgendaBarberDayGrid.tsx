@@ -258,6 +258,10 @@ export default function AgendaBarberDayGrid({
               <div
                 className="grid relative"
                 style={{
+                  // gridTemplateColumns explícito a 1 columna ancha para que slots
+                  // y eventos NO creen columnas implícitas al colisionar en la
+                  // misma fila (antes el evento aparecía al centro/derecha).
+                  gridTemplateColumns: "minmax(0, 1fr)",
                   gridTemplateRows: `repeat(${rowCount}, ${ROW_HEIGHT}px)`,
                   // 3 capas: hora (fuerte) / 30min (media) / por-slot (sutil)
                   backgroundImage: `linear-gradient(to bottom, #ddd7d0 1px, transparent 1px), linear-gradient(to bottom, #ebe7e2 1px, transparent 1px), linear-gradient(to bottom, #f5f2ee 1px, transparent 1px)`,
@@ -274,7 +278,7 @@ export default function AgendaBarberDayGrid({
                     type="button"
                     onClick={(e) => handleSlotClick(e, b.id, idx)}
                     className="text-left hover:bg-brand/5 transition"
-                    style={{ gridRow: `${idx + 1} / span 1` }}
+                    style={{ gridRow: `${idx + 1} / span 1`, gridColumn: 1 }}
                     aria-label={`Crear evento en slot ${idx}`}
                   />
                 ))}
@@ -291,6 +295,7 @@ export default function AgendaBarberDayGrid({
                         className="mx-0.5 text-[10px] text-stone-400 px-2 py-1 pointer-events-none select-none rounded-md"
                         style={{
                           gridRow: `${rows.startRow} / ${rows.endRow}`,
+                          gridColumn: 1,
                           background:
                             "repeating-linear-gradient(45deg, #f5f5f4 0, #f5f5f4 8px, #efefec 8px, #efefec 12px)",
                         }}
@@ -315,6 +320,7 @@ export default function AgendaBarberDayGrid({
                         className="text-left mx-0.5 rounded-md bg-stone-100 border-l-[4px] border-stone-400 text-[10px] text-stone-700 px-2 py-1 hover:shadow-md transition overflow-hidden"
                         style={{
                           gridRow: `${rows.startRow} / ${rows.endRow}`,
+                          gridColumn: 1,
                           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                         }}
                       >
@@ -349,6 +355,7 @@ export default function AgendaBarberDayGrid({
                       className={`group/card text-left mx-0.5 rounded-md ${cfg.bg} border-l-[4px] ${cfg.text} px-2 py-1 hover:shadow-md hover:-translate-y-px transition-all overflow-hidden cursor-pointer`}
                       style={{
                         gridRow: `${rows.startRow} / ${rows.endRow}`,
+                        gridColumn: 1,
                         borderLeftColor: cfg.color,
                         boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                       }}
