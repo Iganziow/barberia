@@ -280,7 +280,16 @@ button {
 
 /* ── Print-friendly: solo el calendario en papel ── */
 @media print {
-  /* Oculta chrome: nav admin, sidebar filtros, topbars, botones interactivos */
+  /* Fuerza impresión de colores/backgrounds en TODO (crítico para líneas del grid y eventos) */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Oculta todo el chrome: nav, sidebar de filtros, mobile drawer,
+     menús desplegados, popovers, tooltips, botones interactivos */
   aside,
   header,
   nav,
@@ -288,38 +297,67 @@ button {
   .admin-nav-spacer,
   [data-tour-id],
   [role="toolbar"],
-  button:not([data-print="keep"]) {
+  [role="menu"],
+  [role="listbox"],
+  [role="dialog"]:not(.print-dialog),
+  [role="tooltip"],
+  button:not([data-print="keep"]),
+  input,
+  select,
+  .scroll-shadow-x::before,
+  .scroll-shadow-x::after {
     display: none !important;
   }
 
-  /* Calendario full width sin padding extra */
+  /* Calendario full width sin padding extra, sin sombras */
   .fc-wrapper,
   .fc,
-  main {
+  main,
+  main > div,
+  .p-3 {
     width: 100% !important;
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
     border: none !important;
-  }
-
-  /* Eventos en tinta plena (el background-color se imprime) */
-  .fc-event,
-  [class*="border-l-"] {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   /* Sin fondos de sombra ni gradientes costosos */
-  body {
+  body,
+  html {
     background: white !important;
+    color: black !important;
+  }
+
+  /* Eventos del day grid (custom): fuerza el background del cfg.bg
+     que es un var de Tailwind que por default no imprime */
+  [data-barber-count] button[style*="grid-row"],
+  [data-barber-count] [class*="bg-"],
+  .fc-event {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
   }
 
   /* Evita cortar eventos entre páginas */
-  .fc-event {
+  .fc-event,
+  [data-barber-count] button[style*="grid-row"] {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  /* Headers sticky del day grid pierden sentido en print */
+  .sticky {
+    position: static !important;
+  }
+
+  /* Scroll bars visibles se eliminan */
+  .day-grid-scroll::-webkit-scrollbar,
+  .scroll-chips::-webkit-scrollbar {
+    display: none !important;
   }
 
   @page {

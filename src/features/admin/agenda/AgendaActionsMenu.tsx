@@ -62,7 +62,9 @@ export default function AgendaActionsMenu({
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              onPrint();
+              // Dejamos un tick para que React remueva el menú del DOM
+              // antes de disparar print; si no, el menú aparece en el papel.
+              setTimeout(() => onPrint(), 50);
             }}
             className="w-full text-left px-3 py-2 text-[13px] text-stone-700 hover:bg-stone-50 transition flex items-center gap-2"
           >

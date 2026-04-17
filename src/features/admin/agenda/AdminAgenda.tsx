@@ -470,7 +470,7 @@ export default function AdminAgenda() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap print:hidden" data-print="hide">
             <button
               type="button"
               onClick={() => setSelectedDate(startOfDay(new Date()))}
