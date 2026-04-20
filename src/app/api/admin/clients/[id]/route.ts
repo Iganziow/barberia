@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
-import { getClientDetail } from "@/lib/services/client.service";
+import { getClientDetail, updateClient } from "@/lib/services/client.service";
+import { stripHtml } from "@/lib/sanitize";
+
+const UpdateClientSchema = z.object({
+  name: z.string().min(1).transform(stripHtml).optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().transform(stripHtml).nullable().optional(),
+  notes: z.string().transform(stripHtml).nullable().optional(),
+});
 
 export const GET = withAdmin(async (_req, { orgId }, { params }) => {
   const { id } = await params;
@@ -31,6 +40,32 @@ export const GET = withAdmin(async (_req, { orgId }, { params }) => {
         price: a.price,
         payment: a.payment,
       })),
+    },
+  });
+});
+
+export const PUT = withAdmin(async (req, { orgId }, { params }) => {
+  const { id } = await params;
+
+  const body = await req.json().catch(() => null);
+  const parsed = UpdateClientSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { message: "Datos inválidos", errors: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const updated = await updateClient(id, orgId, parsed.data);
+  if (!updated) throw AppError.notFound("Cliente no encontrado");
+
+  return NextResponse.json({
+    client: {
+      id: updated.id,
+      name: updated.user.name,
+      email: updated.user.email,
+      phone: updated.user.phone,
+      notes: updated.notes,
     },
   });
 });

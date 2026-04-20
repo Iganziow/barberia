@@ -206,20 +206,44 @@ export default function ReportsDashboard() {
             <InfoTip text="Liquidaciones muestra cuánto debes pagarle a cada barbero según las citas completadas en el período." />
           </div>
         </div>
-        <div className="flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1 self-start sm:self-auto">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => { setLoading(true); setPeriod(p.value); }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                period === p.value
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-stone-500 hover:bg-stone-50"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 self-start sm:self-auto print:hidden">
+          <div className="flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => { setLoading(true); setPeriod(p.value); }}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  period === p.value
+                    ? "bg-brand text-white shadow-sm"
+                    : "text-stone-500 hover:bg-stone-50"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {/* Acciones: export + print */}
+          <a
+            href={`/api/admin/reports/export?period=${period}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
+            title="Descargar reporte CSV"
+          >
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 3a1 1 0 011 1v8.59l2.3-2.3a1 1 0 011.4 1.42l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.42l2.3 2.3V4a1 1 0 011-1zM4 16a1 1 0 012 0v1h8v-1a1 1 0 112 0v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2z" />
+            </svg>
+            CSV
+          </a>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
+            title="Imprimir o guardar como PDF"
+          >
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6 2v4h8V2H6zm9 6H5a2 2 0 00-2 2v5h2v3h10v-3h2v-5a2 2 0 00-2-2zm-2 8H7v-4h6v4z" />
+            </svg>
+            PDF
+          </button>
         </div>
       </div>
 

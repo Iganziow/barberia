@@ -60,7 +60,7 @@ function initBarberSchedule(existing: BarberDay[]): BarberDay[] {
 }
 
 export default function SchedulePage() {
-  // Tab removed — barber schedules now managed from /admin/barbers
+  // Tiene 2 secciones: horario de sucursal + horarios individuales por barbero.
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [branchHours, setBranchHours] = useState<BranchHour[]>([]);
@@ -258,9 +258,9 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* NOTE: Barber individual schedules are now managed from /admin/barbers */}
-      {false && (
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
+      {/* Horarios individuales de cada barbero (dentro del horario de la sucursal) */}
+      {!loading && (
+        <div className="mt-8 pt-6 border-t border-[#e8e2dc] grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5">
           {/* Barber list */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-stone-400 px-1">Barberos</p>

@@ -120,3 +120,41 @@ export async function getClientById(id: string) {
     },
   });
 }
+
+export async function updateClient(
+  id: string,
+  orgId: string,
+  data: { name?: string; email?: string | null; phone?: string | null; notes?: string | null }
+) {
+  // Verify client belongs to org (via any appointment's branch, or via User.orgId)
+  const client = await prisma.client.findFirst({
+    where: { id, user: { orgId } },
+    include: { user: true },
+  });
+  if (!client) return null;
+
+  return prisma.$transaction(async (tx) => {
+    // Update User fields (name, email, phone) if provided
+    if (data.name !== undefined || data.email !== undefined || data.phone !== undefined) {
+      await tx.user.update({
+        where: { id: client.userId },
+        data: {
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.email !== undefined ? { email: data.email || `client.${Date.now()}@noemail.local` } : {}),
+          ...(data.phone !== undefined ? { phone: data.phone } : {}),
+        },
+      });
+    }
+    // Update Client.notes if provided
+    if (data.notes !== undefined) {
+      await tx.client.update({
+        where: { id },
+        data: { notes: data.notes },
+      });
+    }
+    return tx.client.findUnique({
+      where: { id },
+      include: { user: { select: { name: true, email: true, phone: true } } },
+    });
+  });
+}

@@ -53,6 +53,12 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Edit state
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [error, setError] = useState("");
+
   useEffect(() => {
     fetch(`/api/admin/clients/${id}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -62,6 +68,58 @@ export default function ClientDetailPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  function startEdit() {
+    if (!client) return;
+    setForm({
+      name: client.name,
+      email: client.email && !client.email.includes("@noemail") ? client.email : "",
+      phone: client.phone || "",
+      notes: client.notes || "",
+    });
+    setError("");
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!client || !form.name.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/clients/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim() || null,
+          phone: form.phone.trim() || null,
+          notes: form.notes.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Error" }));
+        setError(err.message || "No se pudo actualizar");
+        return;
+      }
+      const data = await res.json();
+      setClient((prev) =>
+        prev
+          ? {
+              ...prev,
+              name: data.client.name,
+              email: data.client.email,
+              phone: data.client.phone,
+              notes: data.client.notes,
+            }
+          : null
+      );
+      setEditing(false);
+    } catch {
+      setError("Error de conexión");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -85,25 +143,115 @@ export default function ClientDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <Link
             href="/admin/clients"
-            className="text-sm text-violet-600 hover:text-violet-800 mb-2 inline-block"
+            className="text-sm text-brand hover:text-brand-hover mb-2 inline-block"
           >
             &larr; Clientes
           </Link>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
+          <h1 className="text-2xl font-extrabold tracking-tight text-stone-900">
             {client.name}
           </h1>
-          <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
+          <div className="mt-1 flex items-center gap-3 text-sm text-stone-500">
             {client.phone && <span>{client.phone}</span>}
-            {client.email && !client.email.includes("@placeholder") && (
-              <span>{client.email}</span>
-            )}
+            {client.email &&
+              !client.email.includes("@placeholder") &&
+              !client.email.includes("@noemail") && (
+                <span>{client.email}</span>
+              )}
           </div>
         </div>
+        {!editing && (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
+          >
+            Editar datos
+          </button>
+        )}
       </div>
+
+      {/* Edit form (inline) */}
+      {editing && (
+        <div className="rounded-2xl border border-brand/20 bg-brand/5 p-5 space-y-3">
+          <h2 className="text-sm font-bold text-stone-900">Editar cliente</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="field-label">Nombre *</label>
+              <input
+                className="input-field"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Nombre completo"
+              />
+            </div>
+            <div>
+              <label className="field-label">Teléfono</label>
+              <input
+                className="input-field"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="+56 9 1234 5678"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label">Email</label>
+              <input
+                type="email"
+                className="input-field"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="cliente@email.com"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label">Notas internas</label>
+              <textarea
+                className="input-field min-h-[80px] resize-y"
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Preferencias, alergias, notas del equipo…"
+              />
+              <p className="text-[10px] text-stone-400 mt-1">
+                Las notas son solo visibles para el equipo interno, no para el cliente.
+              </p>
+            </div>
+          </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={saveEdit}
+              disabled={saving || !form.name.trim()}
+              className="btn-primary text-sm disabled:opacity-50"
+            >
+              {saving ? "Guardando..." : "Guardar cambios"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="btn-secondary text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notas internas (solo lectura cuando no está editando) */}
+      {!editing && client.notes && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 mb-1">
+            Nota interna
+          </p>
+          <p className="text-sm text-stone-700 whitespace-pre-wrap">
+            {client.notes}
+          </p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
