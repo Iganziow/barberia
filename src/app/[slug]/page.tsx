@@ -114,34 +114,32 @@ export default function OrgLandingPage() {
 
       <div className="mx-auto max-w-2xl px-4 py-5 space-y-5">
         {/* Hero with optional photo */}
-        <div className="rounded-2xl ink-gradient overflow-hidden relative">
-          {/* Decorative glow cobre brillante */}
-          <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-[color:var(--brand-bright)]/10 blur-3xl pointer-events-none" />
+        <div className="rounded-2xl bg-[#1a1412] overflow-hidden relative">
           {branch?.orgLogo && (
             <div className="w-full h-48 sm:h-56 overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={branch.orgLogo} alt={branch.name} className="w-full h-full object-cover opacity-80" />
             </div>
           )}
-          <div className={`${branch?.orgLogo ? "bg-gradient-to-t from-[color:var(--ink-deep)] via-[color:var(--ink-deep)]/95 to-[color:var(--ink-deep)]/70 -mt-20 relative" : ""} p-6 sm:p-8 text-center`}>
+          <div className={`${branch?.orgLogo ? "bg-gradient-to-t from-[#1a1412] via-[#1a1412]/95 to-[#1a1412]/70 -mt-20 relative" : ""} p-6 sm:p-8 text-center`}>
             <div className="relative">
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-cream">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {branch?.orgName || slug}
               </h2>
               {branch?.orgDescription ? (
-                <p className="mt-2 text-sm text-cream-muted max-w-md mx-auto">{branch.orgDescription}</p>
+                <p className="mt-2 text-sm text-white/60 max-w-md mx-auto">{branch.orgDescription}</p>
               ) : (
-                <p className="text-[10px] uppercase tracking-[0.4em] text-brand-bright-gold mt-1.5 font-medium">Barbería</p>
+                <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mt-1.5 font-medium">Barbería</p>
               )}
               {branch?.address && (
-                <p className="mt-2 text-xs text-cream-subtle flex items-center justify-center gap-1">
+                <p className="mt-2 text-xs text-white/40 flex items-center justify-center gap-1">
                   <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
                   {branch.address}
                 </p>
               )}
               <Link
                 href={bookUrl}
-                className="mt-5 inline-block rounded-full bg-brand-bright px-8 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition shadow-cta"
+                className="mt-5 inline-block rounded-full bg-brand px-8 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/25"
               >
                 Reservar hora
               </Link>

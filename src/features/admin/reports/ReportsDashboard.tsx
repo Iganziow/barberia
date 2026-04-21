@@ -75,14 +75,14 @@ function StatCard({
 }) {
   return (
     <div
-      className="premium-card relative p-4 overflow-hidden group"
+      className="relative rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm overflow-hidden group hover:shadow-md transition-all"
       style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
     >
-      {/* Subtle gradient wash on hover — tinte del color métrica */}
+      {/* Subtle gradient wash on hover */}
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at top right, ${borderColor}12, transparent 70%)`,
+          background: `radial-gradient(ellipse at top right, ${borderColor}08, transparent 70%)`,
         }}
       />
       <div className="relative">
