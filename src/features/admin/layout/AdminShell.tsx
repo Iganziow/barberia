@@ -185,7 +185,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           onMouseLeave={() => setNavHovered(false)}
           data-state={isExpanded ? "expanded" : "collapsed"}
           className={cn(
-            "admin-nav fixed inset-y-0 left-0 z-50 bg-[#1a1412] text-white overflow-hidden",
+            "admin-nav ink-gradient fixed inset-y-0 left-0 z-50 text-cream overflow-hidden",
             "transition-transform duration-200",
             sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
             "lg:translate-x-0",
@@ -196,18 +196,18 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-4 py-3 h-[52px]">
             {showCompact ? (
               <div className="w-full flex justify-center">
-                <div className="grid h-8 w-8 place-items-center rounded-md bg-brand text-white text-sm font-extrabold">
+                <div className="grid h-8 w-8 place-items-center rounded-md bg-brand-bright text-white text-sm font-extrabold shadow-cta">
                   M
                 </div>
               </div>
             ) : (
               <>
                 <div className="overflow-hidden whitespace-nowrap">
-                  <div className="text-lg font-extrabold tracking-tight">
-                    Mar<span className="text-brand">Brava</span>
+                  <div className="text-lg font-extrabold tracking-tight text-cream">
+                    Mar<span className="text-brand-bright-gold">Brava</span>
                   </div>
                 </div>
-                <button onClick={() => setSidebarOpen(false)} className="lg:hidden rounded-lg p-1 text-white/40 hover:text-white hover:bg-white/10 shrink-0">
+                <button onClick={() => setSidebarOpen(false)} className="lg:hidden rounded-lg p-1 text-cream-subtle hover:text-cream hover:bg-white/10 shrink-0">
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 4L4 14M4 4l10 10" /></svg>
                 </button>
               </>
@@ -217,7 +217,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           {/* Nav */}
           <nav className="mt-1 px-2" data-tour-id="sidebar-nav">
             {!showCompact && (
-              <div className="mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-widest text-white/30">
+              <div className="mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-widest text-cream-subtle">
                 Gestión
               </div>
             )}
@@ -235,21 +235,21 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                       "relative group flex items-center rounded-lg text-[13px] font-medium transition-all nav-indicator overflow-hidden",
                       showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2",
                       active
-                        ? "bg-gradient-to-r from-brand/20 via-brand/10 to-transparent text-brand shadow-[inset_3px_0_0_0_var(--accent)]"
-                        : "text-white/60 hover:bg-white/5 hover:text-white/90"
+                        ? "bg-gradient-to-r from-[color:var(--brand-bright)]/25 via-[color:var(--brand-bright)]/10 to-transparent text-brand-bright-gold shadow-[inset_3px_0_0_0_var(--brand-bright)]"
+                        : "text-cream-muted hover:bg-white/[0.04] hover:text-cream"
                     )}
                   >
                     <item.Icon
                       className={cn(
                         "shrink-0",
-                        active ? "text-brand" : "text-white/40 group-hover:text-white/70"
+                        active ? "text-brand-bright" : "text-cream-subtle group-hover:text-cream-muted"
                       )}
                     />
                     {!showCompact && (
                       <>
                         <span className="whitespace-nowrap">{item.label}</span>
                         {active && (
-                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_8px_var(--accent)]" aria-hidden="true" />
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-bright shadow-[0_0_8px_var(--brand-bright)]" aria-hidden="true" />
                         )}
                       </>
                     )}
@@ -259,7 +259,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </div>
 
             {!showCompact && (
-              <div className="mt-6 mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-widest text-white/30">
+              <div className="mt-6 mb-1.5 px-3 text-[9px] font-semibold uppercase tracking-widest text-cream-subtle">
                 Cuenta
               </div>
             )}
@@ -268,11 +268,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               disabled={loggingOut}
               title={showCompact ? "Cerrar sesión" : undefined}
               className={cn(
-                "flex items-center rounded-lg text-[13px] font-medium text-white/40 hover:bg-white/5 hover:text-white/70 transition disabled:opacity-50 overflow-hidden",
+                "flex items-center rounded-lg text-[13px] font-medium text-cream-muted hover:bg-white/[0.04] hover:text-cream transition disabled:opacity-50 overflow-hidden",
                 showCompact ? "justify-center h-10 w-10 mx-auto mt-2" : "gap-3 px-3 py-2 w-full"
               )}
             >
-              <IconLogout className="shrink-0 text-white/30" />
+              <IconLogout className="shrink-0 text-cream-subtle" />
               {!showCompact && (
                 <span className="whitespace-nowrap">{loggingOut ? "Saliendo..." : "Cerrar sesión"}</span>
               )}
@@ -284,7 +284,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               title={navCollapsed ? "Fijar menú abierto" : "Colapsar menú"}
               aria-label={navCollapsed ? "Fijar menú abierto" : "Colapsar menú"}
               className={cn(
-                "hidden lg:flex items-center rounded-lg text-[11px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition mt-4",
+                "hidden lg:flex items-center rounded-lg text-[11px] font-medium text-cream-subtle hover:bg-white/[0.04] hover:text-cream-muted transition mt-4",
                 showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-2 px-3 py-2 w-full"
               )}
             >

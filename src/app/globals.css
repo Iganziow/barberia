@@ -12,6 +12,19 @@
   --card-bg: #ffffff;
   --muted: #78716c;
   --muted-light: #a8a29e;
+
+  /* ── Bright layer — solo para dark surfaces (sidebar, login, hero) ── */
+  --brand-bright: #e89359;         /* cobre luminoso sobre espresso */
+  --brand-bright-gold: #f0c27a;    /* trigo cálido — wordmark, eyebrows */
+  --ink-top: #221812;              /* stop alto del gradiente espresso */
+  --ink-deep: #180f0b;             /* stop bajo del gradiente espresso */
+  --cream-on-dark: #f5ebe0;        /* body copy sobre dark (reemplaza #fff) */
+  --cream-muted: rgba(245, 235, 224, 0.62);
+  --cream-subtle: rgba(245, 235, 224, 0.35);
+  --cream-faint:  rgba(245, 235, 224, 0.20);
+
+  /* Sombra glow para CTAs brand sobre fondo oscuro */
+  --shadow-cta: 0 10px 25px -5px rgba(200, 121, 65, 0.25);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -45,7 +58,44 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Dark surfaces — ink gradient + bright layer utilities ──
+   Úsalo en sidebar, login, hero; NO en chrome admin normal. */
+.ink-gradient {
+  background: linear-gradient(180deg, var(--ink-top) 0%, var(--ink-deep) 100%);
+}
+.ink-gradient-diagonal {
+  background: linear-gradient(135deg, var(--ink-top) 0%, var(--ink-deep) 100%);
+}
+.text-cream {
+  color: var(--cream-on-dark);
+}
+.text-cream-muted {
+  color: var(--cream-muted);
+}
+.text-cream-subtle {
+  color: var(--cream-subtle);
+}
+.text-cream-faint {
+  color: var(--cream-faint);
+}
+.text-brand-bright {
+  color: var(--brand-bright);
+}
+.text-brand-bright-gold {
+  color: var(--brand-bright-gold);
+}
+.bg-brand-bright {
+  background-color: var(--brand-bright);
+}
+.shadow-cta {
+  box-shadow: var(--shadow-cta);
 }
 
 /* ── FullCalendar — premium custom theme ── */
