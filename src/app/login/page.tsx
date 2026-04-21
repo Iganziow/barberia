@@ -42,17 +42,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen ink-gradient-diagonal flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Decorative glow — cobre brillante */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full bg-[color:var(--brand-bright)]/10 blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1412] to-[#2a1f18] flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Decorative glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-brand/5 blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-cream">
-            Mar<span className="text-brand-bright-gold">Brava</span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            Mar<span className="text-brand">Brava</span>
           </h1>
-          <p className="mt-2 text-sm text-cream-muted">
+          <p className="mt-2 text-sm text-white/50">
             Panel de administración
           </p>
         </div>
@@ -60,9 +60,9 @@ export default function LoginPage() {
         {/* Card */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-[color:var(--brand-bright)]/20 bg-white/[0.04] p-6 backdrop-blur-sm shadow-2xl"
+          className="rounded-2xl border border-brand/15 bg-white/[0.04] p-6 backdrop-blur-sm shadow-2xl"
         >
-          <h2 className="text-lg font-semibold text-cream mb-6">
+          <h2 className="text-lg font-semibold text-white mb-6">
             Iniciar sesión
           </h2>
 
@@ -74,7 +74,7 @@ export default function LoginPage() {
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-cream-muted mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-white/70 mb-1.5">
                 Email
               </label>
               <input
@@ -84,13 +84,13 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-cream placeholder:text-cream-subtle focus:border-[color:var(--brand-bright)] focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-bright)]/25"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder:text-white/25 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 placeholder="tu@email.cl"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-cream-muted mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-white/70 mb-1.5">
                 Contraseña
               </label>
               <input
@@ -100,7 +100,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-cream placeholder:text-cream-subtle focus:border-[color:var(--brand-bright)] focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-bright)]/25"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder:text-white/25 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 placeholder="........"
               />
             </div>
@@ -109,13 +109,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 w-full rounded-lg bg-brand-bright px-4 py-2.5 text-sm font-semibold text-white hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-bright)]/40 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-cta"
+            className="mt-6 w-full rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/50 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-brand/20"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-cream-subtle">
+        <p className="mt-6 text-center text-xs text-white/30">
           &copy; {new Date().getFullYear()} MarBrava
         </p>
       </div>
