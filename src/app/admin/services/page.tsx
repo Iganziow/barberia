@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatCLP } from "@/lib/format";
+import Modal from "@/components/ui/modal";
 
 type ServiceRow = {
   id: string;
@@ -31,6 +32,68 @@ export default function ServicesPage() {
   const [durationMin, setDurationMin] = useState(30);
   const [price, setPrice] = useState(0);
   const [categoryId, setCategoryId] = useState("");
+
+  // Categorías modal state
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [savingCat, setSavingCat] = useState(false);
+  const [catError, setCatError] = useState("");
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState("");
+
+  async function createCategory() {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    setSavingCat(true);
+    setCatError("");
+    try {
+      const r = await fetch("/api/admin/services/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "Error al crear" }));
+        setCatError(d.message || "No se pudo crear la categoría");
+        return;
+      }
+      setNewCatName("");
+      fetchServices();
+    } catch {
+      setCatError("Error de conexión");
+    } finally {
+      setSavingCat(false);
+    }
+  }
+
+  async function renameCategory(id: string) {
+    const trimmed = editingCatName.trim();
+    if (!trimmed) return;
+    try {
+      const r = await fetch(`/api/admin/services/categories/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (r.ok) {
+        setEditingCatId(null);
+        setEditingCatName("");
+        fetchServices();
+      }
+    } catch {
+      // toast silent — ya hay catError si falla; para rename mostramos en la celda
+    }
+  }
+
+  async function deleteCategory(id: string) {
+    if (!window.confirm("¿Eliminar esta categoría? Los servicios asociados quedarán sin categoría.")) return;
+    try {
+      const r = await fetch(`/api/admin/services/categories/${id}`, { method: "DELETE" });
+      if (r.ok) fetchServices();
+    } catch {
+      // noop
+    }
+  }
 
   const fetchServices = useCallback(() => {
     fetch("/api/admin/services?all=true")
@@ -117,6 +180,59 @@ export default function ServicesPage() {
     fetchServices();
   }
 
+  // Intercambia el orden de un servicio con su vecino (up/down). Usa el campo
+  // `order` de la DB: swap entre el servicio actual y el anterior/siguiente.
+  async function moveService(svc: ServiceRow, direction: "up" | "down") {
+    const idx = services.findIndex((s) => s.id === svc.id);
+    const neighborIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (neighborIdx < 0 || neighborIdx >= services.length) return;
+    const neighbor = services[neighborIdx];
+    // Swap ordenes: optimista en UI primero, luego persiste
+    setServices((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...svc, order: neighbor.order };
+      copy[neighborIdx] = { ...neighbor, order: svc.order };
+      // re-sort by order asc
+      return copy.sort((a, b) => a.order - b.order);
+    });
+    try {
+      await Promise.all([
+        fetch(`/api/admin/services/${svc.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: neighbor.order }),
+        }),
+        fetch(`/api/admin/services/${neighbor.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: svc.order }),
+        }),
+      ]);
+    } catch {
+      // si falla, refrescamos para volver al estado real
+      fetchServices();
+    }
+  }
+
+  // Crea un nuevo servicio con los mismos campos (nombre + " (copia)")
+  async function duplicateService(svc: ServiceRow) {
+    const body = {
+      name: `${svc.name} (copia)`,
+      description: svc.description || undefined,
+      durationMin: svc.durationMin,
+      price: svc.price,
+      categoryId: svc.categoryId || undefined,
+    };
+    const r = await fetch("/api/admin/services", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) return;
+    setLoading(true);
+    fetchServices();
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -127,9 +243,14 @@ export default function ServicesPage() {
             {services.length > 0 && ` ${services.filter((s) => s.active).length} activo${services.filter((s) => s.active).length !== 1 ? "s" : ""} de ${services.length}.`}
           </p>
         </div>
-        <button onClick={openNew} className="btn-primary text-sm self-start sm:self-auto">
-          + Nuevo servicio
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button onClick={() => setShowCategoriesModal(true)} className="btn-secondary text-sm">
+            Categorías
+          </button>
+          <button onClick={openNew} className="btn-primary text-sm">
+            + Nuevo servicio
+          </button>
+        </div>
       </div>
 
       {/* Form */}
@@ -290,7 +411,39 @@ export default function ServicesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 flex-wrap">
+                  {/* Up/Down reorder */}
+                  <button
+                    type="button"
+                    onClick={() => moveService(svc, "up")}
+                    disabled={services.indexOf(svc) === 0}
+                    className="rounded-md p-1.5 text-stone-400 hover:text-brand hover:bg-brand/5 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Subir"
+                    aria-label="Subir servicio"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 10l4-4 4 4" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveService(svc, "down")}
+                    disabled={services.indexOf(svc) === services.length - 1}
+                    className="rounded-md p-1.5 text-stone-400 hover:text-brand hover:bg-brand/5 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Bajar"
+                    aria-label="Bajar servicio"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 6l4 4 4-4" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => duplicateService(svc)}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-500 hover:text-brand hover:bg-brand/5 transition"
+                    title="Duplicar"
+                  >
+                    Duplicar
+                  </button>
                   <button
                     onClick={() => openEdit(svc)}
                     className="rounded-lg px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/10 transition"
@@ -313,6 +466,90 @@ export default function ServicesPage() {
           ))}
         </div>
       )}
+
+      {/* Modal de gestión de categorías */}
+      <Modal
+        open={showCategoriesModal}
+        title="Gestionar categorías"
+        onClose={() => { setShowCategoriesModal(false); setCatError(""); setEditingCatId(null); }}
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-stone-500">
+            Agrupa tus servicios por categoría (ej: &quot;Corte&quot;, &quot;Barba&quot;, &quot;Coloración&quot;) para que aparezcan organizados en el booking.
+          </p>
+
+          {/* Nueva categoría */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              className="input-field flex-1"
+              value={newCatName}
+              onChange={(e) => { setNewCatName(e.target.value); setCatError(""); }}
+              onKeyDown={(e) => { if (e.key === "Enter") createCategory(); }}
+              placeholder="Nombre de la categoría"
+              maxLength={80}
+            />
+            <button
+              onClick={createCategory}
+              disabled={savingCat || !newCatName.trim()}
+              className="btn-primary text-sm shrink-0"
+            >
+              {savingCat ? "Creando..." : "Agregar"}
+            </button>
+          </div>
+          {catError && <p className="text-xs text-red-600">{catError}</p>}
+
+          {/* Lista */}
+          {categories.length === 0 ? (
+            <p className="text-sm text-stone-400 text-center py-4">Aún no hay categorías</p>
+          ) : (
+            <div className="divide-y divide-[#f0ece8] border border-[#e8e2dc] rounded-lg">
+              {categories.map((c) => {
+                const inUse = services.filter((s) => s.categoryId === c.id).length;
+                return (
+                  <div key={c.id} className="flex items-center gap-2 p-3">
+                    {editingCatId === c.id ? (
+                      <>
+                        <input
+                          className="input-field text-sm flex-1"
+                          value={editingCatName}
+                          onChange={(e) => setEditingCatName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameCategory(c.id);
+                            if (e.key === "Escape") setEditingCatId(null);
+                          }}
+                          autoFocus
+                          maxLength={80}
+                        />
+                        <button onClick={() => renameCategory(c.id)} className="text-xs font-semibold text-brand hover:text-brand-hover">Guardar</button>
+                        <button onClick={() => setEditingCatId(null)} className="text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-stone-800 truncate">{c.name}</p>
+                          <p className="text-[10px] text-stone-400">{inUse} servicio{inUse !== 1 ? "s" : ""}</p>
+                        </div>
+                        <button
+                          onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name); }}
+                          className="text-xs font-medium text-stone-500 hover:text-brand px-2 py-1"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => deleteCategory(c.id)}
+                          className="text-xs font-medium text-red-500 hover:text-red-700 px-2 py-1"
+                        >
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

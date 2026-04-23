@@ -48,6 +48,40 @@ export default function BarbersPage() {
 
   const [assignError, setAssignError] = useState("");
 
+  // Estado para "copiar servicios desde otro barbero"
+  const [showCopyServices, setShowCopyServices] = useState(false);
+  const [copySourceId, setCopySourceId] = useState<string>("");
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState("");
+
+  async function copyServicesFrom() {
+    if (!copySourceId || !selectedBarber) return;
+    setCopying(true);
+    setCopyError("");
+    try {
+      // 1) Trae los servicios del barbero fuente
+      const r = await fetch(`/api/admin/barbers/${copySourceId}/services`);
+      if (!r.ok) throw new Error("No se pudieron leer los servicios del barbero origen");
+      const d = await r.json();
+      const sourceServices: BarberServiceAssign[] = (d.services || []).map(
+        (s: BarberServiceAssign) => ({
+          serviceId: s.serviceId,
+          customPrice: s.customPrice,
+          customDuration: s.customDuration,
+        })
+      );
+      // 2) Los asigna al barbero actual (reemplaza las asignaciones actuales en memoria)
+      setAssignments(sourceServices);
+      setShowCopyServices(false);
+      setCopySourceId("");
+      showToast(`Copiado desde ${barbers.find((b) => b.id === copySourceId)?.name ?? "otro barbero"}. Pulsa Guardar para aplicar.`);
+    } catch (e) {
+      setCopyError(e instanceof Error ? e.message : "Error de conexión");
+    } finally {
+      setCopying(false);
+    }
+  }
+
   const fetchData = useCallback(() => {
     Promise.all([fetch("/api/admin/barbers").then(r => r.json()), fetch("/api/admin/services?all=true").then(r => r.json())])
       .then(([bd, sd]) => { setBarbers(bd.barbers || []); setAllServices((sd.services || []).filter((s: ServiceOption) => s.active)); })
@@ -219,9 +253,20 @@ export default function BarbersPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <h2 className="font-bold text-stone-900 text-sm">Servicios de {ab.name}</h2>
-                        <button onClick={saveAssignments} disabled={saving} className="btn-primary text-xs">{saving ? "Guardando..." : "Guardar"}</button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowCopyServices(true)}
+                            className="btn-secondary text-xs"
+                            disabled={barbers.length < 2}
+                            title={barbers.length < 2 ? "Necesitas otro barbero para copiar" : "Copiar servicios desde otro barbero"}
+                          >
+                            Copiar desde...
+                          </button>
+                          <button onClick={saveAssignments} disabled={saving} className="btn-primary text-xs">{saving ? "Guardando..." : "Guardar"}</button>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         {allServices.map(svc => {
@@ -302,6 +347,42 @@ export default function BarbersPage() {
         ) : (
           <div><label className="field-label">Nueva clave (min 6)</label><input type="password" className="input-field" value={newPassword} onChange={e => setNewPassword(e.target.value)} autoFocus /></div>
         )}
+      </Modal>
+
+      {/* Copy services modal */}
+      <Modal
+        open={showCopyServices}
+        title={`Copiar servicios a ${ab?.name ?? ""}`}
+        onClose={() => { setShowCopyServices(false); setCopyError(""); setCopySourceId(""); }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary text-sm" onClick={() => setShowCopyServices(false)}>Cancelar</button>
+            <button className="btn-primary text-sm" onClick={copyServicesFrom} disabled={copying || !copySourceId}>
+              {copying ? "Copiando..." : "Copiar asignación"}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-stone-500">
+            Selecciona un barbero y se copiarán sus servicios a {ab?.name ?? "este barbero"}.
+            Los cambios no se guardan hasta que pulses &quot;Guardar&quot; arriba.
+          </p>
+          <div>
+            <label className="field-label">Copiar desde</label>
+            <select
+              className="input-field"
+              value={copySourceId}
+              onChange={(e) => setCopySourceId(e.target.value)}
+            >
+              <option value="">-- Elige un barbero --</option>
+              {barbers.filter((b) => b.id !== selectedBarber).map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          {copyError && <p className="text-xs text-red-600">{copyError}</p>}
+        </div>
       </Modal>
 
       {toast && <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 rounded-lg bg-stone-800 px-4 py-2.5 text-sm font-medium text-white shadow-lg lg:bottom-6">{toast}</div>}

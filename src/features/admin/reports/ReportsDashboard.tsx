@@ -138,6 +138,21 @@ export default function ReportsDashboard() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
 
+  // Custom date range (solo activo cuando period === "custom:from:to")
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState(todayStr);
+  const [customTo, setCustomTo] = useState(todayStr);
+  const isCustom = period.startsWith("custom:");
+
+  function applyCustomRange() {
+    if (!customFrom || !customTo) return;
+    if (customFrom > customTo) return;
+    setLoading(true);
+    setPeriod(`custom:${customFrom}:${customTo}`);
+    setCustomOpen(false);
+  }
+
   const fetchData = useCallback(() => {
     if (activeTab === "commissions") {
       fetch(`/api/admin/reports?period=${period}&type=commissions`)
@@ -216,7 +231,7 @@ export default function ReportsDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto print:hidden">
-          <div className="flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1">
+          <div className="relative flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
@@ -230,6 +245,65 @@ export default function ReportsDashboard() {
                 {p.label}
               </button>
             ))}
+            <button
+              onClick={() => setCustomOpen((v) => !v)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                isCustom
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-stone-500 hover:bg-stone-50"
+              }`}
+              title="Rango personalizado"
+            >
+              {isCustom ? (
+                <span className="tabular-nums">
+                  {period.split(":")[1]} → {period.split(":")[2]}
+                </span>
+              ) : (
+                "Rango..."
+              )}
+            </button>
+            {customOpen && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-[280px] rounded-xl border border-[#e8e2dc] bg-white shadow-xl p-4 space-y-3">
+                <div>
+                  <label className="field-label">Desde</label>
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    max={customTo || undefined}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Hasta</label>
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    min={customFrom || undefined}
+                    className="input-field"
+                  />
+                </div>
+                {customFrom > customTo && (
+                  <p className="text-xs text-red-600">La fecha &quot;desde&quot; debe ser anterior a &quot;hasta&quot;.</p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={applyCustomRange}
+                    disabled={!customFrom || !customTo || customFrom > customTo}
+                    className="btn-primary text-xs flex-1 disabled:opacity-50"
+                  >
+                    Aplicar rango
+                  </button>
+                  <button
+                    onClick={() => setCustomOpen(false)}
+                    className="btn-secondary text-xs"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           {/* Acciones: export + print */}
           <a

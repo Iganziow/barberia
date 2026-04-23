@@ -7,6 +7,22 @@ function getDateRange(period: string): DateRange {
   const now = new Date();
   const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
+  // Formato custom: "custom:YYYY-MM-DD:YYYY-MM-DD"
+  if (period.startsWith("custom:")) {
+    const parts = period.split(":");
+    if (parts.length === 3) {
+      const fromStr = parts[1];
+      const toStr = parts[2];
+      const from = new Date(`${fromStr}T00:00:00`);
+      const toDate = new Date(`${toStr}T23:59:59`);
+      // Validación: ambas fechas válidas y from <= to
+      if (!Number.isNaN(from.getTime()) && !Number.isNaN(toDate.getTime()) && from <= toDate) {
+        return { from, to: toDate };
+      }
+    }
+    // Fallback a mes si el formato no es válido
+  }
+
   switch (period) {
     case "today": {
       const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());

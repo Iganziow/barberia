@@ -1,8 +1,85 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageTip from "@/components/ui/PageTip";
 import InfoTip from "@/components/ui/InfoTip";
+
+// Botón inline "Copiar a..." con mini menú para clonar la hora de un día
+// a lun-vie / fin de semana / todos los días. Se usa en ambas secciones
+// (horario de sucursal y horario individual de barbero).
+function CopyDayMenu({
+  sourceDow,
+  onCopy,
+}: {
+  sourceDow: number;
+  onCopy: (targets: number[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open]);
+
+  // Destinos excluyen el día origen
+  const WEEKDAYS = [1, 2, 3, 4, 5].filter((d) => d !== sourceDow);
+  const WEEKEND = [6, 0].filter((d) => d !== sourceDow);
+  const ALL = [1, 2, 3, 4, 5, 6, 0].filter((d) => d !== sourceDow);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-md border border-[#e8e2dc] bg-white px-2 py-1 text-[10px] font-medium text-stone-500 hover:border-brand/40 hover:text-brand transition"
+        title="Copiar este horario a otros días"
+        aria-label="Copiar horario a otros días"
+      >
+        Copiar →
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-1 z-30 w-48 rounded-lg border border-[#e8e2dc] bg-white shadow-lg py-1 text-sm"
+        >
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 text-xs text-stone-700 hover:bg-brand/5 hover:text-brand transition"
+            onClick={() => { onCopy(WEEKDAYS); setOpen(false); }}
+          >
+            Aplicar a Lun–Vie
+          </button>
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 text-xs text-stone-700 hover:bg-brand/5 hover:text-brand transition"
+            onClick={() => { onCopy(WEEKEND); setOpen(false); }}
+          >
+            Aplicar a Sáb + Dom
+          </button>
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-brand/5 hover:text-brand transition border-t border-[#f0ece8]"
+            onClick={() => { onCopy(ALL); setOpen(false); }}
+          >
+            Aplicar a todos los días
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const DAYS = [
   { dayOfWeek: 1, label: "Lunes" },
@@ -113,6 +190,21 @@ export default function SchedulePage() {
     setBranchSaved(false);
   }
 
+  // Copia las horas (openTime/closeTime) de un día origen a una lista de días destino.
+  // isOpen se fuerza a true en los destinos para que la copia "active" el día.
+  function copyBranchHoursTo(sourceDow: number, targetDows: number[]) {
+    const source = branchHours.find((h) => h.dayOfWeek === sourceDow);
+    if (!source) return;
+    setBranchHours((prev) =>
+      prev.map((h) =>
+        targetDows.includes(h.dayOfWeek)
+          ? { ...h, openTime: source.openTime, closeTime: source.closeTime, isOpen: true }
+          : h
+      )
+    );
+    setBranchSaved(false);
+  }
+
   const branchTimeErrors = branchHours
     .filter((h) => h.isOpen && h.openTime >= h.closeTime)
     .map((h) => DAYS.find((d) => d.dayOfWeek === h.dayOfWeek)?.label);
@@ -168,6 +260,19 @@ export default function SchedulePage() {
   function updateBarberDay(dayOfWeek: number, field: keyof BarberDay, value: string | boolean) {
     setBarberSchedule((prev) =>
       prev.map((s) => (s.dayOfWeek === dayOfWeek ? { ...s, [field]: value } : s))
+    );
+    setBarberSaved(false);
+  }
+
+  function copyBarberDayTo(sourceDow: number, targetDows: number[]) {
+    const source = barberSchedule.find((s) => s.dayOfWeek === sourceDow);
+    if (!source) return;
+    setBarberSchedule((prev) =>
+      prev.map((s) =>
+        targetDows.includes(s.dayOfWeek)
+          ? { ...s, startTime: source.startTime, endTime: source.endTime, isWorking: true }
+          : s
+      )
     );
     setBarberSaved(false);
   }
@@ -289,6 +394,12 @@ export default function SchedulePage() {
                           onChange={(e) => updateBranchHour(dayOfWeek, "closeTime", e.target.value)}
                           className="input-field text-xs sm:text-sm w-[110px] sm:w-[115px] py-1.5" />
                       </div>
+                      {hour.isOpen && (
+                        <CopyDayMenu
+                          sourceDow={dayOfWeek}
+                          onCopy={(targets) => copyBranchHoursTo(dayOfWeek, targets)}
+                        />
+                      )}
                     </div>
                   </div>
                 );
@@ -397,6 +508,14 @@ export default function SchedulePage() {
                             onChange={(e) => updateBarberDay(dayOfWeek, "endTime", e.target.value)}
                             className="input-field text-sm w-[115px] sm:w-[120px]" />
                         </div>
+                        {day.isWorking && (
+                          <div className="order-4 sm:order-none shrink-0">
+                            <CopyDayMenu
+                              sourceDow={dayOfWeek}
+                              onCopy={(targets) => copyBarberDayTo(dayOfWeek, targets)}
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}

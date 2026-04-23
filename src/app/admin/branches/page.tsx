@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 type BranchRow = {
   id: string;
@@ -102,22 +103,27 @@ export default function BranchesPage() {
     }
   }
 
+  // Estado del modal de confirmación de borrado. Guardamos la branch
+  // completa para poder mostrar su nombre en el mensaje.
+  const [confirmDelete, setConfirmDelete] = useState<BranchRow | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+
   async function handleDelete(id: string) {
-    if (!confirm("¿Eliminar esta sucursal? Esta acción no se puede deshacer."))
-      return;
     setDeleting(id);
+    setDeleteError("");
     try {
       const res = await fetch(`/api/admin/branches/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: "Error" }));
-        alert(err.message || "No se pudo eliminar");
+        setDeleteError(err.message || "No se pudo eliminar");
         return;
       }
+      setConfirmDelete(null);
       fetchBranches();
     } catch {
-      alert("Error de conexión");
+      setDeleteError("Error de conexión");
     } finally {
       setDeleting(null);
     }
@@ -300,17 +306,29 @@ export default function BranchesPage() {
                   Editar
                 </button>
                 <button
-                  onClick={() => handleDelete(b.id)}
+                  onClick={() => { setConfirmDelete(b); setDeleteError(""); }}
                   disabled={deleting === b.id}
                   className="rounded-md px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-50"
                 >
-                  {deleting === b.id ? "..." : "Eliminar"}
+                  Eliminar
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Confirmación de borrado */}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="¿Eliminar sucursal?"
+        message={confirmDelete ? `Vas a eliminar "${confirmDelete.name}". Esta acción no se puede deshacer.${deleteError ? `\n\nError: ${deleteError}` : ""}` : ""}
+        confirmLabel="Eliminar sucursal"
+        variant="danger"
+        loading={deleting !== null}
+        onConfirm={() => { if (confirmDelete) handleDelete(confirmDelete.id); }}
+        onClose={() => { setConfirmDelete(null); setDeleteError(""); }}
+      />
     </div>
   );
 }

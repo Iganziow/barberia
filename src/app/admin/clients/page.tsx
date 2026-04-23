@@ -49,14 +49,28 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-stone-900">
-          Clientes
-        </h1>
-        <p className="text-sm text-stone-500">
-          Historial de visitas, contacto y estadísticas.
-          {total > 0 && ` ${total} cliente${total !== 1 ? "s" : ""} registrado${total !== 1 ? "s" : ""}.`}
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-stone-900">
+            Clientes
+          </h1>
+          <p className="text-sm text-stone-500">
+            Historial de visitas, contacto y estadísticas.
+            {total > 0 && ` ${total} cliente${total !== 1 ? "s" : ""} registrado${total !== 1 ? "s" : ""}.`}
+          </p>
+        </div>
+        {total > 0 && (
+          <a
+            href={`/api/admin/clients/export${search ? `?q=${encodeURIComponent(search)}` : ""}`}
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
+            title={search ? "Descargar CSV con los resultados actuales" : "Descargar CSV de todos los clientes"}
+          >
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 3a1 1 0 011 1v8.59l2.3-2.3a1 1 0 011.4 1.42l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.42l2.3 2.3V4a1 1 0 011-1zM4 16a1 1 0 012 0v1h8v-1a1 1 0 112 0v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2z" />
+            </svg>
+            Exportar CSV
+          </a>
+        )}
       </div>
 
       {/* Search */}

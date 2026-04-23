@@ -128,6 +128,35 @@ export default function IntegrationsPage() {
     loadWebhooks();
   }
 
+  // Envía un payload de prueba al URL del webhook y muestra el resultado
+  // inline para poder verificar que la URL está viva sin esperar evento real.
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; status: number; latencyMs: number; error: string | null }>>({});
+
+  async function testWebhook(id: string) {
+    setTestingId(id);
+    try {
+      const r = await fetch(`/api/admin/integrations/webhooks/${id}/test`, { method: "POST" });
+      const data = await r.json();
+      setTestResults((prev) => ({
+        ...prev,
+        [id]: {
+          ok: data.ok ?? false,
+          status: data.status ?? 0,
+          latencyMs: data.latencyMs ?? 0,
+          error: data.error ?? null,
+        },
+      }));
+    } catch {
+      setTestResults((prev) => ({
+        ...prev,
+        [id]: { ok: false, status: 0, latencyMs: 0, error: "Error de conexión al backend" },
+      }));
+    } finally {
+      setTestingId(null);
+    }
+  }
+
   const EVENTS = [
     { value: "appointment.completed", label: "Cita completada" },
     { value: "appointment.canceled", label: "Cita cancelada" },
@@ -295,16 +324,43 @@ export default function IntegrationsPage() {
           ) : (
             <div className="space-y-2">
               {webhooks.map((w) => (
-                <div key={w.id} className="rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-stone-800 break-all">{w.url}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">
-                      {EVENTS.find((e) => e.value === w.event)?.label ?? w.event}
-                    </p>
+                <div key={w.id} className="rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-stone-800 break-all">{w.url}</p>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        {EVENTS.find((e) => e.value === w.event)?.label ?? w.event}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => testWebhook(w.id)}
+                        disabled={testingId === w.id}
+                        className="text-xs font-medium text-stone-600 hover:text-brand disabled:opacity-50"
+                      >
+                        {testingId === w.id ? "Probando..." : "Probar"}
+                      </button>
+                      <button onClick={() => deleteWebhook(w.id)} className="text-xs font-medium text-red-500 hover:text-red-700">
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
-                  <button onClick={() => deleteWebhook(w.id)} className="shrink-0 text-xs font-medium text-red-500 hover:text-red-700">
-                    Eliminar
-                  </button>
+                  {/* Resultado del último test */}
+                  {testResults[w.id] && (
+                    <div className={`rounded-lg border px-3 py-2 text-xs ${
+                      testResults[w.id].ok
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        : "bg-red-50 border-red-200 text-red-700"
+                    }`}>
+                      {testResults[w.id].error ? (
+                        <span>✗ {testResults[w.id].error}</span>
+                      ) : testResults[w.id].ok ? (
+                        <span>✓ Respuesta HTTP {testResults[w.id].status} en {testResults[w.id].latencyMs}ms</span>
+                      ) : (
+                        <span>✗ HTTP {testResults[w.id].status} · {testResults[w.id].latencyMs}ms</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
