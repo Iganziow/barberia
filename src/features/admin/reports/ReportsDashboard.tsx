@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import PageTip from "@/components/ui/PageTip";
 import InfoTip from "@/components/ui/InfoTip";
+import UserAvatarBadge from "@/components/ui/UserAvatarBadge";
 import { formatCLP } from "@/lib/format";
 
 type CommissionRow = {
@@ -62,6 +62,57 @@ const TABS = [
   { value: "commissions", label: "Liquidaciones" },
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function firstName(name: string) {
+  return name.split(" ")[0] || name;
+}
+
+// Subtítulo del header según period: "Hoy, 23 de abril" / "Semana del 21 al 27" / etc.
+function periodSubtitle(period: string, from: string, to: string): string {
+  const fromD = new Date(from);
+  const toD = new Date(to);
+
+  if (period.startsWith("custom:")) {
+    const fmt: Intl.DateTimeFormatOptions = { day: "numeric", month: "long" };
+    return `Del ${fromD.toLocaleDateString("es-CL", fmt)} al ${toD.toLocaleDateString("es-CL", fmt)}`;
+  }
+
+  switch (period) {
+    case "today": {
+      return `Hoy, ${new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}`;
+    }
+    case "week": {
+      // Número ISO de semana aproximado (del lunes)
+      const target = new Date(fromD);
+      const dayNum = (target.getDay() + 6) % 7;
+      target.setDate(target.getDate() - dayNum + 3);
+      const firstThursday = target.valueOf();
+      target.setMonth(0, 1);
+      if (target.getDay() !== 4) {
+        target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+      }
+      const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+      return `${new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })} · Semana ${weekNum}`;
+    }
+    case "month":
+      return fromD.toLocaleDateString("es-CL", { month: "long", year: "numeric" });
+    case "year":
+      return `Año ${fromD.getFullYear()}`;
+    default:
+      return "";
+  }
+}
+
+// ─── StatCard — card con borde izquierdo de color semántico ──────────
 function StatCard({
   label,
   value,
@@ -75,57 +126,89 @@ function StatCard({
 }) {
   return (
     <div
-      className="relative rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm overflow-hidden group hover:shadow-md transition-all"
+      className="relative rounded-2xl border border-[#e8e2dc] bg-white p-5 shadow-sm overflow-hidden group hover:shadow-md transition-all"
       style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
     >
       {/* Subtle gradient wash on hover */}
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at top right, ${borderColor}08, transparent 70%)`,
+          background: `radial-gradient(ellipse at top right, ${borderColor}12, transparent 70%)`,
         }}
       />
       <div className="relative">
-        <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em]">{label}</p>
-        <p className="text-[28px] leading-none font-extrabold text-stone-900 mt-2 tracking-tight tabular-nums">
+        <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{label}</p>
+        <p className="text-[26px] sm:text-[28px] leading-none font-extrabold text-stone-900 mt-2 tracking-tight tabular-nums">
           {value}
         </p>
-        {sub && <p className="text-xs text-stone-500 mt-1.5">{sub}</p>}
+        {sub && <p className="text-xs text-stone-500 mt-2">{sub}</p>}
       </div>
     </div>
   );
 }
 
-function BarChart({
-  data,
-  maxValue,
-}: {
-  data: Array<{ label: string; value: number; color?: string | null }>;
-  maxValue: number;
-}) {
-  // Filtrar valores inválidos (negativos, NaN) — no deberían existir pero por si acaso
-  const cleanData = data.filter((d) => Number.isFinite(d.value) && d.value >= 0);
-  if (cleanData.length === 0) return <p className="text-sm text-stone-400">Sin datos</p>;
-  const safeMax = maxValue > 0 ? maxValue : 1;
+// ─── DailyBars — chart simple de barras para ingresos diarios ─────────
+function DailyBars({ data }: { data: Array<{ date: string; revenue: number }> }) {
+  if (data.length === 0) {
+    return (
+      <p className="text-sm text-stone-400 text-center py-8">Sin datos para este periodo</p>
+    );
+  }
+  const max = Math.max(...data.map((d) => d.revenue), 1);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  // Si son muchos días (mes, año), muestro scroll horizontal. Si son pocos
+  // (semana), los acomodo en el ancho disponible sin scroll.
+  const needsScroll = data.length > 10;
+
   return (
-    <div className="space-y-2.5">
-      {cleanData.map((item) => (
-        <div key={item.label} className="flex items-center gap-3">
-          <span className="w-20 sm:w-28 text-xs sm:text-sm text-stone-600 truncate" title={item.label}>{item.label}</span>
-          <div className="flex-1 h-6 bg-stone-100 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min(Math.max((item.value / safeMax) * 100, 2), 100)}%`,
-                backgroundColor: item.color || "#c87941",
-              }}
-            />
-          </div>
-          <span className="w-20 text-right text-sm font-medium text-stone-700">
-            {formatCLP(item.value)}
-          </span>
-        </div>
-      ))}
+    <div className={needsScroll ? "overflow-x-auto -mx-5 px-5 pb-1" : ""}>
+      <div
+        className={`flex items-end gap-2 h-40 ${needsScroll ? "min-w-[640px]" : ""}`}
+      >
+        {data.map((d) => {
+          const day = new Date(d.date + "T12:00:00");
+          const isPast = day <= now;
+          const isToday = day.toDateString() === now.toDateString();
+          const heightPct = Math.max((d.revenue / max) * 100, d.revenue > 0 ? 4 : 2);
+
+          const dayLabel = day
+            .toLocaleDateString("es-CL", { weekday: "short" })
+            .replace(".", "")
+            .slice(0, 3)
+            .toUpperCase();
+
+          return (
+            <div key={d.date} className="flex-1 flex flex-col items-center justify-end gap-2 group relative">
+              {/* Tooltip on hover */}
+              {d.revenue > 0 && (
+                <span className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition bg-stone-800 text-white text-[10px] font-semibold px-2 py-0.5 rounded tabular-nums pointer-events-none whitespace-nowrap z-10">
+                  {formatCLP(d.revenue)}
+                </span>
+              )}
+              <div
+                className={`w-full rounded-md transition-colors ${
+                  isToday
+                    ? "bg-brand"
+                    : isPast && d.revenue > 0
+                      ? "bg-brand/75 group-hover:bg-brand"
+                      : "bg-stone-200"
+                }`}
+                style={{ height: `${heightPct}%` }}
+                title={`${dayLabel}: ${formatCLP(d.revenue)}`}
+              />
+              <span
+                className={`text-[10px] font-semibold uppercase tracking-wider ${
+                  isToday ? "text-brand" : "text-stone-400"
+                }`}
+              >
+                {dayLabel}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -138,7 +221,7 @@ export default function ReportsDashboard() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
 
-  // Custom date range (solo activo cuando period === "custom:from:to")
+  // Custom date range
   const todayStr = new Date().toISOString().slice(0, 10);
   const [customOpen, setCustomOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState(todayStr);
@@ -180,8 +263,7 @@ export default function ReportsDashboard() {
   }, [fetchData]);
 
   const d = data?.dashboard;
-  const maxBarberRevenue = Math.max(...(data?.barbers?.map((b) => b.revenue) || [0]));
-  const maxServiceRevenue = Math.max(...(data?.services?.map((s) => s.revenue) || [0]));
+  const headerSubtitle = d ? periodSubtitle(period, d.from, d.to) : "";
 
   function exportCommissionsCSV() {
     if (!commissions) return;
@@ -206,51 +288,109 @@ export default function ReportsDashboard() {
     URL.revokeObjectURL(url);
   }
 
+  // Tasas derivadas (para subs de stat cards)
+  const totalAppts = d?.appointments.total ?? 0;
+  const cancelRate = totalAppts > 0 ? (((d?.appointments.canceled ?? 0) / totalAppts) * 100).toFixed(1) : "0";
+  const noShowRate = totalAppts > 0 ? (((d?.appointments.noShow ?? 0) / totalAppts) * 100).toFixed(1) : "0";
+
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-stone-900">Reportes</h1>
-          <p className="text-sm text-stone-500">Ingresos, citas y liquidaciones de tu barbería</p>
-          <div className="flex gap-1 mt-2 border-b border-[#e8e2dc] items-center">
-            {TABS.map((t) => (
-              <button
-                key={t.value}
-                onClick={() => { setLoading(true); setActiveTab(t.value); }}
-                className={`px-4 py-2 text-sm font-medium transition border-b-2 ${
-                  activeTab === t.value
-                    ? "border-brand text-brand"
-                    : "border-transparent text-stone-400 hover:text-stone-600"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-            <InfoTip text="Liquidaciones muestra cuánto debes pagarle a cada barbero según las citas completadas en el período." />
+    <div className="space-y-6">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pb-5 border-b border-[#e8e2dc] print:border-0 print:pb-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-extrabold tracking-tight text-stone-900">Reportes</h1>
+          <p className="text-sm text-stone-500 mt-0.5 capitalize">
+            {headerSubtitle || "Ingresos, citas y liquidaciones de tu barbería"}
+          </p>
+        </div>
+        <div className="flex items-start gap-4 sm:gap-8 flex-wrap print:hidden">
+          {d && activeTab === "dashboard" && (
+            <div className="flex items-start gap-6 sm:gap-8">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  Ingresos{" "}
+                  {period === "today" ? "hoy" : period === "week" ? "semana" : period === "month" ? "mes" : period === "year" ? "año" : "periodo"}
+                </p>
+                <p className="text-2xl font-extrabold text-brand mt-0.5 tabular-nums">
+                  {formatCLP(d.revenue.total)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  Citas completadas
+                </p>
+                <p className="text-2xl font-extrabold text-emerald-600 mt-0.5 tabular-nums">
+                  {d.appointments.completed}
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <a
+              href={`/api/admin/reports/export?period=${period}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e8e2dc] bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
+              title="Descargar reporte CSV"
+            >
+              Exportar CSV
+            </a>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e8e2dc] bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
+              title="Imprimir o guardar como PDF"
+            >
+              PDF
+            </button>
+            <UserAvatarBadge />
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto print:hidden">
-          <div className="relative flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1">
-            {PERIODS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => { setLoading(true); setPeriod(p.value); }}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  period === p.value
-                    ? "bg-brand text-white shadow-sm"
-                    : "text-stone-500 hover:bg-stone-50"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+      </div>
+
+      {/* ── Top-level tabs (Resumen / Liquidaciones) ─────────────── */}
+      <div className="flex items-center gap-1 border-b border-[#e8e2dc] -mt-2 print:hidden">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => { setLoading(true); setActiveTab(t.value); }}
+            className={`relative px-4 py-2 text-sm font-medium transition ${
+              activeTab === t.value ? "text-brand" : "text-stone-500 hover:text-stone-700"
+            }`}
+          >
+            {t.label}
+            {activeTab === t.value && (
+              <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-brand rounded-t" />
+            )}
+          </button>
+        ))}
+        <InfoTip text="Liquidaciones muestra cuánto debes pagarle a cada barbero según las citas completadas en el período." />
+      </div>
+
+      {/* ── Period pills (solo en Resumen) ────────────────────────── */}
+      {activeTab === "dashboard" && (
+        <div className="flex items-center gap-2 flex-wrap print:hidden">
+          <div className="relative flex gap-1 rounded-lg border border-[#e8e2dc] bg-stone-100/50 p-1">
+            {PERIODS.map((p) => {
+              const active = period === p.value;
+              return (
+                <button
+                  key={p.value}
+                  onClick={() => { setLoading(true); setPeriod(p.value); }}
+                  className={`rounded-md px-4 py-1.5 text-sm font-semibold transition ${
+                    active
+                      ? "bg-white text-stone-900 shadow-sm"
+                      : "text-stone-500 hover:text-stone-700"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
             <button
               onClick={() => setCustomOpen((v) => !v)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              className={`rounded-md px-4 py-1.5 text-sm font-semibold transition ${
                 isCustom
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-stone-500 hover:bg-stone-50"
+                  ? "bg-white text-stone-900 shadow-sm"
+                  : "text-stone-500 hover:text-stone-700"
               }`}
               title="Rango personalizado"
             >
@@ -259,7 +399,7 @@ export default function ReportsDashboard() {
                   {period.split(":")[1]} → {period.split(":")[2]}
                 </span>
               ) : (
-                "Rango..."
+                "Rango…"
               )}
             </button>
             {customOpen && (
@@ -305,43 +445,30 @@ export default function ReportsDashboard() {
               </div>
             )}
           </div>
-          {/* Acciones: export + print */}
-          <a
-            href={`/api/admin/reports/export?period=${period}`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
-            title="Descargar reporte CSV"
-          >
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 3a1 1 0 011 1v8.59l2.3-2.3a1 1 0 011.4 1.42l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.42l2.3 2.3V4a1 1 0 011-1zM4 16a1 1 0 012 0v1h8v-1a1 1 0 112 0v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2z" />
-            </svg>
-            CSV
-          </a>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-brand/40 hover:text-brand transition"
-            title="Imprimir o guardar como PDF"
-          >
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M6 2v4h8V2H6zm9 6H5a2 2 0 00-2 2v5h2v3h10v-3h2v-5a2 2 0 00-2-2zm-2 8H7v-4h6v4z" />
-            </svg>
-            PDF
-          </button>
         </div>
-      </div>
+      )}
 
-      <PageTip id="reportes" text="Los datos se generan automáticamente a partir de las citas y pagos registrados. Usa las pestañas para ver el resumen general o las liquidaciones por barbero." />
-
+      {/* ── Loading / error ───────────────────────────────────────── */}
       {loading ? (
-        <div className="text-center text-stone-400 py-12">Cargando reportes...</div>
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-28 rounded-2xl bg-stone-100 animate-pulse" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="h-64 rounded-2xl bg-stone-100 animate-pulse" />
+            <div className="h-64 rounded-2xl bg-stone-100 animate-pulse" />
+          </div>
+        </div>
       ) : fetchError ? (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
           <span>{fetchError}</span>
           <button onClick={fetchData} className="text-xs font-semibold underline hover:no-underline">Reintentar</button>
         </div>
       ) : activeTab === "commissions" ? (
-        /* ── Liquidaciones tab ── */
-        <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">
+        /* ── Liquidaciones ─────────────────────────────────────── */
+        <div className="rounded-2xl border border-[#e8e2dc] bg-white p-5 sm:p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
             <h2 className="font-bold text-stone-900">Liquidaciones de barberos</h2>
             {commissions && commissions.length > 0 && (
@@ -356,98 +483,141 @@ export default function ReportsDashboard() {
           {!commissions || commissions.length === 0 ? (
             <p className="text-stone-400 text-sm text-center py-8">No hay datos para este período</p>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#e8e2dc] text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                      <th className="pb-3 pr-4">Barbero</th>
-                      <th className="pb-3 pr-4 text-right">Citas</th>
-                      <th className="pb-3 pr-4 text-right">Ingresos</th>
-                      <th className="pb-3 pr-4 text-right">Comisión</th>
-                      <th className="pb-3 text-right font-bold text-stone-600">A pagar</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {commissions.map((c) => (
-                      <tr key={c.id} className="border-b border-[#e8e2dc] last:border-0">
-                        <td className="py-3 pr-4">
-                          <p className="font-medium text-stone-800">{c.name}</p>
-                          <p className="text-[11px] text-stone-400">
-                            {c.commissionType === "PERCENTAGE"
-                              ? `${c.commissionValue}%`
-                              : `${formatCLP(c.commissionValue)} fijo/cita`}
-                          </p>
-                        </td>
-                        <td className="py-3 pr-4 text-right text-stone-600">{c.completed}</td>
-                        <td className="py-3 pr-4 text-right text-stone-600">{formatCLP(c.revenue)}</td>
-                        <td className="py-3 pr-4 text-right text-stone-400 text-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#e8e2dc] text-left text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                    <th className="pb-3 pr-4">Barbero</th>
+                    <th className="pb-3 pr-4 text-right">Citas</th>
+                    <th className="pb-3 pr-4 text-right">Ingresos</th>
+                    <th className="pb-3 pr-4 text-right">Comisión</th>
+                    <th className="pb-3 text-right font-bold text-stone-600">A pagar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commissions.map((c) => (
+                    <tr key={c.id} className="border-b border-[#e8e2dc] last:border-0">
+                      <td className="py-3 pr-4">
+                        <p className="font-medium text-stone-800">{c.name}</p>
+                        <p className="text-[11px] text-stone-400">
                           {c.commissionType === "PERCENTAGE"
-                            ? `${c.commissionValue}% × ${formatCLP(c.revenue)}`
-                            : `${formatCLP(c.commissionValue)} × ${c.completed} citas`}
-                        </td>
-                        <td className="py-3 text-right font-bold text-stone-900">{formatCLP(c.commission)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-[#e8e2dc]">
-                      <td className="pt-3 font-semibold text-stone-700">Total</td>
-                      <td className="pt-3 text-right font-semibold text-stone-700">
-                        {commissions.reduce((s, c) => s + c.completed, 0)}
+                            ? `${c.commissionValue}%`
+                            : `${formatCLP(c.commissionValue)} fijo/cita`}
+                        </p>
                       </td>
-                      <td className="pt-3 text-right font-semibold text-stone-700">
-                        {formatCLP(commissions.reduce((s, c) => s + c.revenue, 0))}
+                      <td className="py-3 pr-4 text-right text-stone-600 tabular-nums">{c.completed}</td>
+                      <td className="py-3 pr-4 text-right text-stone-600 tabular-nums">{formatCLP(c.revenue)}</td>
+                      <td className="py-3 pr-4 text-right text-stone-400 text-xs tabular-nums">
+                        {c.commissionType === "PERCENTAGE"
+                          ? `${c.commissionValue}% × ${formatCLP(c.revenue)}`
+                          : `${formatCLP(c.commissionValue)} × ${c.completed} citas`}
                       </td>
-                      <td />
-                      <td className="pt-3 text-right font-bold text-brand text-base">
-                        {formatCLP(commissions.reduce((s, c) => s + c.commission, 0))}
-                      </td>
+                      <td className="py-3 text-right font-bold text-stone-900 tabular-nums">{formatCLP(c.commission)}</td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-[#e8e2dc]">
+                    <td className="pt-3 font-semibold text-stone-700">Total</td>
+                    <td className="pt-3 text-right font-semibold text-stone-700 tabular-nums">
+                      {commissions.reduce((s, c) => s + c.completed, 0)}
+                    </td>
+                    <td className="pt-3 text-right font-semibold text-stone-700 tabular-nums">
+                      {formatCLP(commissions.reduce((s, c) => s + c.revenue, 0))}
+                    </td>
+                    <td />
+                    <td className="pt-3 text-right font-bold text-brand text-base tabular-nums">
+                      {formatCLP(commissions.reduce((s, c) => s + c.commission, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </div>
       ) : !d ? (
         <div className="text-center text-stone-400 py-12">Error al cargar datos</div>
       ) : (
+        /* ── Dashboard ──────────────────────────────────────────── */
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Ingresos" value={formatCLP(d.revenue.total)} sub={`${formatCLP(d.revenue.paid)} cobrado`} borderColor="#22c55e" />
-            <StatCard label="Por cobrar" value={formatCLP(d.revenue.pending)} borderColor="#f59e0b" />
-            <StatCard label="Citas totales" value={String(d.appointments.total)} sub={`${d.appointments.completed} completadas`} borderColor="#c87941" />
-            <StatCard label="Cancelaciones" value={String(d.appointments.canceled + d.appointments.noShow)} sub={`${d.appointments.canceled} canceladas, ${d.appointments.noShow} no show`} borderColor="#ef4444" />
+            <StatCard
+              label="Ingresos"
+              value={formatCLP(d.revenue.total)}
+              sub={`${formatCLP(d.revenue.paid)} cobrado · ${formatCLP(d.revenue.pending)} pendiente`}
+              borderColor="#c87941"
+            />
+            <StatCard
+              label="Completadas"
+              value={String(d.appointments.completed)}
+              sub={`de ${totalAppts} agendadas`}
+              borderColor="#10b981"
+            />
+            <StatCard
+              label="Canceladas"
+              value={String(d.appointments.canceled)}
+              sub={`${cancelRate}% tasa cancelación`}
+              borderColor="#f59e0b"
+            />
+            <StatCard
+              label="No-show"
+              value={String(d.appointments.noShow)}
+              sub={`${noShowRate}% no se presentó`}
+              borderColor="#ef4444"
+            />
           </div>
 
-          {/* Charts */}
+          {/* Charts row: Daily revenue + Barber breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">
-              <h2 className="font-bold text-stone-900 mb-4">Ingresos por barbero</h2>
-              <BarChart data={(data?.barbers || []).map((b) => ({ label: b.name, value: b.revenue, color: b.color }))} maxValue={maxBarberRevenue} />
-              {(data?.barbers || []).length > 0 && (
-                <div className="mt-4 border-t border-[#e8e2dc] pt-3 space-y-1">
-                  {(data?.barbers || []).map((b) => (
-                    <div key={b.id} className="flex justify-between text-sm">
-                      <span className="text-stone-500">{b.name}: {b.appointments} citas ({b.completed} completadas)</span>
-                      <span className="font-medium text-stone-700">{formatCLP(b.revenue)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* Daily revenue */}
+            <div className="rounded-2xl border border-[#e8e2dc] bg-white p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-bold text-stone-900">Ingresos diarios</h2>
+                {(data?.dailyRevenue || []).length > 0 && (
+                  <span className="text-xs text-stone-400 tabular-nums">
+                    Total: <span className="font-semibold text-stone-700">{formatCLP(d.revenue.total)}</span>
+                  </span>
+                )}
+              </div>
+              <DailyBars data={data?.dailyRevenue || []} />
             </div>
 
-            <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">
-              <h2 className="font-bold text-stone-900 mb-4">Servicios más solicitados</h2>
-              <BarChart data={(data?.services || []).map((s) => ({ label: s.name, value: s.revenue }))} maxValue={maxServiceRevenue} />
-              {(data?.services || []).length > 0 && (
-                <div className="mt-4 border-t border-[#e8e2dc] pt-3 space-y-1">
-                  {(data?.services || []).map((s) => (
-                    <div key={s.id} className="flex justify-between text-sm">
-                      <span className="text-stone-500">{s.name}: {s.count} citas</span>
-                      <span className="font-medium text-stone-700">{formatCLP(s.revenue)}</span>
+            {/* Barber breakdown */}
+            <div className="rounded-2xl border border-[#e8e2dc] bg-white p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-bold text-stone-900">Por barbero</h2>
+                <button
+                  type="button"
+                  onClick={() => { setLoading(true); setActiveTab("commissions"); }}
+                  className="text-xs font-semibold text-brand hover:text-brand-hover transition"
+                >
+                  Liquidaciones →
+                </button>
+              </div>
+              {(data?.barbers || []).length === 0 ? (
+                <p className="text-sm text-stone-400 text-center py-8">
+                  Sin datos de barberos en este periodo
+                </p>
+              ) : (
+                <div className="divide-y divide-[#f0ece8]">
+                  {(data?.barbers || []).map((b) => (
+                    <div key={b.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div
+                        className="h-9 w-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                        style={{ backgroundColor: b.color || "#c87941" }}
+                      >
+                        {initials(b.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-stone-900 truncate">{firstName(b.name)}</p>
+                        <p className="text-xs text-stone-500">
+                          {b.completed} cita{b.completed !== 1 ? "s" : ""} completada{b.completed !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-stone-900 tabular-nums shrink-0">
+                        {formatCLP(b.revenue)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -455,26 +625,26 @@ export default function ReportsDashboard() {
             </div>
           </div>
 
-          {/* Daily Revenue */}
-          {(data?.dailyRevenue || []).length > 0 && (
-            <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">
-              <h2 className="font-bold text-stone-900 mb-4">Ingresos diarios</h2>
-              <div className="overflow-x-auto -mx-5 px-5 pb-2">
-              <div className="flex items-end gap-1 h-40 min-w-[480px]">
-                {(data?.dailyRevenue || []).map((day) => {
-                  const maxDayRevenue = Math.max(...(data?.dailyRevenue || []).map((d) => d.revenue), 1);
-                  const height = Math.max((day.revenue / maxDayRevenue) * 100, 4);
-                  const dt = new Date(day.date + "T12:00:00");
-                  const label = dt.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
-                  return (
-                    <div key={day.date} className="flex-1 flex flex-col items-center justify-end gap-1 group">
-                      <span className="text-[10px] text-stone-500 sm:opacity-0 sm:group-hover:opacity-100 transition">{formatCLP(day.revenue)}</span>
-                      <div className="w-full bg-brand rounded-t hover:bg-brand-hover transition cursor-default" style={{ height: `${height}%` }} title={`${label}: ${formatCLP(day.revenue)}`} />
-                      <span className="text-[10px] text-stone-400 truncate w-full text-center">{label}</span>
-                    </div>
-                  );
-                })}
+          {/* Services breakdown (menor prioridad, debajo) */}
+          {(data?.services || []).length > 0 && (
+            <div className="rounded-2xl border border-[#e8e2dc] bg-white p-5 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-bold text-stone-900">Servicios más solicitados</h2>
               </div>
+              <div className="divide-y divide-[#f0ece8]">
+                {(data?.services || []).slice(0, 8).map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-stone-800 truncate">{s.name}</p>
+                      <p className="text-xs text-stone-500">
+                        {s.count} {s.count === 1 ? "venta" : "ventas"}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-stone-900 tabular-nums shrink-0">
+                      {formatCLP(s.revenue)}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
