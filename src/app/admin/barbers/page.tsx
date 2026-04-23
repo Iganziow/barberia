@@ -30,6 +30,36 @@ type BarberServiceAssign = {
   customPrice: number | null;
   customDuration: number | null;
 };
+type BarberDay = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isWorking: boolean;
+};
+
+const DAYS = [
+  { dayOfWeek: 1, label: "Lunes" },
+  { dayOfWeek: 2, label: "Martes" },
+  { dayOfWeek: 3, label: "Miércoles" },
+  { dayOfWeek: 4, label: "Jueves" },
+  { dayOfWeek: 5, label: "Viernes" },
+  { dayOfWeek: 6, label: "Sábado" },
+  { dayOfWeek: 0, label: "Domingo" },
+];
+
+function initBarberSchedule(existing: BarberDay[]): BarberDay[] {
+  return DAYS.map(({ dayOfWeek }) => {
+    const found = existing.find((s) => s.dayOfWeek === dayOfWeek);
+    return (
+      found ?? {
+        dayOfWeek,
+        startTime: "09:00",
+        endTime: "18:00",
+        isWorking: dayOfWeek !== 0,
+      }
+    );
+  });
+}
 
 function initials(name: string) {
   return name
@@ -59,6 +89,73 @@ function IconPlus() {
     </svg>
   );
 }
+function IconSave() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+// Menu "Copiar →" para clonar horario de un día a otros (reusa pattern de schedule)
+function CopyDayMenu({
+  sourceDow,
+  onCopy,
+}: {
+  sourceDow: number;
+  onCopy: (targets: number[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open]);
+
+  const WEEKDAYS = [1, 2, 3, 4, 5].filter((d) => d !== sourceDow);
+  const WEEKEND = [6, 0].filter((d) => d !== sourceDow);
+  const ALL = [1, 2, 3, 4, 5, 6, 0].filter((d) => d !== sourceDow);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-md border border-[#e8e2dc] bg-white px-2 py-1 text-[10px] font-medium text-stone-500 hover:border-brand/40 hover:text-brand transition"
+        title="Copiar este horario a otros días"
+      >
+        Copiar →
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 w-48 rounded-lg border border-[#e8e2dc] bg-white shadow-xl py-1 text-sm">
+          <button type="button" className="w-full text-left px-3 py-1.5 text-xs text-stone-700 hover:bg-brand/5 hover:text-brand transition" onClick={() => { onCopy(WEEKDAYS); setOpen(false); }}>
+            Aplicar a Lun–Vie
+          </button>
+          <button type="button" className="w-full text-left px-3 py-1.5 text-xs text-stone-700 hover:bg-brand/5 hover:text-brand transition" onClick={() => { onCopy(WEEKEND); setOpen(false); }}>
+            Aplicar a Sáb + Dom
+          </button>
+          <button type="button" className="w-full text-left px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-brand/5 hover:text-brand transition border-t border-[#f0ece8]" onClick={() => { onCopy(ALL); setOpen(false); }}>
+            Aplicar a todos los días
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Main component ─────────────────────────────────────────────────────
 export default function BarbersPage() {
@@ -66,7 +163,7 @@ export default function BarbersPage() {
   const [allServices, setAllServices] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
-  const [innerTab, setInnerTab] = useState<"profile" | "services" | "commission">("profile");
+  const [innerTab, setInnerTab] = useState<"profile" | "services" | "commission" | "schedule">("profile");
   const [assignments, setAssignments] = useState<BarberServiceAssign[]>([]);
   const [loadingAssign, setLoadingAssign] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -99,6 +196,14 @@ export default function BarbersPage() {
   const [createColor, setCreateColor] = useState("#c87941");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+
+  // Horario de trabajo del barbero
+  const [barberSchedule, setBarberSchedule] = useState<BarberDay[]>([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [scheduleLoadError, setScheduleLoadError] = useState("");
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleSaved, setScheduleSaved] = useState(false);
+  const [scheduleSaveError, setScheduleSaveError] = useState("");
 
   // Assignments error + copy modal
   const [assignError, setAssignError] = useState("");
@@ -146,6 +251,11 @@ export default function BarbersPage() {
     setProfileError("");
     setLoadingAssign(true);
     setAssignError("");
+    // Reset del horario — se cargará perezosamente al entrar a la tab
+    setBarberSchedule([]);
+    setScheduleSaved(false);
+    setScheduleLoadError("");
+    setScheduleSaveError("");
     // En mobile llevar el viewport al panel para que el usuario vea el
     // resultado de la selección (md+ tiene 2 cols y no hace falta)
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -340,6 +450,69 @@ export default function BarbersPage() {
     }
   }
 
+  // ─── Horario de trabajo ──────────────────────────────────────────────
+  function loadBarberSchedule(barberId: string) {
+    setLoadingSchedule(true);
+    setScheduleSaved(false);
+    setScheduleLoadError("");
+    fetch(`/api/admin/barbers/${barberId}/schedule`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error("No se pudo cargar el horario");
+        return r.json();
+      })
+      .then((d) => setBarberSchedule(initBarberSchedule(d.schedule || [])))
+      .catch((e: Error) => setScheduleLoadError(e.message || "Error de conexión"))
+      .finally(() => setLoadingSchedule(false));
+  }
+
+  function updateBarberDay(dayOfWeek: number, field: keyof BarberDay, value: string | boolean) {
+    setBarberSchedule((prev) =>
+      prev.map((s) => (s.dayOfWeek === dayOfWeek ? { ...s, [field]: value } : s))
+    );
+    setScheduleSaved(false);
+  }
+
+  function copyBarberDayTo(sourceDow: number, targetDows: number[]) {
+    const source = barberSchedule.find((s) => s.dayOfWeek === sourceDow);
+    if (!source) return;
+    setBarberSchedule((prev) =>
+      prev.map((s) =>
+        targetDows.includes(s.dayOfWeek)
+          ? { ...s, startTime: source.startTime, endTime: source.endTime, isWorking: true }
+          : s
+      )
+    );
+    setScheduleSaved(false);
+  }
+
+  const scheduleTimeErrors = barberSchedule
+    .filter((s) => s.isWorking && s.startTime >= s.endTime)
+    .map((s) => DAYS.find((d) => d.dayOfWeek === s.dayOfWeek)?.label);
+
+  async function saveBarberSchedule() {
+    if (!selectedBarber) return;
+    if (scheduleTimeErrors.length > 0) return;
+    setSavingSchedule(true);
+    setScheduleSaveError("");
+    try {
+      const r = await fetch(`/api/admin/barbers/${selectedBarber}/schedule`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule: barberSchedule }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "Error al guardar" }));
+        setScheduleSaveError(d.message || "No se pudo guardar el horario");
+        return;
+      }
+      setScheduleSaved(true);
+    } catch {
+      setScheduleSaveError("Error de conexión");
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
+
   async function copyServicesFrom() {
     if (!copySourceId || !selectedBarber) return;
     setCopying(true);
@@ -503,13 +676,18 @@ export default function BarbersPage() {
               <>
                 {/* Tabs */}
                 <div className="flex border-b border-[#e8e2dc] px-4 sm:px-6 gap-1 overflow-x-auto">
-                  {(["profile", "services", "commission"] as const).map((t) => (
+                  {(["profile", "services", "commission", "schedule"] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => {
                         setInnerTab(t);
                         setProfileSaved(false);
                         setCommissionSaved(false);
+                        setScheduleSaved(false);
+                        // Carga perezosa del horario solo cuando entran a la tab
+                        if (t === "schedule" && selectedBarber && barberSchedule.length === 0) {
+                          loadBarberSchedule(selectedBarber);
+                        }
                       }}
                       className={`shrink-0 relative px-4 py-3 text-sm font-medium transition ${
                         innerTab === t
@@ -517,7 +695,13 @@ export default function BarbersPage() {
                           : "text-stone-500 hover:text-stone-700"
                       }`}
                     >
-                      {t === "profile" ? "Perfil" : t === "services" ? "Servicios que hace" : "Comisión"}
+                      {t === "profile"
+                        ? "Perfil"
+                        : t === "services"
+                          ? "Servicios que hace"
+                          : t === "commission"
+                            ? "Comisión"
+                            : "Horario"}
                       {innerTab === t && (
                         <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-brand rounded-t" />
                       )}
@@ -687,6 +871,149 @@ export default function BarbersPage() {
                                 No hay servicios activos. Crea uno en Servicios.
                               </p>
                             )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* ── Schedule tab ── */}
+                  {innerTab === "schedule" && (
+                    <>
+                      {loadingSchedule ? (
+                        <p className="text-stone-400 text-sm text-center py-8">Cargando horario...</p>
+                      ) : scheduleLoadError ? (
+                        <div className="text-center py-8 space-y-2">
+                          <p className="text-sm text-red-600">{scheduleLoadError}</p>
+                          <button
+                            onClick={() => loadBarberSchedule(selectedBarber)}
+                            className="text-xs font-semibold text-brand underline"
+                          >
+                            Reintentar
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <h2 className="font-bold text-stone-900">
+                              Horario de trabajo de {firstName(ab.name)}
+                            </h2>
+                            <div className="flex items-center gap-3">
+                              {scheduleSaved && (
+                                <span className="text-xs text-emerald-600 font-semibold">✓ Guardado</span>
+                              )}
+                              <button
+                                onClick={saveBarberSchedule}
+                                disabled={savingSchedule || scheduleTimeErrors.length > 0}
+                                className="inline-flex items-center gap-1.5 btn-primary text-xs disabled:opacity-50"
+                              >
+                                <IconSave />
+                                {savingSchedule ? "Guardando..." : "Guardar"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Banner: debe caer dentro del horario de la sucursal */}
+                          <div className="rounded-lg bg-brand/5 border border-brand/15 px-3 py-2 text-xs text-stone-600 flex items-start gap-2">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" className="text-brand mt-0.5 shrink-0">
+                              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 12H9v-2h2v2zm0-4H9V6h2v4z" />
+                            </svg>
+                            <p className="leading-snug">
+                              El horario de {firstName(ab.name)} debe caer dentro del horario de la sucursal.{" "}
+                              <Link
+                                href="/admin/schedule"
+                                className="font-semibold text-brand hover:text-brand-hover underline underline-offset-2"
+                              >
+                                Ver horario de la sucursal →
+                              </Link>
+                            </p>
+                          </div>
+
+                          {scheduleTimeErrors.length > 0 && (
+                            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                              Entrada debe ser anterior a la salida en: {scheduleTimeErrors.join(", ")}
+                            </div>
+                          )}
+                          {scheduleSaveError && (
+                            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex items-center justify-between gap-2">
+                              <span>{scheduleSaveError}</span>
+                              <button
+                                onClick={saveBarberSchedule}
+                                className="text-xs font-semibold underline hover:no-underline shrink-0"
+                              >
+                                Reintentar
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="rounded-xl border border-[#e8e2dc] divide-y divide-[#f0ece8] overflow-hidden">
+                            {DAYS.map(({ dayOfWeek, label }) => {
+                              const day = barberSchedule.find((s) => s.dayOfWeek === dayOfWeek);
+                              if (!day) return null;
+                              const off = !day.isWorking;
+                              return (
+                                <div
+                                  key={dayOfWeek}
+                                  className={`flex items-center gap-3 flex-wrap sm:flex-nowrap px-4 py-3.5 ${
+                                    off ? "bg-stone-50/40" : ""
+                                  }`}
+                                >
+                                  <span
+                                    className={`text-sm font-semibold w-20 sm:w-24 shrink-0 ${
+                                      off ? "text-stone-400" : "text-stone-900"
+                                    }`}
+                                  >
+                                    {label}
+                                  </span>
+                                  <div
+                                    className={`flex items-center gap-2 basis-full sm:basis-auto sm:flex-1 ${
+                                      off ? "opacity-40 pointer-events-none" : ""
+                                    }`}
+                                  >
+                                    <input
+                                      type="time"
+                                      value={day.startTime}
+                                      disabled={off}
+                                      onChange={(e) => updateBarberDay(dayOfWeek, "startTime", e.target.value)}
+                                      className="input-field text-sm w-[110px] sm:w-[120px] py-1.5 font-medium tabular-nums"
+                                    />
+                                    <span className="text-stone-400 text-xs">a</span>
+                                    <input
+                                      type="time"
+                                      value={day.endTime}
+                                      disabled={off}
+                                      onChange={(e) => updateBarberDay(dayOfWeek, "endTime", e.target.value)}
+                                      className="input-field text-sm w-[110px] sm:w-[120px] py-1.5 font-medium tabular-nums"
+                                    />
+                                  </div>
+                                  {!off && (
+                                    <div className="order-last sm:order-none ml-auto sm:ml-0 shrink-0">
+                                      <CopyDayMenu
+                                        sourceDow={dayOfWeek}
+                                        onCopy={(targets) => copyBarberDayTo(dayOfWeek, targets)}
+                                      />
+                                    </div>
+                                  )}
+                                  <label className="flex items-center gap-2 cursor-pointer shrink-0 order-2 sm:order-none ml-auto sm:ml-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={day.isWorking}
+                                      onChange={(e) => updateBarberDay(dayOfWeek, "isWorking", e.target.checked)}
+                                      className="h-4 w-4 rounded border-stone-300 accent-brand"
+                                    />
+                                    <span
+                                      className={`text-[11px] font-semibold rounded-full px-2 py-0.5 ${
+                                        day.isWorking
+                                          ? "bg-blue-50 text-blue-700"
+                                          : "bg-stone-100 text-stone-400"
+                                      }`}
+                                    >
+                                      {day.isWorking ? "Trabaja" : "Libre"}
+                                    </span>
+                                  </label>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

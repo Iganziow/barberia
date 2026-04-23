@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import UserAvatarBadge from "@/components/ui/UserAvatarBadge";
 
 // ─── Icons ──────────────────────────────────────────────────────────────
@@ -109,8 +110,6 @@ const DAYS = [
 
 const DEFAULT_OPEN = "09:00";
 const DEFAULT_CLOSE = "20:00";
-const DEFAULT_START = "09:00";
-const DEFAULT_END = "18:00";
 
 type BranchHour = {
   dayOfWeek: number;
@@ -118,21 +117,10 @@ type BranchHour = {
   closeTime: string;
   isOpen: boolean;
 };
-type BarberDay = {
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  isWorking: boolean;
-};
 type Branch = {
   id: string;
   name: string;
   workingHours: BranchHour[];
-};
-type Barber = {
-  id: string;
-  name: string;
-  color: string | null;
 };
 
 function initBranchHours(existing: BranchHour[]): BranchHour[] {
@@ -142,23 +130,9 @@ function initBranchHours(existing: BranchHour[]): BranchHour[] {
   });
 }
 
-function initBarberSchedule(existing: BarberDay[]): BarberDay[] {
-  return DAYS.map(({ dayOfWeek }) => {
-    const found = existing.find((s) => s.dayOfWeek === dayOfWeek);
-    return found ?? { dayOfWeek, startTime: DEFAULT_START, endTime: DEFAULT_END, isWorking: dayOfWeek !== 0 };
-  });
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
 // ─── Componente principal ───────────────────────────────────────────────
+// El horario por barbero vive en /admin/barbers (tab "Horario"). Esta página
+// es solo para el horario de apertura de cada sucursal.
 export default function SchedulePage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
@@ -166,19 +140,8 @@ export default function SchedulePage() {
   const [savingBranch, setSavingBranch] = useState(false);
   const [branchSaved, setBranchSaved] = useState(false);
   const [branchSaveError, setBranchSaveError] = useState("");
-
-  const [barbers, setBarbers] = useState<Barber[]>([]);
-  const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
-  const [barberSchedule, setBarberSchedule] = useState<BarberDay[]>([]);
-  const [loadingBarber, setLoadingBarber] = useState(false);
-  const [savingBarber, setSavingBarber] = useState(false);
-  const [barberSaved, setBarberSaved] = useState(false);
-  const [barberLoadError, setBarberLoadError] = useState("");
-  const [barberSaveError, setBarberSaveError] = useState("");
-
   const [loading, setLoading] = useState(true);
 
-  // ─── Fetch inicial ───────────────────────────────────────────────────
   const loadBranches = useCallback(() => {
     fetch("/api/admin/schedule")
       .then((r) => r.json())
@@ -196,13 +159,8 @@ export default function SchedulePage() {
 
   useEffect(() => {
     loadBranches();
-    fetch("/api/admin/barbers")
-      .then((r) => r.json())
-      .then((d) => setBarbers(d.barbers || []))
-      .catch(() => {});
   }, [loadBranches]);
 
-  // ─── Handlers sucursal ───────────────────────────────────────────────
   function handleSelectBranch(branchId: string) {
     setSelectedBranch(branchId);
     const branch = branches.find((b) => b.id === branchId);
@@ -263,77 +221,9 @@ export default function SchedulePage() {
     }
   }
 
-  // ─── Handlers barbero ────────────────────────────────────────────────
-  function handleSelectBarber(barberId: string) {
-    setSelectedBarber(barberId);
-    setLoadingBarber(true);
-    setBarberSaved(false);
-    setBarberLoadError("");
-    fetch(`/api/admin/barbers/${barberId}/schedule`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error("No se pudo cargar el horario");
-        return r.json();
-      })
-      .then((d) => setBarberSchedule(initBarberSchedule(d.schedule || [])))
-      .catch((e: Error) => setBarberLoadError(e.message || "Error de conexión"))
-      .finally(() => setLoadingBarber(false));
-  }
-
-  function updateBarberDay(dayOfWeek: number, field: keyof BarberDay, value: string | boolean) {
-    setBarberSchedule((prev) =>
-      prev.map((s) => (s.dayOfWeek === dayOfWeek ? { ...s, [field]: value } : s))
-    );
-    setBarberSaved(false);
-  }
-
-  function copyBarberDayTo(sourceDow: number, targetDows: number[]) {
-    const source = barberSchedule.find((s) => s.dayOfWeek === sourceDow);
-    if (!source) return;
-    setBarberSchedule((prev) =>
-      prev.map((s) =>
-        targetDows.includes(s.dayOfWeek)
-          ? { ...s, startTime: source.startTime, endTime: source.endTime, isWorking: true }
-          : s
-      )
-    );
-    setBarberSaved(false);
-  }
-
-  const barberTimeErrors = barberSchedule
-    .filter((s) => s.isWorking && s.startTime >= s.endTime)
-    .map((s) => DAYS.find((d) => d.dayOfWeek === s.dayOfWeek)?.label);
-
-  async function saveBarberSchedule() {
-    if (!selectedBarber) return;
-    if (barberTimeErrors.length > 0) return;
-    setSavingBarber(true);
-    setBarberSaveError("");
-    try {
-      const r = await fetch(`/api/admin/barbers/${selectedBarber}/schedule`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schedule: barberSchedule }),
-      });
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({ message: "Error al guardar" }));
-        setBarberSaveError(d.message || "No se pudo guardar el horario");
-        return;
-      }
-      setBarberSaved(true);
-    } catch {
-      setBarberSaveError("Error de conexión");
-    } finally {
-      setSavingBarber(false);
-    }
-  }
-
-  const activeBarber = barbers.find((b) => b.id === selectedBarber);
   const selectedBranchData = branches.find((b) => b.id === selectedBranch);
-
-  // Stats para el header
   const activeDaysCount = branchHours.filter((h) => h.isOpen).length;
 
-  // ─── Render ──────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* ── Header ────────────────────────────────────────────────── */}
@@ -406,7 +296,10 @@ export default function SchedulePage() {
               <IconInfo />
             </span>
             <p className="leading-snug">
-              Los horarios de la sucursal definen cuándo está abierta. Los barberos sólo pueden atender dentro de estas horas.
+              Los horarios de la sucursal definen cuándo está abierta. Los barberos sólo pueden atender dentro de estas horas.{" "}
+              <Link href="/admin/barbers" className="font-semibold text-brand hover:text-brand-hover underline underline-offset-2">
+                Ajusta los turnos de cada barbero aquí →
+              </Link>
             </p>
           </div>
 
@@ -468,7 +361,6 @@ export default function SchedulePage() {
                       off ? "bg-stone-50/40" : ""
                     }`}
                   >
-                    {/* Day label */}
                     <span
                       className={`text-sm font-semibold w-20 sm:w-24 shrink-0 ${
                         off ? "text-stone-400" : "text-stone-900"
@@ -476,8 +368,6 @@ export default function SchedulePage() {
                     >
                       {label}
                     </span>
-
-                    {/* Time inputs */}
                     <div
                       className={`flex items-center gap-2 basis-full sm:basis-auto sm:flex-1 ${
                         off ? "opacity-40 pointer-events-none" : ""
@@ -499,8 +389,6 @@ export default function SchedulePage() {
                         className="input-field text-sm w-[110px] sm:w-[120px] py-1.5 font-medium tabular-nums"
                       />
                     </div>
-
-                    {/* Copy menu */}
                     {!off && (
                       <div className="order-last sm:order-none ml-auto sm:ml-0 shrink-0">
                         <CopyDayMenu
@@ -509,8 +397,6 @@ export default function SchedulePage() {
                         />
                       </div>
                     )}
-
-                    {/* Toggle */}
                     <label className="flex items-center gap-2 cursor-pointer shrink-0 order-2 sm:order-none ml-auto sm:ml-0">
                       <input
                         type="checkbox"
@@ -531,206 +417,6 @@ export default function SchedulePage() {
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* ── Barber schedules section ─────────────────────────── */}
-          <div className="pt-4">
-            <div className="mb-4">
-              <h2 className="text-lg font-bold tracking-tight text-stone-900">Horarios por barbero</h2>
-              <p className="text-sm text-stone-500 mt-0.5">
-                Ajusta los turnos de cada barbero dentro del horario de la sucursal.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr] gap-5">
-              {/* Barber list */}
-              <aside className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 px-1">
-                  Selecciona un barbero
-                </p>
-                {barbers.map((b) => {
-                  const isSelected = b.id === selectedBarber;
-                  return (
-                    <button
-                      key={b.id}
-                      onClick={() => handleSelectBarber(b.id)}
-                      className={`w-full flex items-center gap-3 rounded-2xl border p-3 text-left transition-all ${
-                        isSelected
-                          ? "border-brand bg-brand/5 shadow-sm"
-                          : "border-[#e8e2dc] bg-white hover:border-brand/40 hover:shadow-sm"
-                      }`}
-                    >
-                      <div
-                        className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm"
-                        style={{ backgroundColor: b.color || "#c87941" }}
-                      >
-                        {initials(b.name)}
-                      </div>
-                      <span className="font-semibold text-stone-800 text-sm truncate">{b.name}</span>
-                    </button>
-                  );
-                })}
-                {barbers.length === 0 && (
-                  <p className="text-sm text-stone-400 text-center py-4">Sin barberos</p>
-                )}
-              </aside>
-
-              {/* Schedule panel */}
-              <section
-                className={`rounded-2xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden ${
-                  !selectedBarber ? "hidden md:block" : ""
-                }`}
-              >
-                {!selectedBarber && (
-                  <div className="text-center py-16 px-5">
-                    <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-stone-100 text-stone-400">
-                      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="M12 7v5l3 3" />
-                      </svg>
-                    </div>
-                    <p className="text-sm text-stone-500 font-medium">
-                      Selecciona un barbero
-                    </p>
-                    <p className="text-xs text-stone-400 mt-1">
-                      Elige uno de la lista para configurar su horario de trabajo.
-                    </p>
-                  </div>
-                )}
-
-                {selectedBarber && loadingBarber && (
-                  <p className="text-stone-400 text-sm text-center py-12">Cargando...</p>
-                )}
-
-                {selectedBarber && !loadingBarber && barberLoadError && (
-                  <div className="text-center py-12 space-y-2">
-                    <p className="text-sm text-red-600">{barberLoadError}</p>
-                    <button
-                      onClick={() => handleSelectBarber(selectedBarber)}
-                      className="text-xs font-semibold text-brand underline"
-                    >
-                      Reintentar
-                    </button>
-                  </div>
-                )}
-
-                {selectedBarber && !loadingBarber && !barberLoadError && (
-                  <>
-                    <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#e8e2dc]">
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-stone-900">Horario de trabajo</h3>
-                        <p className="text-xs text-stone-500 mt-0.5">{activeBarber?.name}</p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {barberSaved && (
-                          <span className="text-xs text-emerald-600 font-semibold hidden sm:inline">
-                            ✓ Guardado
-                          </span>
-                        )}
-                        <button
-                          onClick={saveBarberSchedule}
-                          disabled={savingBarber || barberTimeErrors.length > 0}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm shadow-brand/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <IconSave />
-                          {savingBarber ? "Guardando..." : "Guardar"}
-                        </button>
-                      </div>
-                    </div>
-
-                    {barberTimeErrors.length > 0 && (
-                      <div className="mx-5 mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
-                        Entrada debe ser anterior a la salida en: {barberTimeErrors.join(", ")}
-                      </div>
-                    )}
-                    {barberSaveError && (
-                      <div className="mx-5 mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex items-center justify-between gap-2">
-                        <span>{barberSaveError}</span>
-                        <button
-                          onClick={saveBarberSchedule}
-                          className="text-xs font-semibold underline hover:no-underline shrink-0"
-                        >
-                          Reintentar
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="divide-y divide-[#f0ece8]">
-                      {DAYS.map(({ dayOfWeek, label }) => {
-                        const day = barberSchedule.find((s) => s.dayOfWeek === dayOfWeek);
-                        if (!day) return null;
-                        const off = !day.isWorking;
-                        return (
-                          <div
-                            key={dayOfWeek}
-                            className={`flex items-center gap-3 sm:gap-5 flex-wrap sm:flex-nowrap px-5 sm:px-6 py-4 ${
-                              off ? "bg-stone-50/40" : ""
-                            }`}
-                          >
-                            <span
-                              className={`text-sm font-semibold w-20 sm:w-24 shrink-0 ${
-                                off ? "text-stone-400" : "text-stone-900"
-                              }`}
-                            >
-                              {label}
-                            </span>
-
-                            <div
-                              className={`flex items-center gap-2 basis-full sm:basis-auto sm:flex-1 ${
-                                off ? "opacity-40 pointer-events-none" : ""
-                              }`}
-                            >
-                              <input
-                                type="time"
-                                value={day.startTime}
-                                disabled={off}
-                                onChange={(e) => updateBarberDay(dayOfWeek, "startTime", e.target.value)}
-                                className="input-field text-sm w-[110px] sm:w-[120px] py-1.5 font-medium tabular-nums"
-                              />
-                              <span className="text-stone-400 text-xs">a</span>
-                              <input
-                                type="time"
-                                value={day.endTime}
-                                disabled={off}
-                                onChange={(e) => updateBarberDay(dayOfWeek, "endTime", e.target.value)}
-                                className="input-field text-sm w-[110px] sm:w-[120px] py-1.5 font-medium tabular-nums"
-                              />
-                            </div>
-
-                            {!off && (
-                              <div className="order-last sm:order-none ml-auto sm:ml-0 shrink-0">
-                                <CopyDayMenu
-                                  sourceDow={dayOfWeek}
-                                  onCopy={(targets) => copyBarberDayTo(dayOfWeek, targets)}
-                                />
-                              </div>
-                            )}
-
-                            <label className="flex items-center gap-2 cursor-pointer shrink-0 order-2 sm:order-none ml-auto sm:ml-0">
-                              <input
-                                type="checkbox"
-                                checked={day.isWorking}
-                                onChange={(e) => updateBarberDay(dayOfWeek, "isWorking", e.target.checked)}
-                                className="h-4 w-4 rounded border-stone-300 accent-brand"
-                              />
-                              <span
-                                className={`text-[11px] font-semibold rounded-full px-2 py-0.5 ${
-                                  day.isWorking
-                                    ? "bg-blue-50 text-blue-700"
-                                    : "bg-stone-100 text-stone-400"
-                                }`}
-                              >
-                                {day.isWorking ? "Trabaja" : "Libre"}
-                              </span>
-                            </label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </section>
             </div>
           </div>
         </>
