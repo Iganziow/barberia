@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import InfoTip from "@/components/ui/InfoTip";
 import Modal from "@/components/ui/modal";
 import UserAvatarBadge from "@/components/ui/UserAvatarBadge";
@@ -516,7 +517,7 @@ export default function BarbersPage() {
                           : "text-stone-500 hover:text-stone-700"
                       }`}
                     >
-                      {t === "profile" ? "Perfil" : t === "services" ? "Servicios" : "Comisión"}
+                      {t === "profile" ? "Perfil" : t === "services" ? "Servicios que hace" : "Comisión"}
                       {innerTab === t && (
                         <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-brand rounded-t" />
                       )}
@@ -617,8 +618,9 @@ export default function BarbersPage() {
                       ) : (
                         <div className="space-y-5">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <h2 className="font-bold text-stone-900">
-                              Servicios de {firstName(ab.name)}
+                            <h2 className="font-bold text-stone-900 flex items-center gap-1">
+                              Servicios que hace {firstName(ab.name)}
+                              <InfoTip text="Los servicios se crean en el menú Servicios. Aquí solo marcas cuáles ofrece este barbero." />
                             </h2>
                             <div className="flex items-center gap-2">
                               <button
@@ -642,6 +644,20 @@ export default function BarbersPage() {
                                 {saving ? "Guardando..." : "Guardar"}
                               </button>
                             </div>
+                          </div>
+                          {/* Banner de contexto: aclara de dónde vienen los servicios
+                              y lleva al catálogo si falta crear alguno. */}
+                          <div className="rounded-lg bg-brand/5 border border-brand/15 px-3 py-2 text-xs text-stone-600 flex items-start gap-2">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" className="text-brand mt-0.5 shrink-0">
+                              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 12H9v-2h2v2zm0-4H9V6h2v4z" />
+                            </svg>
+                            <p className="leading-snug">
+                              Marca solo los servicios que {firstName(ab.name)} realiza.
+                              {" "}
+                              <Link href="/admin/services" className="font-semibold text-brand hover:text-brand-hover underline underline-offset-2">
+                                ¿Falta algún servicio?
+                              </Link>
+                            </p>
                           </div>
                           <div className="rounded-xl border border-[#e8e2dc] divide-y divide-[#f0ece8]">
                             {allServices.map((svc) => {
