@@ -15,6 +15,8 @@ export const GET = withAdmin(async (_req, { orgId }) => {
       phone: b.phone,
       latitude: b.latitude,
       longitude: b.longitude,
+      barberCount: b._count.barbers,
+      monthAppointments: b._count.appointments,
     })),
   });
 });

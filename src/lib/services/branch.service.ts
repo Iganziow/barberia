@@ -2,10 +2,24 @@ import { prisma } from "@/lib/prisma";
 import type { CreateBranchInput, UpdateBranchInput } from "@/lib/validations/branch";
 
 export async function getBranches(orgId: string) {
-  return prisma.branch.findMany({
+  // Inicio del mes actual para el count de citas — criterio más útil que "todas"
+  // (sucursal con 10k citas históricas no es interesante, sí lo es "48 este mes").
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const branches = await prisma.branch.findMany({
     where: { orgId },
     orderBy: { name: "asc" },
+    include: {
+      _count: {
+        select: {
+          barbers: true,
+          appointments: { where: { start: { gte: monthStart } } },
+        },
+      },
+    },
   });
+  return branches;
 }
 
 export async function getBranchById(id: string, orgId: string) {
