@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import InfoTip from "@/components/ui/InfoTip";
 import Modal from "@/components/ui/modal";
 import { formatCLP } from "@/lib/format";
@@ -111,6 +111,11 @@ export default function BarbersPage() {
     setTimeout(() => setToast(null), 3000);
   }
 
+  // Ref al panel derecho para auto-scroll en mobile al seleccionar un barbero.
+  // En desktop con grid 2-col no hace falta; en < md el panel aparece debajo
+  // de la lista y conviene llevar al usuario ahí.
+  const panelRef = useRef<HTMLElement | null>(null);
+
   // Stats del día (desde hook compartido — lo usa también la agenda)
   const quickStats = useQuickStats();
 
@@ -139,6 +144,13 @@ export default function BarbersPage() {
     setProfileError("");
     setLoadingAssign(true);
     setAssignError("");
+    // En mobile llevar el viewport al panel para que el usuario vea el
+    // resultado de la selección (md+ tiene 2 cols y no hace falta)
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      requestAnimationFrame(() => {
+        panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
     fetch(`/api/admin/barbers/${id}/services`)
       .then(async (r) => {
         if (!r.ok) throw new Error("No se pudieron cargar los servicios del barbero");
@@ -391,19 +403,19 @@ export default function BarbersPage() {
 
       {/* ── Loading ──────────────────────────────────────────────────── */}
       {loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr] gap-5">
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-16 rounded-xl bg-stone-100 animate-pulse" />
             ))}
           </div>
-          <div className="h-96 rounded-2xl bg-stone-100 animate-pulse" />
+          <div className="hidden md:block h-96 rounded-2xl bg-stone-100 animate-pulse" />
         </div>
       )}
 
       {/* ── Main grid ────────────────────────────────────────────────── */}
       {!loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr] gap-5">
           {/* Left: barber list */}
           <aside className="space-y-2">
             {barbers.map((b) => {
@@ -458,8 +470,15 @@ export default function BarbersPage() {
             )}
           </aside>
 
-          {/* Right: panel */}
-          <section className="rounded-2xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden">
+          {/* Right: panel — en mobile ocultamos el panel vacío para no
+              agregar ruido debajo de la lista. En md+ mostramos el empty
+              state porque el panel siempre tiene espacio reservado. */}
+          <section
+            ref={panelRef}
+            className={`rounded-2xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden ${
+              !selectedBarber ? "hidden md:block" : ""
+            }`}
+          >
             {!selectedBarber && (
               <div className="text-center py-16 px-5">
                 <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-stone-100 text-stone-400">
