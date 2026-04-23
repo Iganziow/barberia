@@ -315,9 +315,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          {/* Content — sin padding vertical en desktop (la agenda controla su propio spacing) */}
-          <main className="flex-1 px-4 py-4 lg:px-0 lg:py-0">
-            <div className="mx-auto w-full max-w-[1400px] lg:max-w-none lg:px-0">{children}</div>
+          {/* Content — padding horizontal y vertical en todos los breakpoints.
+              La agenda neutraliza este padding con negative margins para ir
+              full-bleed (ver AdminAgenda.tsx: -mx-* -my-*). */}
+          <main className="flex-1 px-4 py-4 lg:px-6 lg:py-6 xl:px-8">
+            <div className="mx-auto w-full max-w-[1400px]">{children}</div>
           </main>
         </div>
 

@@ -310,9 +310,12 @@ export default function AdminAgenda() {
       : null;
 
   return (
-    // El main del AdminShell ya NO tiene padding/max-width en desktop (lg:px-0 lg:py-0
-    // lg:max-w-none). La agenda se extiende al 100% del área disponible.
-    <div className="flex -mx-4 -my-4 lg:mx-0 lg:my-0 min-h-[calc(100dvh-56px)] lg:min-h-screen bg-white border-t border-[#e8e2dc] lg:border-t-0">
+    // El main del AdminShell tiene padding en todos los breakpoints. La agenda
+    // quiere ir full-bleed, así que cancela ese padding con negative margins.
+    // max-w del wrapper es 1400px, así que en pantallas muy anchas la agenda
+    // se limita a esa caja — es el comportamiento deseado (sidebar + main
+    // no deberían estirarse infinitamente).
+    <div className="flex -mx-4 -my-4 lg:-mx-6 lg:-my-6 xl:-mx-8 min-h-[calc(100dvh-56px)] lg:min-h-screen bg-white border-t border-[#e8e2dc] lg:border-t-0">
       {/* Sidebar */}
       <AgendaSidebar
         branches={branches}
