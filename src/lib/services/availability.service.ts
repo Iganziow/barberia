@@ -123,30 +123,125 @@ function earlierTime(a: string, b: string): string {
 
 /**
  * Get all barbers with availability status for a given date and service duration.
+ *
+ * Implementado con batch fetches para evitar N+1:
+ * - 1 query para barberos
+ * - 1 query para horarios de todos los barberos ese día
+ * - 1 query para working hours de la sucursal
+ * - 1 query para appointments de todos los barberos ese día
+ * - 1 query para blocks de todos los barberos ese día
+ *
+ * Antes hacía 4*N queries (una llamada a getAvailableSlots por barbero).
  */
 export async function getBarbersWithAvailability(
   branchId: string,
   date: string,
   durationMin: number
 ) {
+  const dayDate = new Date(date + "T00:00:00");
+  const dayOfWeek = dayDate.getDay();
+  const dayStart = dayDate;
+  const dayEnd = new Date(date + "T23:59:59");
+  const nowMs = Date.now();
+
   const barbers = await prisma.barber.findMany({
     where: { branchId, active: true },
-    include: { user: { select: { name: true } } },
+    select: {
+      id: true,
+      color: true,
+      user: { select: { name: true } },
+    },
   });
+  if (barbers.length === 0) return [];
 
-  const result = await Promise.all(
-    barbers.map(async (b) => {
-      const slots = await getAvailableSlots(b.id, date, durationMin);
-      return {
-        id: b.id,
-        name: b.user.name,
-        color: b.color,
-        availableSlots: slots.length,
-      };
-    })
-  );
+  const barberIds = barbers.map((b) => b.id);
 
-  return result;
+  const [barberSchedules, branchHours, appointments, blocks] = await Promise.all([
+    prisma.barberSchedule.findMany({
+      where: { barberId: { in: barberIds }, dayOfWeek },
+    }),
+    prisma.workingHours.findUnique({
+      where: { branchId_dayOfWeek: { branchId, dayOfWeek } },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        barberId: { in: barberIds },
+        start: { gte: dayStart, lte: dayEnd },
+        status: { notIn: ["CANCELED", "NO_SHOW"] },
+      },
+      select: { barberId: true, start: true, end: true },
+    }),
+    prisma.blockTime.findMany({
+      where: {
+        barberId: { in: barberIds },
+        start: { lte: dayEnd },
+        end: { gte: dayStart },
+      },
+      select: { barberId: true, start: true, end: true },
+    }),
+  ]);
+
+  if (!branchHours || !branchHours.isOpen) {
+    // Sucursal cerrada: todos tienen 0 slots
+    return barbers.map((b) => ({
+      id: b.id,
+      name: b.user.name,
+      color: b.color,
+      availableSlots: 0,
+    }));
+  }
+
+  const scheduleByBarber = new Map<string, typeof barberSchedules[0]>();
+  for (const s of barberSchedules) {
+    scheduleByBarber.set(s.barberId, s);
+  }
+
+  const slotStep = 30;
+
+  return barbers.map((b) => {
+    const sched = scheduleByBarber.get(b.id);
+    if (!sched || !sched.isWorking) {
+      return { id: b.id, name: b.user.name, color: b.color, availableSlots: 0 };
+    }
+    const workStart = laterTime(sched.startTime, branchHours.openTime);
+    const workEnd = earlierTime(sched.endTime, branchHours.closeTime);
+
+    const [startH, startM] = workStart.split(":").map(Number);
+    const [endH, endM] = workEnd.split(":").map(Number);
+
+    const windowStart = new Date(dayDate);
+    windowStart.setHours(startH, startM, 0, 0);
+    const windowEnd = new Date(dayDate);
+    windowEnd.setHours(endH, endM, 0, 0);
+
+    const busy: Array<{ start: number; end: number }> = [];
+    for (const a of appointments) {
+      if (a.barberId === b.id) busy.push({ start: a.start.getTime(), end: a.end.getTime() });
+    }
+    for (const blk of blocks) {
+      if (blk.barberId === b.id) busy.push({ start: blk.start.getTime(), end: blk.end.getTime() });
+    }
+
+    let available = 0;
+    let cursor = windowStart.getTime();
+    while (cursor + durationMin * 60_000 <= windowEnd.getTime()) {
+      const slotStart = cursor;
+      const slotEnd = cursor + durationMin * 60_000;
+      // Filtrar past slots si es hoy
+      if (slotStart > nowMs) {
+        const conflicts = busy.some((bu) => slotStart < bu.end && bu.start < slotEnd);
+        if (!conflicts) available++;
+      }
+      cursor += slotStep * 60_000;
+    }
+
+    return {
+      id: b.id,
+      name: b.user.name,
+      color: b.color,
+      availableSlots: available,
+    };
+  });
 }
 
 export type HeatmapDay = {

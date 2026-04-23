@@ -108,22 +108,44 @@ export async function updateAppointmentStatus(
   if (orgId) {
     const apt = await prisma.appointment.findFirst({
       where: { id, branch: { orgId } },
-      select: { id: true },
+      select: { id: true, payment: { select: { id: true } } },
     });
     if (!apt) return null;
+
+    // Si piden crear un payment pero ya existe uno, rechazamos (evita duplicados)
+    if (data.payment && apt.payment) {
+      throw new Error("Esta cita ya tiene un pago registrado");
+    }
   }
 
-  const updated = await prisma.appointment.update({
-    where: { id },
-    data: {
-      status: data.status,
-      ...(data.cancelReason ? { cancelReason: data.cancelReason } : {}),
-    },
-    include: {
-      branch: { select: { orgId: true } },
-      service: { select: { name: true } },
-      barber: { include: { user: { select: { name: true } } } },
-    },
+  // Payment + status en la misma transacción atómica. Si el update del
+  // status falla, el payment tampoco se crea (rollback). Así evitamos el
+  // estado inconsistente "pagado pero no finalizado".
+  const updated = await prisma.$transaction(async (tx) => {
+    if (data.payment) {
+      await tx.payment.create({
+        data: {
+          appointmentId: id,
+          amount: data.payment.amount,
+          tip: data.payment.tip,
+          method: data.payment.method,
+          status: "PAID",
+          paidAt: new Date(),
+        },
+      });
+    }
+    return tx.appointment.update({
+      where: { id },
+      data: {
+        status: data.status,
+        ...(data.cancelReason ? { cancelReason: data.cancelReason } : {}),
+      },
+      include: {
+        branch: { select: { orgId: true } },
+        service: { select: { name: true } },
+        barber: { include: { user: { select: { name: true } } } },
+      },
+    });
   });
 
   // Fire webhook for status changes (fire-and-forget)

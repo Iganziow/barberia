@@ -89,6 +89,20 @@ export default function SettingsPage() {
       setError("La URL pública es obligatoria");
       return;
     }
+    // Validar formato del logo URL — debe ser http(s) válido.
+    // Previene paths locales, javascript:, data: o strings arbitrarios.
+    if (logo.trim()) {
+      try {
+        const u = new URL(logo.trim());
+        if (u.protocol !== "http:" && u.protocol !== "https:") {
+          setError("La foto debe ser una URL http:// o https://");
+          return;
+        }
+      } catch {
+        setError("La URL de la foto no es válida. Ej: https://tu-sitio.com/foto.jpg");
+        return;
+      }
+    }
 
     setSaving(true);
     setError("");

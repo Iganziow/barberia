@@ -132,33 +132,28 @@ export default function AppointmentDetailModal({
     setUpdating(true);
     setErrorMsg("");
     try {
-      // If completing with payment, register payment first
+      // Una sola llamada atómica: el backend crea el payment (si aplica)
+      // y cambia el status en una transacción Prisma. Si falla cualquiera
+      // de los dos, ninguno persiste — no queda más el estado "pagué pero
+      // no terminé la cita".
+      const payload: Record<string, unknown> = {
+        status: newStatus,
+      };
+      if (newStatus === "CANCELED" && cancelReason) {
+        payload.cancelReason = cancelReason;
+      }
       if (newStatus === "DONE" && showPayment && !apt.payment) {
-        const payRes = await fetch("/api/admin/payments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            appointmentId: apt.id,
-            amount: payAmount,
-            tip: payTip,
-            method: payMethod,
-          }),
-        });
-        if (!payRes.ok) {
-          const err = await payRes.json().catch(() => ({ message: "No se pudo registrar el pago" }));
-          throw new Error(err.message || "Error al registrar el pago");
-        }
+        payload.payment = {
+          amount: payAmount,
+          tip: payTip,
+          method: payMethod,
+        };
       }
 
       const res = await fetch(`/api/admin/appointments/${apt.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: newStatus,
-          ...(newStatus === "CANCELED" && cancelReason
-            ? { cancelReason }
-            : {}),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

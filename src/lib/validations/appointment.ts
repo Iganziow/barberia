@@ -29,6 +29,19 @@ export const UpdateStatusSchema = z.object({
     "NO_SHOW",
   ]),
   cancelReason: z.string().transform(stripHtml).optional(),
+  // Payment opcional: si se pasa junto con status=DONE, se crea en la
+  // misma transacción atómica para evitar el caso "pago registrado pero
+  // estado no cambió" que dejaría la cita inconsistente.
+  payment: z
+    .object({
+      amount: z.number().int().nonnegative(),
+      tip: z.number().int().nonnegative().default(0),
+      // Matches Prisma PaymentMethod enum
+      method: z
+        .enum(["CASH", "DEBIT_CARD", "CREDIT_CARD", "TRANSFER", "OTHER"])
+        .default("CASH"),
+    })
+    .optional(),
 });
 
 export type UpdateStatusInput = z.infer<typeof UpdateStatusSchema>;

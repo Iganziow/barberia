@@ -5,6 +5,10 @@
 
 const store = new Map<string, { count: number; resetAt: number }>();
 
+// Techo de entradas para prevenir OOM en in-memory. 10k IPs activas es
+// más que suficiente para un SaaS de ~100 clientes; cuando se supera,
+// hacemos cleanup de entradas vencidas en la siguiente llamada. Si necesitas
+// escalar a más tráfico, mueve este store a Redis o Upstash.
 const MAX_STORE_SIZE = 10000;
 
 export function rateLimit(

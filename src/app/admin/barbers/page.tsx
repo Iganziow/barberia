@@ -295,49 +295,62 @@ export default function BarbersPage() {
     setSavingProfile(true);
     setProfileError("");
     setProfileSaved(false);
-    const r = await fetch(`/api/admin/barbers/${selectedBarber}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: editName.trim(),
-        email: editEmail.trim(),
-        phone: editPhone.trim() || null,
-        color: editColor,
-      }),
-    });
-    if (r.ok) {
-      setProfileSaved(true);
-      setBarbers((p) =>
-        p.map((b) =>
-          b.id === selectedBarber
-            ? { ...b, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() || null, color: editColor }
-            : b
-        )
-      );
-    } else {
-      const d = await r.json().catch(() => ({ message: "Error" }));
-      setProfileError(d.message);
+    try {
+      const r = await fetch(`/api/admin/barbers/${selectedBarber}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          email: editEmail.trim(),
+          phone: editPhone.trim() || null,
+          color: editColor,
+        }),
+      });
+      if (r.ok) {
+        setProfileSaved(true);
+        setBarbers((p) =>
+          p.map((b) =>
+            b.id === selectedBarber
+              ? { ...b, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() || null, color: editColor }
+              : b
+          )
+        );
+      } else {
+        const d = await r.json().catch(() => ({ message: "Error al guardar" }));
+        setProfileError(d.message || "No se pudo guardar el perfil");
+      }
+    } catch {
+      setProfileError("Error de conexión");
+    } finally {
+      setSavingProfile(false);
     }
-    setSavingProfile(false);
   }
 
   async function changePassword() {
     if (!selectedBarber || newPassword.length < 8) return;
     setSavingPassword(true);
-    const r = await fetch(`/api/admin/barbers/${selectedBarber}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: newPassword }),
-    });
-    if (r.ok) {
-      setPasswordSaved(true);
-      setNewPassword("");
-      setTimeout(() => {
-        setShowPassword(false);
-        setPasswordSaved(false);
-      }, 1500);
+    try {
+      const r = await fetch(`/api/admin/barbers/${selectedBarber}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      if (r.ok) {
+        setPasswordSaved(true);
+        setNewPassword("");
+        setTimeout(() => {
+          setShowPassword(false);
+          setPasswordSaved(false);
+        }, 1500);
+      } else {
+        const d = await r.json().catch(() => ({ message: "Error al cambiar la clave" }));
+        showToast(d.message || "No se pudo cambiar la clave");
+      }
+    } catch {
+      showToast("Error de conexión al cambiar clave");
+    } finally {
+      setSavingPassword(false);
     }
-    setSavingPassword(false);
   }
 
   async function deactivateBarber(id: string) {
@@ -360,30 +373,35 @@ export default function BarbersPage() {
   async function createBarber() {
     setCreating(true);
     setCreateError("");
-    const r = await fetch("/api/admin/barbers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: createName.trim(),
-        email: createEmail.trim(),
-        phone: createPhone.trim() || null,
-        password: createPassword,
-        color: createColor,
-      }),
-    });
-    if (r.ok) {
-      setShowCreate(false);
-      setCreateName("");
-      setCreateEmail("");
-      setCreatePhone("");
-      setCreatePassword("");
-      fetchData();
-      showToast("Barbero creado");
-    } else {
-      const d = await r.json().catch(() => ({ message: "Error" }));
-      setCreateError(d.message);
+    try {
+      const r = await fetch("/api/admin/barbers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: createName.trim(),
+          email: createEmail.trim(),
+          phone: createPhone.trim() || null,
+          password: createPassword,
+          color: createColor,
+        }),
+      });
+      if (r.ok) {
+        setShowCreate(false);
+        setCreateName("");
+        setCreateEmail("");
+        setCreatePhone("");
+        setCreatePassword("");
+        fetchData();
+        showToast("Barbero creado");
+      } else {
+        const d = await r.json().catch(() => ({ message: "Error al crear barbero" }));
+        setCreateError(d.message || "No se pudo crear el barbero");
+      }
+    } catch {
+      setCreateError("Error de conexión");
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   }
 
   function toggleService(sid: string) {
