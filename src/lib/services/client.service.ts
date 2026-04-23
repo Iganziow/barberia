@@ -51,21 +51,61 @@ export async function listClients(
       : {}),
   };
 
-  const [clients, total] = await Promise.all([
+  // Ventana 30 días para el stat "Nuevos"
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Fetch en paralelo:
+  // - clients: página actual con lastVisit (última cita DONE)
+  // - total: count filtrado por query (para pagination)
+  // - statsFullCount: count total sin filtro (stats muestran org entera)
+  // - recurrentGroups: groupBy para computar cuántos clientes tienen >= 2 citas
+  // - new30d: clientes cuyo user se creó en los últimos 30 días
+  const [clients, total, statsFullCount, recurrentGroups, new30d] = await Promise.all([
     prisma.client.findMany({
       where,
       include: {
         user: { select: { name: true, email: true, phone: true } },
         _count: { select: { appointments: true } },
+        appointments: {
+          where: { branch: { orgId } },
+          orderBy: { start: "desc" },
+          take: 1,
+          select: { start: true, status: true },
+        },
       },
       orderBy: { user: { name: "asc" } },
       skip,
       take,
     }),
     prisma.client.count({ where }),
+    prisma.client.count({ where: orgScope(orgId) }),
+    prisma.appointment.groupBy({
+      by: ["clientId"],
+      where: { branch: { orgId } },
+      _count: { id: true },
+    }),
+    prisma.client.count({
+      where: {
+        ...orgScope(orgId),
+        user: { createdAt: { gte: thirtyDaysAgo } },
+      },
+    }),
   ]);
 
-  return { clients, total, skip, take };
+  const recurrent = recurrentGroups.filter((g) => g._count.id >= 2).length;
+
+  return {
+    clients,
+    total,
+    skip,
+    take,
+    stats: {
+      total: statsFullCount,
+      recurrent,
+      new30d,
+    },
+  };
 }
 
 export async function getClientDetail(id: string, orgId: string) {

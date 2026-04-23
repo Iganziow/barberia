@@ -11,7 +11,7 @@ export const GET = withAdmin(async (req, { orgId }) => {
   if (list) {
     const page = Math.max(1, Number(searchParams.get("page") || "1"));
     const pageSize = Math.max(1, Math.min(200, Number(searchParams.get("pageSize") || "50")));
-    const { clients, total, skip, take } = await listClients(orgId, query || undefined, {
+    const { clients, total, skip, take, stats } = await listClients(orgId, query || undefined, {
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
@@ -22,12 +22,16 @@ export const GET = withAdmin(async (req, { orgId }) => {
         email: c.user.email,
         phone: c.user.phone,
         appointmentCount: c._count.appointments,
+        // Última cita (de cualquier estado) — más útil para el operador
+        // que limitar solo a DONE, porque muestra también canceladas/no-show.
+        lastVisitAt: c.appointments[0]?.start?.toISOString() ?? null,
       })),
       page,
       pageSize: take,
       skip,
       total,
       totalPages: Math.max(1, Math.ceil(total / take)),
+      stats,
     });
   }
 
