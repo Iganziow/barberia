@@ -46,21 +46,32 @@ export default function IntegrationsPage() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const [keyError, setKeyError] = useState("");
+
   async function createKey() {
     if (!keyName.trim()) return;
     setCreatingKey(true);
-    const res = await fetch("/api/admin/integrations/keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: keyName.trim() }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setNewKeyValue(data.key);
-      setKeyName("");
-      loadKeys();
+    setKeyError("");
+    try {
+      const res = await fetch("/api/admin/integrations/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: keyName.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewKeyValue(data.key);
+        setKeyName("");
+        loadKeys();
+      } else {
+        const d = await res.json().catch(() => ({ message: "No se pudo crear la API key" }));
+        setKeyError(d.message || "Error al crear API key");
+      }
+    } catch {
+      setKeyError("Error de conexión");
+    } finally {
+      setCreatingKey(false);
     }
-    setCreatingKey(false);
   }
 
   async function revokeKey(id: string) {
@@ -69,21 +80,46 @@ export default function IntegrationsPage() {
     loadKeys();
   }
 
+  const [whError, setWhError] = useState("");
+
   async function createWebhook() {
     if (!whUrl.trim()) return;
-    setCreatingWh(true);
-    const res = await fetch("/api/admin/integrations/webhooks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: whUrl.trim(), event: whEvent }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setNewWhSecret(data.webhook.secret);
-      setWhUrl("");
-      loadWebhooks();
+    setWhError("");
+
+    // Validación del formato URL antes de enviar
+    const trimmed = whUrl.trim();
+    try {
+      const u = new URL(trimmed);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        setWhError("La URL debe empezar con http:// o https://");
+        return;
+      }
+    } catch {
+      setWhError("URL inválida. Ejemplo: https://tu-servicio.com/webhook");
+      return;
     }
-    setCreatingWh(false);
+
+    setCreatingWh(true);
+    try {
+      const res = await fetch("/api/admin/integrations/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: trimmed, event: whEvent }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewWhSecret(data.webhook.secret);
+        setWhUrl("");
+        loadWebhooks();
+      } else {
+        const d = await res.json().catch(() => ({ message: "No se pudo crear el webhook" }));
+        setWhError(d.message || "Error al crear webhook");
+      }
+    } catch {
+      setWhError("Error de conexión");
+    } finally {
+      setCreatingWh(false);
+    }
   }
 
   async function deleteWebhook(id: string) {
@@ -170,6 +206,9 @@ export default function IntegrationsPage() {
                 {creatingKey ? "Creando..." : "Crear key"}
               </button>
             </div>
+            {keyError && (
+              <p className="mt-2 text-xs text-red-600">{keyError}</p>
+            )}
           </div>
 
           {/* Keys list */}
@@ -241,6 +280,9 @@ export default function IntegrationsPage() {
                   {creatingWh ? "Creando..." : "Registrar"}
                 </button>
               </div>
+              {whError && (
+                <p className="text-xs text-red-600">{whError}</p>
+              )}
             </div>
           </div>
 

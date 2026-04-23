@@ -15,21 +15,34 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [fetchError, setFetchError] = useState("");
+  const pageSize = 50;
 
-  const fetchClients = useCallback((query: string) => {
-    const params = new URLSearchParams({ list: "true" });
+  const fetchClients = useCallback((query: string, pageNum: number) => {
+    setFetchError("");
+    const params = new URLSearchParams({ list: "true", page: String(pageNum), pageSize: String(pageSize) });
     if (query) params.set("q", query);
     fetch(`/api/admin/clients?${params}`)
-      .then((r) => (r.ok ? r.json() : { clients: [] }))
-      .then((data) => setClients(data.clients || []))
-      .catch(() => {})
+      .then(async (r) => {
+        if (!r.ok) throw new Error("No se pudieron cargar los clientes");
+        return r.json();
+      })
+      .then((data) => {
+        setClients(data.clients || []);
+        setTotalPages(data.totalPages || 1);
+        setTotal(data.total || 0);
+      })
+      .catch((e: Error) => setFetchError(e.message || "Error de conexión"))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchClients(search), search ? 300 : 0);
+    const timer = setTimeout(() => fetchClients(search, page), search && page === 1 ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [search, fetchClients]);
+  }, [search, page, fetchClients]);
 
   const displayEmail = (email: string | null) =>
     !email || email.includes("@placeholder") ? null : email;
@@ -42,7 +55,7 @@ export default function ClientsPage() {
         </h1>
         <p className="text-sm text-stone-500">
           Historial de visitas, contacto y estadísticas.
-          {clients.length > 0 && ` ${clients.length} cliente${clients.length !== 1 ? "s" : ""} registrado${clients.length !== 1 ? "s" : ""}.`}
+          {total > 0 && ` ${total} cliente${total !== 1 ? "s" : ""} registrado${total !== 1 ? "s" : ""}.`}
         </p>
       </div>
 
@@ -55,9 +68,16 @@ export default function ClientsPage() {
           className="w-full rounded-lg border border-[#e8e2dc] bg-white pl-9 pr-4 py-2.5 text-sm text-stone-800 placeholder:text-stone-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 sm:max-w-md"
           placeholder="Buscar por nombre, teléfono o email..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
       </div>
+
+      {fetchError && !loading && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{fetchError}</span>
+          <button onClick={() => { setLoading(true); fetchClients(search, page); }} className="text-xs font-semibold underline hover:no-underline">Reintentar</button>
+        </div>
+      )}
 
       {loading && (
         <div className="text-center text-stone-400 py-8">Cargando...</div>
@@ -132,6 +152,31 @@ export default function ClientsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination controls */}
+      {!loading && clients.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <p className="text-xs text-stone-500 tabular-nums">
+            Página {page} de {totalPages} · {total} clientes
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setLoading(true); setPage((p) => Math.max(1, p - 1)); }}
+              disabled={page <= 1}
+              className="rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-medium text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-brand/40 hover:text-brand transition"
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => { setLoading(true); setPage((p) => Math.min(totalPages, p + 1)); }}
+              disabled={page >= totalPages}
+              className="rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-medium text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed hover:border-brand/40 hover:text-brand transition"
+            >
+              Siguiente →
+            </button>
+          </div>
         </div>
       )}
     </div>

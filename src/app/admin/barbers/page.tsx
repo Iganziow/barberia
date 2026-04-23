@@ -46,19 +46,26 @@ export default function BarbersPage() {
 
   function showToast(m: string) { setToast(m); setTimeout(() => setToast(null), 3000); }
 
+  const [assignError, setAssignError] = useState("");
+
   const fetchData = useCallback(() => {
     Promise.all([fetch("/api/admin/barbers").then(r => r.json()), fetch("/api/admin/services?all=true").then(r => r.json())])
       .then(([bd, sd]) => { setBarbers(bd.barbers || []); setAllServices((sd.services || []).filter((s: ServiceOption) => s.active)); })
-      .catch(() => {}).finally(() => setLoading(false));
+      .catch(() => showToast("Error al cargar barberos. Revisa tu conexión.")).finally(() => setLoading(false));
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
 
   function selectBarber(id: string) {
     setSelectedBarber(id); setInnerTab("profile"); setProfileSaved(false); setProfileError("");
     setLoadingAssign(true);
-    fetch(`/api/admin/barbers/${id}/services`).then(r => r.json())
+    setAssignError("");
+    fetch(`/api/admin/barbers/${id}/services`)
+      .then(async r => {
+        if (!r.ok) throw new Error("No se pudieron cargar los servicios del barbero");
+        return r.json();
+      })
       .then(d => setAssignments((d.services || []).map((s: BarberServiceAssign) => ({ serviceId: s.serviceId, customPrice: s.customPrice, customDuration: s.customDuration }))))
-      .catch(() => {}).finally(() => setLoadingAssign(false));
+      .catch((e: Error) => setAssignError(e.message || "Error de conexión")).finally(() => setLoadingAssign(false));
     const b = barbers.find(x => x.id === id);
     if (b) { setEditName(b.name); setEditEmail(b.email || ""); setEditPhone(b.phone || ""); setEditColor(b.color || "#c87941"); setCommissionType(b.commissionType); setCommissionValue(String(b.commissionValue)); }
   }
@@ -80,8 +87,19 @@ export default function BarbersPage() {
 
   async function deactivateBarber(id: string) {
     if (!window.confirm("Desactivar este barbero? No aparecera en el booking.")) return;
-    await fetch(`/api/admin/barbers/${id}`, { method: "DELETE" });
-    setBarbers(p => p.filter(b => b.id !== id)); if (selectedBarber === id) setSelectedBarber(null); showToast("Barbero desactivado");
+    try {
+      const r = await fetch(`/api/admin/barbers/${id}`, { method: "DELETE" });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "No se pudo desactivar" }));
+        showToast(d.message || "No se pudo desactivar el barbero");
+        return;
+      }
+      setBarbers(p => p.filter(b => b.id !== id));
+      if (selectedBarber === id) setSelectedBarber(null);
+      showToast("Barbero desactivado");
+    } catch {
+      showToast("Error de conexión al desactivar");
+    }
   }
 
   async function createBarber() {
@@ -93,8 +111,45 @@ export default function BarbersPage() {
   }
 
   function toggleService(sid: string) { setAssignments(p => p.find(a => a.serviceId === sid) ? p.filter(a => a.serviceId !== sid) : [...p, { serviceId: sid, customPrice: null, customDuration: null }]); }
-  async function saveAssignments() { if (!selectedBarber) return; setSaving(true); await fetch(`/api/admin/barbers/${selectedBarber}/services`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ services: assignments }) }); setSaving(false); showToast("Servicios guardados"); }
-  async function saveCommission() { if (!selectedBarber) return; setSavingCommission(true); await fetch(`/api/admin/barbers/${selectedBarber}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commissionType, commissionValue: Number(commissionValue) }) }); setBarbers(p => p.map(b => b.id === selectedBarber ? { ...b, commissionType, commissionValue: Number(commissionValue) } : b)); setSavingCommission(false); setCommissionSaved(true); }
+  async function saveAssignments() {
+    if (!selectedBarber) return;
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/admin/barbers/${selectedBarber}/services`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ services: assignments }) });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "Error al guardar servicios" }));
+        showToast(d.message || "Error al guardar servicios");
+        return;
+      }
+      showToast("Servicios guardados");
+    } catch {
+      showToast("Error de conexión al guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function saveCommission() {
+    if (!selectedBarber) return;
+    // Validación de bounds: % entre 0-100, fijo >= 0
+    const v = Number(commissionValue);
+    if (Number.isNaN(v) || v < 0) { showToast("Valor de comisión inválido"); return; }
+    if (commissionType === "PERCENTAGE" && v > 100) { showToast("El porcentaje no puede superar 100%"); return; }
+    setSavingCommission(true);
+    try {
+      const r = await fetch(`/api/admin/barbers/${selectedBarber}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commissionType, commissionValue: v }) });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "Error al guardar comisión" }));
+        showToast(d.message || "Error al guardar comisión");
+        return;
+      }
+      setBarbers(p => p.map(b => b.id === selectedBarber ? { ...b, commissionType, commissionValue: v } : b));
+      setCommissionSaved(true);
+    } catch {
+      showToast("Error de conexión");
+    } finally {
+      setSavingCommission(false);
+    }
+  }
 
   const ab = barbers.find(b => b.id === selectedBarber);
 
@@ -157,7 +212,12 @@ export default function BarbersPage() {
                   </div>
                 )}
                 {innerTab === "services" && (<>
-                  {loadingAssign ? <p className="text-stone-400 text-sm text-center py-8">Cargando...</p> : (
+                  {loadingAssign ? <p className="text-stone-400 text-sm text-center py-8">Cargando...</p> : assignError ? (
+                    <div className="text-center py-8 space-y-2">
+                      <p className="text-sm text-red-600">{assignError}</p>
+                      <button onClick={() => selectBarber(selectedBarber!)} className="text-xs font-semibold text-brand underline">Reintentar</button>
+                    </div>
+                  ) : (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h2 className="font-bold text-stone-900 text-sm">Servicios de {ab.name}</h2>

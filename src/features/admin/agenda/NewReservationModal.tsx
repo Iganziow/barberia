@@ -161,28 +161,39 @@ export default function NewReservationModal({
     if (service) setPrice(service.price);
   }, [service]);
 
-  // Client search with debounce
-  const searchClients = useCallback((query: string) => {
+  // Client search with debounce + AbortController para evitar race conditions
+  // (resultados viejos sobrescribiendo resultados nuevos si el usuario tipea rápido).
+  const searchClients = useCallback((query: string, signal: AbortSignal) => {
     if (query.length < 2) {
       setClientResults([]);
       setShowResults(false);
       return;
     }
     setSearching(true);
-    fetch(`/api/admin/clients?q=${encodeURIComponent(query)}`)
+    fetch(`/api/admin/clients?q=${encodeURIComponent(query)}`, { signal })
       .then((r) => (r.ok ? r.json() : { clients: [] }))
       .then((data) => {
+        if (signal.aborted) return;
         setClientResults(data.clients || []);
         setShowResults(true);
       })
-      .catch(() => setClientResults([]))
-      .finally(() => setSearching(false));
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+        setClientResults([]);
+      })
+      .finally(() => {
+        if (!signal.aborted) setSearching(false);
+      });
   }, []);
 
   useEffect(() => {
     if (selectedClient) return; // don't search if already selected
-    const timer = setTimeout(() => searchClients(clientQuery), 300);
-    return () => clearTimeout(timer);
+    const controller = new AbortController();
+    const timer = setTimeout(() => searchClients(clientQuery, controller.signal), 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [clientQuery, selectedClient, searchClients]);
 
   function selectClient(client: ClientOption) {

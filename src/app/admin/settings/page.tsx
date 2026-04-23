@@ -38,7 +38,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetch("/api/admin/organization")
-      .then((r) => r.ok ? r.json() : null)
+      .then(async (r) => {
+        if (!r.ok) throw new Error("No se pudo cargar la configuración");
+        return r.json();
+      })
       .then((d) => {
         if (d?.organization) {
           const o = d.organization;
@@ -58,35 +61,64 @@ export default function SettingsPage() {
           setLongitude(b.longitude ? String(b.longitude) : "");
         }
       })
-      .catch(() => {})
+      .catch((e: Error) => setError(e.message || "Error de conexión al cargar"))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleSave() {
+    // Validaciones de bounds antes de enviar
+    if (latitude) {
+      const lat = Number(latitude);
+      if (Number.isNaN(lat) || lat < -90 || lat > 90) {
+        setError("Latitud debe estar entre -90 y 90");
+        return;
+      }
+    }
+    if (longitude) {
+      const lng = Number(longitude);
+      if (Number.isNaN(lng) || lng < -180 || lng > 180) {
+        setError("Longitud debe estar entre -180 y 180");
+        return;
+      }
+    }
+    if (!name.trim()) {
+      setError("El nombre es obligatorio");
+      return;
+    }
+    if (!slug.trim()) {
+      setError("La URL pública es obligatoria");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setSaved(false);
-    const res = await fetch("/api/admin/organization", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(), slug: slug.trim(), description: description.trim() || null,
-        phone: phone.trim() || null, email: email.trim() || null, logo: logo.trim() || null,
-        address: address.trim() || null,
-        latitude: latitude ? Number(latitude) : null, longitude: longitude ? Number(longitude) : null,
-      }),
-    });
-    if (res.ok) {
-      const d = await res.json();
-      setOrg(d.organization);
-      setSlug(d.organization.slug);
-      if (d.branch) setBranch(d.branch);
-      setSaved(true);
-    } else {
-      const d = await res.json().catch(() => ({ message: "Error al guardar" }));
-      setError(d.message);
+    try {
+      const res = await fetch("/api/admin/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(), slug: slug.trim(), description: description.trim() || null,
+          phone: phone.trim() || null, email: email.trim() || null, logo: logo.trim() || null,
+          address: address.trim() || null,
+          latitude: latitude ? Number(latitude) : null, longitude: longitude ? Number(longitude) : null,
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setOrg(d.organization);
+        setSlug(d.organization.slug);
+        if (d.branch) setBranch(d.branch);
+        setSaved(true);
+      } else {
+        const d = await res.json().catch(() => ({ message: "Error al guardar" }));
+        setError(d.message || "No se pudo guardar");
+      }
+    } catch {
+      setError("Error de conexión. Revisa tu red e intenta de nuevo.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   const slugPreview = slug.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");

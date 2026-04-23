@@ -103,18 +103,20 @@ function BarChart({
   data: Array<{ label: string; value: number; color?: string | null }>;
   maxValue: number;
 }) {
-  if (data.length === 0) return <p className="text-sm text-stone-400">Sin datos</p>;
+  // Filtrar valores inválidos (negativos, NaN) — no deberían existir pero por si acaso
+  const cleanData = data.filter((d) => Number.isFinite(d.value) && d.value >= 0);
+  if (cleanData.length === 0) return <p className="text-sm text-stone-400">Sin datos</p>;
   const safeMax = maxValue > 0 ? maxValue : 1;
   return (
     <div className="space-y-2.5">
-      {data.map((item) => (
+      {cleanData.map((item) => (
         <div key={item.label} className="flex items-center gap-3">
           <span className="w-20 sm:w-28 text-xs sm:text-sm text-stone-600 truncate" title={item.label}>{item.label}</span>
           <div className="flex-1 h-6 bg-stone-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
-                width: `${Math.max((item.value / safeMax) * 100, 2)}%`,
+                width: `${Math.min(Math.max((item.value / safeMax) * 100, 2), 100)}%`,
                 backgroundColor: item.color || "#c87941",
               }}
             />
@@ -134,19 +136,26 @@ export default function ReportsDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [commissions, setCommissions] = useState<CommissionRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   const fetchData = useCallback(() => {
     if (activeTab === "commissions") {
       fetch(`/api/admin/reports?period=${period}&type=commissions`)
-        .then((r) => r.json())
-        .then((d) => setCommissions(d.commissions || []))
-        .catch(() => {})
+        .then(async (r) => {
+          if (!r.ok) throw new Error("No se pudieron cargar las liquidaciones");
+          return r.json();
+        })
+        .then((d) => { setCommissions(d.commissions || []); setFetchError(""); })
+        .catch((e: Error) => setFetchError(e.message || "Error de conexión"))
         .finally(() => setLoading(false));
     } else {
       fetch(`/api/admin/reports?period=${period}`)
-        .then((r) => r.json())
-        .then((d) => setData(d))
-        .catch(() => {})
+        .then(async (r) => {
+          if (!r.ok) throw new Error("No se pudieron cargar los reportes");
+          return r.json();
+        })
+        .then((d) => { setData(d); setFetchError(""); })
+        .catch((e: Error) => setFetchError(e.message || "Error de conexión"))
         .finally(() => setLoading(false));
     }
   }, [period, activeTab]);
@@ -251,6 +260,11 @@ export default function ReportsDashboard() {
 
       {loading ? (
         <div className="text-center text-stone-400 py-12">Cargando reportes...</div>
+      ) : fetchError ? (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{fetchError}</span>
+          <button onClick={fetchData} className="text-xs font-semibold underline hover:no-underline">Reintentar</button>
+        </div>
       ) : activeTab === "commissions" ? (
         /* ── Liquidaciones tab ── */
         <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">

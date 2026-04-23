@@ -9,7 +9,12 @@ export const GET = withAdmin(async (req, { orgId }) => {
   const list = searchParams.get("list") === "true";
 
   if (list) {
-    const clients = await listClients(orgId, query || undefined);
+    const page = Math.max(1, Number(searchParams.get("page") || "1"));
+    const pageSize = Math.max(1, Math.min(200, Number(searchParams.get("pageSize") || "50")));
+    const { clients, total, skip, take } = await listClients(orgId, query || undefined, {
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
     return NextResponse.json({
       clients: clients.map((c) => ({
         id: c.id,
@@ -18,6 +23,11 @@ export const GET = withAdmin(async (req, { orgId }) => {
         phone: c.user.phone,
         appointmentCount: c._count.appointments,
       })),
+      page,
+      pageSize: take,
+      skip,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / take)),
     });
   }
 

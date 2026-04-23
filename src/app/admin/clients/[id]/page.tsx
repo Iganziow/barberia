@@ -58,14 +58,20 @@ export default function ClientDetailPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    setLoadError("");
     fetch(`/api/admin/clients/${id}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (r.status === 404) return { notFound: true };
+        if (!r.ok) throw new Error("No se pudo cargar el cliente");
+        return r.json();
+      })
       .then((data) => {
         if (data?.client) setClient(data.client);
       })
-      .catch(() => {})
+      .catch((e: Error) => setLoadError(e.message || "Error de conexión"))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -131,10 +137,17 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="text-center py-20">
-        <p className="text-gray-500">Cliente no encontrado</p>
-        <Link href="/admin/clients" className="text-violet-600 text-sm mt-2 inline-block">
-          Volver a clientes
+      <div className="text-center py-20 space-y-3">
+        {loadError ? (
+          <>
+            <p className="text-sm font-medium text-red-600">{loadError}</p>
+            <button onClick={() => { setLoading(true); setLoadError(""); fetch(`/api/admin/clients/${id}`).then(async r => { if (!r.ok) throw new Error("Error"); return r.json(); }).then(d => { if (d?.client) setClient(d.client); }).catch((e: Error) => setLoadError(e.message)).finally(() => setLoading(false)); }} className="text-xs font-semibold text-brand underline">Reintentar</button>
+          </>
+        ) : (
+          <p className="text-stone-500">Cliente no encontrado</p>
+        )}
+        <Link href="/admin/clients" className="text-brand hover:text-brand-hover text-sm mt-2 inline-block">
+          ← Volver a clientes
         </Link>
       </div>
     );

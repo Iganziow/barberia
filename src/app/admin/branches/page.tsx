@@ -25,11 +25,17 @@ export default function BranchesPage() {
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
 
+  const [fetchError, setFetchError] = useState("");
+
   const fetchBranches = useCallback(() => {
+    setFetchError("");
     fetch("/api/admin/branches")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("No se pudo cargar la lista");
+        return r.json();
+      })
       .then((d) => setBranches(d.branches || []))
-      .catch(() => {})
+      .catch(() => setFetchError("No se pudieron cargar las sucursales. Revisa tu conexión."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -192,6 +198,13 @@ export default function BranchesPage() {
               Cancelar
             </button>
           </div>
+        </div>
+      )}
+
+      {fetchError && !loading && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{fetchError}</span>
+          <button onClick={fetchBranches} className="text-xs font-semibold underline hover:no-underline">Reintentar</button>
         </div>
       )}
 

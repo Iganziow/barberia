@@ -28,28 +28,44 @@ export async function searchClients(query: string, orgId: string) {
   });
 }
 
-export async function listClients(orgId: string, query?: string) {
-  return prisma.client.findMany({
-    where: {
-      ...orgScope(orgId),
-      ...(query
-        ? {
-            user: {
-              OR: [
-                { name: { contains: query, mode: "insensitive" as const } },
-                { email: { contains: query, mode: "insensitive" as const } },
-                { phone: { contains: query } },
-              ],
-            },
-          }
-        : {}),
-    },
-    include: {
-      user: { select: { name: true, email: true, phone: true } },
-      _count: { select: { appointments: true } },
-    },
-    orderBy: { user: { name: "asc" } },
-  });
+export async function listClients(
+  orgId: string,
+  query?: string,
+  opts: { skip?: number; take?: number } = {}
+) {
+  const take = Math.max(1, Math.min(200, opts.take ?? 100));
+  const skip = Math.max(0, opts.skip ?? 0);
+
+  const where = {
+    ...orgScope(orgId),
+    ...(query
+      ? {
+          user: {
+            OR: [
+              { name: { contains: query, mode: "insensitive" as const } },
+              { email: { contains: query, mode: "insensitive" as const } },
+              { phone: { contains: query } },
+            ],
+          },
+        }
+      : {}),
+  };
+
+  const [clients, total] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      include: {
+        user: { select: { name: true, email: true, phone: true } },
+        _count: { select: { appointments: true } },
+      },
+      orderBy: { user: { name: "asc" } },
+      skip,
+      take,
+    }),
+    prisma.client.count({ where }),
+  ]);
+
+  return { clients, total, skip, take };
 }
 
 export async function getClientDetail(id: string, orgId: string) {

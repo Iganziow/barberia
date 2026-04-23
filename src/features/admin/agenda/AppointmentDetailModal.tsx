@@ -88,6 +88,7 @@ export default function AppointmentDetailModal({
   const [payTip, setPayTip] = useState(0);
   const [editingPayment, setEditingPayment] = useState(false);
   const [payMethod, setPayMethod] = useState<string>("CASH");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   useEffect(() => {
     if (!open || !appointmentId) return;
@@ -95,13 +96,20 @@ export default function AppointmentDetailModal({
     setCancelReason("");
     setShowCancelInput(false);
     setShowPayment(false);
+    setErrorMsg("");
 
     fetch(`/api/admin/appointments/${appointmentId}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({ message: "No se pudo cargar la cita" }));
+          throw new Error(err.message || "Error al cargar la cita");
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data?.appointment) setApt(data.appointment);
       })
-      .catch(() => {})
+      .catch((e: Error) => setErrorMsg(e.message || "Error de conexión"))
       .finally(() => setLoading(false));
   }, [open, appointmentId]);
 
@@ -122,10 +130,11 @@ export default function AppointmentDetailModal({
     }
 
     setUpdating(true);
+    setErrorMsg("");
     try {
       // If completing with payment, register payment first
       if (newStatus === "DONE" && showPayment && !apt.payment) {
-        await fetch("/api/admin/payments", {
+        const payRes = await fetch("/api/admin/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -135,6 +144,10 @@ export default function AppointmentDetailModal({
             method: payMethod,
           }),
         });
+        if (!payRes.ok) {
+          const err = await payRes.json().catch(() => ({ message: "No se pudo registrar el pago" }));
+          throw new Error(err.message || "Error al registrar el pago");
+        }
       }
 
       const res = await fetch(`/api/admin/appointments/${apt.id}/status`, {
@@ -148,18 +161,22 @@ export default function AppointmentDetailModal({
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setApt((prev) =>
-          prev ? { ...prev, status: data.appointment.status } : null
-        );
-        setShowCancelInput(false);
-        setCancelReason("");
-        setShowPayment(false);
-        onStatusChange();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "No se pudo actualizar el estado" }));
+        throw new Error(err.message || "Error al actualizar el estado");
       }
-    } catch {
-      // silent
+
+      const data = await res.json();
+      setApt((prev) =>
+        prev ? { ...prev, status: data.appointment.status } : null
+      );
+      setShowCancelInput(false);
+      setCancelReason("");
+      setShowPayment(false);
+      onStatusChange();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error de conexión";
+      setErrorMsg(msg);
     } finally {
       setUpdating(false);
     }
@@ -172,6 +189,19 @@ export default function AppointmentDetailModal({
       {loading && (
         <div className="flex items-center justify-center py-12 text-stone-400">
           Cargando...
+        </div>
+      )}
+
+      {!loading && !apt && errorMsg && (
+        <div className="py-8 text-center space-y-2">
+          <p className="text-sm font-medium text-red-600">{errorMsg}</p>
+          <button onClick={onClose} className="btn-secondary text-sm">Cerrar</button>
+        </div>
+      )}
+
+      {errorMsg && apt && (
+        <div className="mb-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+          {errorMsg}
         </div>
       )}
 

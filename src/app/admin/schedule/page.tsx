@@ -117,30 +117,51 @@ export default function SchedulePage() {
     .filter((h) => h.isOpen && h.openTime >= h.closeTime)
     .map((h) => DAYS.find((d) => d.dayOfWeek === h.dayOfWeek)?.label);
 
+  const [branchSaveError, setBranchSaveError] = useState("");
+
   async function saveBranchHours() {
     if (!selectedBranch) return;
     if (branchTimeErrors.length > 0) return;
     setSavingBranch(true);
-    await fetch("/api/admin/schedule", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ branchId: selectedBranch, hours: branchHours }),
-    });
-    setSavingBranch(false);
-    setBranchSaved(true);
-    const r = await fetch("/api/admin/schedule");
-    const d = await r.json();
-    setBranches(d.branches || []);
+    setBranchSaveError("");
+    try {
+      const r = await fetch("/api/admin/schedule", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId: selectedBranch, hours: branchHours }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "No se pudo guardar el horario" }));
+        setBranchSaveError(d.message || "Error al guardar");
+        return;
+      }
+      setBranchSaved(true);
+      const refreshed = await fetch("/api/admin/schedule");
+      if (refreshed.ok) {
+        const d = await refreshed.json();
+        setBranches(d.branches || []);
+      }
+    } catch {
+      setBranchSaveError("Error de conexión al guardar");
+    } finally {
+      setSavingBranch(false);
+    }
   }
+
+  const [barberLoadError, setBarberLoadError] = useState("");
 
   function handleSelectBarber(barberId: string) {
     setSelectedBarber(barberId);
     setLoadingBarber(true);
     setBarberSaved(false);
+    setBarberLoadError("");
     fetch(`/api/admin/barbers/${barberId}/schedule`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("No se pudo cargar el horario");
+        return r.json();
+      })
       .then((d) => setBarberSchedule(initBarberSchedule(d.schedule || [])))
-      .catch(() => {})
+      .catch((e: Error) => setBarberLoadError(e.message || "Error de conexión"))
       .finally(() => setLoadingBarber(false));
   }
 
@@ -155,17 +176,30 @@ export default function SchedulePage() {
     .filter((s) => s.isWorking && s.startTime >= s.endTime)
     .map((s) => DAYS.find((d) => d.dayOfWeek === s.dayOfWeek)?.label);
 
+  const [barberSaveError, setBarberSaveError] = useState("");
+
   async function saveBarberSchedule() {
     if (!selectedBarber) return;
     if (barberTimeErrors.length > 0) return;
     setSavingBarber(true);
-    await fetch(`/api/admin/barbers/${selectedBarber}/schedule`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ schedule: barberSchedule }),
-    });
-    setSavingBarber(false);
-    setBarberSaved(true);
+    setBarberSaveError("");
+    try {
+      const r = await fetch(`/api/admin/barbers/${selectedBarber}/schedule`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule: barberSchedule }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "Error al guardar" }));
+        setBarberSaveError(d.message || "No se pudo guardar el horario");
+        return;
+      }
+      setBarberSaved(true);
+    } catch {
+      setBarberSaveError("Error de conexión");
+    } finally {
+      setSavingBarber(false);
+    }
   }
 
   const activeBarber = barbers.find((b) => b.id === selectedBarber);
@@ -221,6 +255,12 @@ export default function SchedulePage() {
             {branchTimeErrors.length > 0 && (
               <div className="mx-4 mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">
                 Apertura debe ser anterior al cierre en: {branchTimeErrors.join(", ")}
+              </div>
+            )}
+            {branchSaveError && (
+              <div className="mx-4 mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex items-center justify-between gap-2">
+                <span>{branchSaveError}</span>
+                <button onClick={saveBranchHours} className="text-xs font-semibold underline hover:no-underline shrink-0">Reintentar</button>
               </div>
             )}
 
@@ -300,7 +340,14 @@ export default function SchedulePage() {
               <p className="text-stone-400 text-sm text-center py-12">Cargando...</p>
             )}
 
-            {selectedBarber && !loadingBarber && (
+            {selectedBarber && !loadingBarber && barberLoadError && (
+              <div className="text-center py-12 space-y-2">
+                <p className="text-sm text-red-600">{barberLoadError}</p>
+                <button onClick={() => handleSelectBarber(selectedBarber)} className="text-xs font-semibold text-brand underline">Reintentar</button>
+              </div>
+            )}
+
+            {selectedBarber && !loadingBarber && !barberLoadError && (
               <>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8e2dc] -mx-5 -mt-5 mb-0 rounded-t-xl">
                   <h2 className="font-bold text-stone-900 text-sm">Horario de {activeBarber?.name}</h2>
@@ -315,6 +362,12 @@ export default function SchedulePage() {
                 {barberTimeErrors.length > 0 && (
                   <div className="mx-0 mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">
                     Entrada debe ser anterior a la salida en: {barberTimeErrors.join(", ")}
+                  </div>
+                )}
+                {barberSaveError && (
+                  <div className="mx-0 mt-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex items-center justify-between gap-2">
+                    <span>{barberSaveError}</span>
+                    <button onClick={saveBarberSchedule} className="text-xs font-semibold underline hover:no-underline shrink-0">Reintentar</button>
                   </div>
                 )}
 
