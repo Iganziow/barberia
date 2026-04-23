@@ -35,7 +35,14 @@ export const POST = withAdmin(async (req, { orgId }) => {
   if (!name?.trim() || !email?.trim() || !password?.trim()) {
     throw AppError.badRequest("Nombre, email y contraseña son requeridos");
   }
-  if (password.length < 6) throw AppError.badRequest("Contraseña: mínimo 6 caracteres");
+  // Validaciones consistentes con /admin/profile (min 8). Bounds máximos
+  // previenen payloads oversized.
+  if (typeof name !== "string" || name.length > 100)
+    throw AppError.badRequest("Nombre: máximo 100 caracteres");
+  if (typeof email !== "string" || email.length > 255)
+    throw AppError.badRequest("Email: máximo 255 caracteres");
+  if (password.length < 8) throw AppError.badRequest("Contraseña: mínimo 8 caracteres");
+  if (password.length > 128) throw AppError.badRequest("Contraseña: máximo 128 caracteres");
 
   const existing = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
   if (existing) throw AppError.conflict("Este email ya está registrado");

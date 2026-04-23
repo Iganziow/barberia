@@ -26,10 +26,24 @@ export async function getAppointments(filters: AppointmentFilters) {
           }
         : {}),
     },
-    include: {
-      barber: { include: { user: { select: { name: true } } } },
+    // Usamos select (no include) para evitar over-fetch: Prisma default
+    // trae TODOS los fields de barber/client si usamos include. Con select
+    // explícito solo cargamos lo que el cliente consume en /api/admin/appointments
+    // y /api/admin/appointments/export.
+    select: {
+      id: true,
+      start: true,
+      end: true,
+      status: true,
+      price: true,
+      notePublic: true,
+      noteInternal: true,
+      barberId: true,
+      serviceId: true,
+      clientId: true,
+      barber: { select: { user: { select: { name: true } } } },
       service: { select: { name: true } },
-      client: { include: { user: { select: { name: true, phone: true } } } },
+      client: { select: { user: { select: { name: true, phone: true } } } },
       payment: { select: { id: true } },
     },
     orderBy: { start: "asc" },
@@ -55,11 +69,32 @@ export async function createAppointment(data: CreateAppointmentInput) {
 export async function getAppointmentById(id: string, orgId?: string) {
   return prisma.appointment.findFirst({
     where: { id, ...(orgId ? { branch: { orgId } } : {}) },
-    include: {
-      barber: { include: { user: { select: { name: true } } } },
+    select: {
+      id: true,
+      start: true,
+      end: true,
+      status: true,
+      price: true,
+      notePublic: true,
+      noteInternal: true,
+      cancelReason: true,
+      createdAt: true,
+      barberId: true,
+      serviceId: true,
+      clientId: true,
+      barber: { select: { id: true, user: { select: { name: true } } } },
       service: { select: { id: true, name: true, durationMin: true, price: true } },
-      client: { include: { user: { select: { name: true, email: true, phone: true } } } },
-      payment: true,
+      client: { select: { id: true, user: { select: { name: true, email: true, phone: true } } } },
+      payment: {
+        select: {
+          id: true,
+          amount: true,
+          tip: true,
+          method: true,
+          status: true,
+          paidAt: true,
+        },
+      },
     },
   });
 }

@@ -55,7 +55,8 @@ export const PATCH = withAdmin(async (req, { orgId }, { params }) => {
 
   // Password change
   if (body.password) {
-    if (body.password.length < 6) throw AppError.badRequest("Contraseña: mínimo 6 caracteres");
+    if (body.password.length < 8) throw AppError.badRequest("Contraseña: mínimo 8 caracteres");
+    if (body.password.length > 128) throw AppError.badRequest("Contraseña: máximo 128 caracteres");
     userUpdates.password = await bcrypt.hash(body.password, 10);
   }
 

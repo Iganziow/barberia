@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 const ChangePasswordSchema = z
   .object({
@@ -24,6 +25,20 @@ const ChangePasswordSchema = z
  * para evitar cambios no autorizados si alguien toma una sesión abierta.
  */
 export const PATCH = withAdmin(async (req, { userId }) => {
+  // Rate limit por usuario: máximo 5 cambios de contraseña por hora.
+  // Clave scoped por userId (no por IP) para prevenir brute force incluso
+  // si el atacante rota IPs detrás de un proxy.
+  const { allowed } = rateLimit(`pwd:${userId}`, {
+    maxRequests: 5,
+    windowMs: 60 * 60 * 1000, // 1 hora
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { message: "Demasiados intentos. Intenta de nuevo en una hora." },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = ChangePasswordSchema.safeParse(body);
   if (!parsed.success) {

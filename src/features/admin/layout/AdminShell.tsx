@@ -144,13 +144,32 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       // Disparamos un evento storage "sintético" para que useSyncExternalStore
       // re-lea la snapshot y React re-renderice con el nuevo valor.
       window.dispatchEvent(new StorageEvent("storage", { key: NAV_COLLAPSED_KEY }));
-    } catch {}
+    } catch (err) {
+      // Raro: localStorage lleno o bloqueado (private mode). No es crítico
+      // pero lo logueamos para diagnosticar si aparece en producción.
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("No se pudo persistir preferencia de nav collapse", err);
+      }
+    }
   }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      // Si el backend responde ok, navegamos. Si falla, mantenemos al
+      // usuario en la página — la sesión puede seguir viva y el click
+      // de "cerrar sesión" podría ser accidental.
+      if (res.ok) {
+        router.push("/login");
+      } else {
+        setLoggingOut(false);
+        alert("No se pudo cerrar sesión. Intenta de nuevo.");
+      }
+    } catch {
+      setLoggingOut(false);
+      alert("Error de conexión al cerrar sesión.");
+    }
   }
 
   const displayName = user?.name ?? "...";

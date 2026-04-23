@@ -322,7 +322,7 @@ export default function BarbersPage() {
   }
 
   async function changePassword() {
-    if (!selectedBarber || newPassword.length < 6) return;
+    if (!selectedBarber || newPassword.length < 8) return;
     setSavingPassword(true);
     const r = await fetch(`/api/admin/barbers/${selectedBarber}`, {
       method: "PATCH",
@@ -1102,7 +1102,7 @@ export default function BarbersPage() {
             </button>
             <button
               className="btn-primary text-sm"
-              disabled={creating || !createName.trim() || !createEmail.trim() || createPassword.length < 6}
+              disabled={creating || !createName.trim() || !createEmail.trim() || createPassword.length < 8}
               onClick={createBarber}
             >
               {creating ? "Creando..." : "Crear barbero"}
@@ -1131,7 +1131,7 @@ export default function BarbersPage() {
             />
           </div>
           <div>
-            <label className="field-label">Clave * (min 6)</label>
+            <label className="field-label">Clave * (min 8)</label>
             <input
               type="password"
               className="input-field"
@@ -1178,7 +1178,7 @@ export default function BarbersPage() {
             </button>
             <button
               className="btn-primary text-sm"
-              disabled={savingPassword || newPassword.length < 6}
+              disabled={savingPassword || newPassword.length < 8}
               onClick={changePassword}
             >
               {savingPassword ? "Guardando..." : "Cambiar"}
@@ -1195,7 +1195,7 @@ export default function BarbersPage() {
           </div>
         ) : (
           <div>
-            <label className="field-label">Nueva clave (min 6)</label>
+            <label className="field-label">Nueva clave (min 8)</label>
             <input
               type="password"
               className="input-field"
