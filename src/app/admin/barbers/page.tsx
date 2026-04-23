@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import InfoTip from "@/components/ui/InfoTip";
 import Modal from "@/components/ui/modal";
+import UserAvatarBadge from "@/components/ui/UserAvatarBadge";
 import { formatCLP } from "@/lib/format";
 import { useQuickStats } from "@/hooks/use-quick-stats";
 
@@ -391,13 +392,16 @@ export default function BarbersPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm shadow-brand/20"
-          >
-            <IconPlus />
-            Nuevo barbero
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm shadow-brand/20"
+            >
+              <IconPlus />
+              Nuevo barbero
+            </button>
+            <UserAvatarBadge />
+          </div>
         </div>
       </div>
 
