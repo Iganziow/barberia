@@ -100,9 +100,9 @@ export default function BarbersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 className="text-xl font-bold tracking-tight text-stone-900">Barberos</h1><p className="text-sm text-stone-500">Gestiona tu equipo: perfiles, servicios y comisiones</p></div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">+ Nuevo barbero</button>
+        <button onClick={() => setShowCreate(true)} className="btn-primary text-sm self-start sm:self-auto">+ Nuevo barbero</button>
       </div>
       <PageTip id="barberos" text="Selecciona un barbero para editar su perfil, asignar servicios o configurar su comision." />
       {loading && <div className="text-center text-stone-400 py-8">Cargando...</div>}
@@ -128,10 +128,10 @@ export default function BarbersPage() {
           <div className="rounded-xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden">
             {!selectedBarber && <p className="text-stone-400 text-sm text-center py-12">Selecciona un barbero</p>}
             {selectedBarber && ab && (<>
-              <div className="flex border-b border-[#e8e2dc] px-5 pt-3 gap-1">
+              <div className="flex border-b border-[#e8e2dc] px-3 sm:px-5 pt-3 gap-1 overflow-x-auto">
                 {(["profile", "services", "commission"] as const).map(t => (
                   <button key={t} onClick={() => { setInnerTab(t); setProfileSaved(false); setCommissionSaved(false); }}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition border-b-2 ${innerTab === t ? "border-brand text-brand" : "border-transparent text-stone-400 hover:text-stone-600"}`}>
+                    className={`shrink-0 px-3 sm:px-4 py-2 text-sm font-medium rounded-t-lg transition border-b-2 ${innerTab === t ? "border-brand text-brand" : "border-transparent text-stone-400 hover:text-stone-600"}`}>
                     {t === "profile" ? "Perfil" : t === "services" ? "Servicios" : "Comision"}
                   </button>
                 ))}
@@ -149,10 +149,10 @@ export default function BarbersPage() {
                       <div><label className="field-label">Color en calendario</label><div className="flex items-center gap-3"><input type="color" value={editColor} onChange={e => { setEditColor(e.target.value); setProfileSaved(false); }} className="h-9 w-14 rounded-lg border border-[#e8e2dc] cursor-pointer" /><span className="text-xs text-stone-400 font-mono">{editColor}</span></div></div>
                     </div>
                     {profileError && <p className="text-sm text-red-500">{profileError}</p>}
-                    <div className="flex items-center gap-3 pt-1">
+                    <div className="flex items-center gap-3 pt-1 flex-wrap">
                       <button onClick={saveProfile} disabled={savingProfile} className="btn-primary text-sm">{savingProfile ? "Guardando..." : "Guardar perfil"}</button>
                       {profileSaved && <span className="text-xs text-green-600">Guardado</span>}
-                      <button onClick={() => setShowPassword(true)} className="btn-secondary text-sm ml-auto">Cambiar clave</button>
+                      <button onClick={() => setShowPassword(true)} className="btn-secondary text-sm sm:ml-auto">Cambiar clave</button>
                     </div>
                   </div>
                 )}

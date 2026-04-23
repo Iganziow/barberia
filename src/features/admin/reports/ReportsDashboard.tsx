@@ -206,7 +206,7 @@ export default function ReportsDashboard() {
             <InfoTip text="Liquidaciones muestra cuánto debes pagarle a cada barbero según las citas completadas en el período." />
           </div>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto print:hidden">
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto print:hidden">
           <div className="flex gap-1 rounded-lg border border-[#e8e2dc] bg-white p-1">
             {PERIODS.map((p) => (
               <button
@@ -254,12 +254,12 @@ export default function ReportsDashboard() {
       ) : activeTab === "commissions" ? (
         /* ── Liquidaciones tab ── */
         <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
             <h2 className="font-bold text-stone-900">Liquidaciones de barberos</h2>
             {commissions && commissions.length > 0 && (
               <button
                 onClick={exportCommissionsCSV}
-                className="rounded-lg border border-[#e8e2dc] px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition"
+                className="self-start sm:self-auto rounded-lg border border-[#e8e2dc] px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition"
               >
                 Exportar CSV
               </button>
@@ -371,7 +371,8 @@ export default function ReportsDashboard() {
           {(data?.dailyRevenue || []).length > 0 && (
             <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 shadow-sm">
               <h2 className="font-bold text-stone-900 mb-4">Ingresos diarios</h2>
-              <div className="flex items-end gap-1 h-40">
+              <div className="overflow-x-auto -mx-5 px-5 pb-2">
+              <div className="flex items-end gap-1 h-40 min-w-[480px]">
                 {(data?.dailyRevenue || []).map((day) => {
                   const maxDayRevenue = Math.max(...(data?.dailyRevenue || []).map((d) => d.revenue), 1);
                   const height = Math.max((day.revenue / maxDayRevenue) * 100, 4);
@@ -385,6 +386,7 @@ export default function ReportsDashboard() {
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           )}

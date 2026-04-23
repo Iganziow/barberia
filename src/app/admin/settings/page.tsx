@@ -97,12 +97,12 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header + Save */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-stone-900">Configuraci&oacute;n</h1>
           <p className="text-sm text-stone-500">Datos de tu negocio, foto y ubicaci&oacute;n</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-start sm:self-auto">
           {saved && <span className="text-xs text-green-600 font-medium">Guardado</span>}
           <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
             {saving ? "Guardando..." : "Guardar cambios"}

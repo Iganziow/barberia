@@ -119,7 +119,7 @@ export default function BranchesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-stone-900">
             Sucursales
@@ -131,7 +131,7 @@ export default function BranchesPage() {
         {!showForm && (
           <button
             onClick={openNew}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm"
+            className="self-start sm:self-auto rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm"
           >
             + Nueva sucursal
           </button>
@@ -237,13 +237,13 @@ export default function BranchesPage() {
           {branches.map((b) => (
             <div
               key={b.id}
-              className="group rounded-xl border border-[#e8e2dc] bg-white p-4 flex items-center justify-between gap-4 hover:shadow-sm transition"
+              className="group rounded-xl border border-[#e8e2dc] bg-white p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:shadow-sm transition"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-stone-900">
                   {b.name}
                 </p>
-                <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
+                <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1 text-xs text-stone-500">
                   {b.address && (
                     <span className="inline-flex items-center gap-1">
                       <svg
@@ -279,7 +279,7 @@ export default function BranchesPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+              <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition">
                 <button
                   onClick={() => openEdit(b)}
                   className="rounded-md px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-100 transition"

@@ -119,7 +119,7 @@ export default function ServicesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-stone-900">Servicios</h1>
           <p className="text-sm text-stone-500">
@@ -127,7 +127,7 @@ export default function ServicesPage() {
             {services.length > 0 && ` ${services.filter((s) => s.active).length} activo${services.filter((s) => s.active).length !== 1 ? "s" : ""} de ${services.length}.`}
           </p>
         </div>
-        <button onClick={openNew} className="btn-primary text-sm">
+        <button onClick={openNew} className="btn-primary text-sm self-start sm:self-auto">
           + Nuevo servicio
         </button>
       </div>
@@ -263,7 +263,7 @@ export default function ServicesPage() {
                 svc.active ? "border-[#e8e2dc]" : "border-red-100 opacity-50"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-stone-900">{svc.name}</h3>

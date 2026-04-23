@@ -106,7 +106,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[#e8e2dc]">
+      <div className="flex gap-1 border-b border-[#e8e2dc] overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
         {[
           { key: "keys", label: "API Keys" },
           { key: "webhooks", label: "Webhooks" },
@@ -115,7 +115,7 @@ export default function IntegrationsPage() {
           <button
             key={t.key}
             onClick={() => setTab(t.key as typeof tab)}
-            className={`px-4 py-2 text-sm font-medium transition border-b-2 ${
+            className={`shrink-0 px-4 py-2 text-sm font-medium transition border-b-2 ${
               tab === t.key
                 ? "border-[#c87941] text-[#c87941]"
                 : "border-transparent text-stone-400 hover:text-stone-600"
@@ -155,7 +155,7 @@ export default function IntegrationsPage() {
           {/* Create key form */}
           <div className="rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm">
             <p className="text-sm font-bold text-stone-800 mb-3">Crear nueva API Key</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 className="input-field flex-1"
                 value={keyName}
@@ -184,17 +184,17 @@ export default function IntegrationsPage() {
           ) : (
             <div className="space-y-2">
               {keys.map((k) => (
-                <div key={k.id} className={`rounded-xl border bg-white p-4 shadow-sm flex items-center justify-between ${k.active ? "border-[#e8e2dc]" : "border-red-100 opacity-50"}`}>
-                  <div>
-                    <p className="text-sm font-semibold text-stone-800">{k.name}</p>
-                    <p className="text-xs text-stone-400 font-mono">{k.prefix}...</p>
+                <div key={k.id} className={`rounded-xl border bg-white p-4 shadow-sm flex items-start justify-between gap-3 ${k.active ? "border-[#e8e2dc]" : "border-red-100 opacity-50"}`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-stone-800 truncate">{k.name}</p>
+                    <p className="text-xs text-stone-400 font-mono break-all">{k.prefix}...</p>
                     <p className="text-[10px] text-stone-400 mt-0.5">
                       {k.lastUsedAt ? `Último uso: ${new Date(k.lastUsedAt).toLocaleDateString("es-CL")}` : "Nunca usada"}
                       {!k.active && " · Revocada"}
                     </p>
                   </div>
                   {k.active && (
-                    <button onClick={() => revokeKey(k.id)} className="text-xs font-medium text-red-500 hover:text-red-700">
+                    <button onClick={() => revokeKey(k.id)} className="shrink-0 text-xs font-medium text-red-500 hover:text-red-700">
                       Revocar
                     </button>
                   )}
@@ -229,7 +229,7 @@ export default function IntegrationsPage() {
                 onChange={(e) => setWhUrl(e.target.value)}
                 placeholder="URL (ej: https://pulstock.cl/api/webhooks/marbrava)"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <select className="input-field flex-1" value={whEvent} onChange={(e) => setWhEvent(e.target.value)}>
                   {EVENTS.map((ev) => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
                 </select>
@@ -253,14 +253,14 @@ export default function IntegrationsPage() {
           ) : (
             <div className="space-y-2">
               {webhooks.map((w) => (
-                <div key={w.id} className="rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-stone-800 truncate">{w.url}</p>
-                    <p className="text-xs text-stone-400">
+                <div key={w.id} className="rounded-xl border border-[#e8e2dc] bg-white p-4 shadow-sm flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-stone-800 break-all">{w.url}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">
                       {EVENTS.find((e) => e.value === w.event)?.label ?? w.event}
                     </p>
                   </div>
-                  <button onClick={() => deleteWebhook(w.id)} className="shrink-0 text-xs font-medium text-red-500 hover:text-red-700 ml-3">
+                  <button onClick={() => deleteWebhook(w.id)} className="shrink-0 text-xs font-medium text-red-500 hover:text-red-700">
                     Eliminar
                   </button>
                 </div>
@@ -282,7 +282,7 @@ export default function IntegrationsPage() {
             <div>
               <h3 className="font-semibold text-stone-800 mb-1">2. Configurar en PulStock</h3>
               <p>En PulStock, configura la conexión con MarBrava usando:</p>
-              <div className="mt-2 rounded-lg bg-stone-50 p-3 font-mono text-xs space-y-1">
+              <div className="mt-2 rounded-lg bg-stone-50 p-3 font-mono text-xs overflow-x-auto space-y-1">
                 <p><span className="text-stone-400">Base URL:</span> {typeof window !== "undefined" ? window.location.origin : ""}/api/v1</p>
                 <p><span className="text-stone-400">Header:</span> Authorization: Bearer mb_live_xxx...</p>
               </div>
@@ -290,7 +290,7 @@ export default function IntegrationsPage() {
 
             <div>
               <h3 className="font-semibold text-stone-800 mb-1">3. Endpoints disponibles</h3>
-              <div className="mt-2 rounded-lg bg-stone-50 p-3 font-mono text-xs space-y-2">
+              <div className="mt-2 rounded-lg bg-stone-50 p-3 font-mono text-xs overflow-x-auto space-y-2">
                 <p><span className="text-emerald-600">GET</span> /api/v1/services — Listar servicios</p>
                 <p><span className="text-emerald-600">GET</span> /api/v1/appointments?status=DONE&amp;from=ISO&amp;to=ISO — Citas completadas</p>
               </div>
@@ -299,7 +299,7 @@ export default function IntegrationsPage() {
             <div>
               <h3 className="font-semibold text-stone-800 mb-1">4. Webhooks (opcional)</h3>
               <p>Registra una URL en la pestaña &quot;Webhooks&quot; para recibir eventos automáticos cuando se completa o cancela una cita.</p>
-              <div className="mt-2 rounded-lg bg-stone-50 p-3 font-mono text-xs">
+              <div className="mt-2 rounded-lg bg-stone-50 p-3 font-mono text-xs overflow-x-auto">
                 <p className="text-stone-400">Payload de ejemplo:</p>
                 <pre className="mt-1 text-stone-700">{`{
   "event": "appointment.completed",

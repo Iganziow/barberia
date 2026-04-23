@@ -191,10 +191,10 @@ export default function SchedulePage() {
         <div className="max-w-2xl">
           {/* Branch selector */}
           {branches.length > 1 && (
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 overflow-x-auto -mx-4 px-4 pb-1 sm:mx-0 sm:px-0">
               {branches.map((b) => (
                 <button key={b.id} onClick={() => handleSelectBranch(b.id)}
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${selectedBranch === b.id ? "border-brand bg-brand/5 text-stone-900" : "border-[#e8e2dc] bg-white text-stone-500 hover:border-brand/30"}`}>
+                  className={`shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition ${selectedBranch === b.id ? "border-brand bg-brand/5 text-stone-900" : "border-[#e8e2dc] bg-white text-stone-500 hover:border-brand/30"}`}>
                   {b.name}
                 </button>
               ))}
@@ -230,18 +230,9 @@ export default function SchedulePage() {
                 if (!hour) return null;
                 return (
                   <div key={dayOfWeek} className={`px-4 sm:px-5 py-3 ${!hour.isOpen ? "bg-stone-50/60" : ""}`}>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:justify-between">
                       <span className={`text-sm font-semibold w-20 sm:w-24 shrink-0 ${hour.isOpen ? "text-stone-800" : "text-stone-400"}`}>{label}</span>
-                      <div className={`flex items-center gap-1.5 ${!hour.isOpen ? "opacity-25 pointer-events-none" : ""}`}>
-                        <input type="time" value={hour.openTime} disabled={!hour.isOpen}
-                          onChange={(e) => updateBranchHour(dayOfWeek, "openTime", e.target.value)}
-                          className="input-field text-xs sm:text-sm w-[100px] sm:w-[115px] py-1.5" />
-                        <span className="text-stone-400 text-[10px]">a</span>
-                        <input type="time" value={hour.closeTime} disabled={!hour.isOpen}
-                          onChange={(e) => updateBranchHour(dayOfWeek, "closeTime", e.target.value)}
-                          className="input-field text-xs sm:text-sm w-[100px] sm:w-[115px] py-1.5" />
-                      </div>
-                      <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                      <label className="order-first ml-auto sm:order-none flex items-center gap-1.5 cursor-pointer shrink-0 sm:ml-0">
                         <input type="checkbox" checked={hour.isOpen}
                           onChange={(e) => updateBranchHour(dayOfWeek, "isOpen", e.target.checked)}
                           className="h-4 w-4 rounded border-stone-300 accent-brand" />
@@ -249,6 +240,15 @@ export default function SchedulePage() {
                           {hour.isOpen ? "Abierto" : "Cerrado"}
                         </span>
                       </label>
+                      <div className={`flex items-center gap-1.5 basis-full sm:basis-auto ${!hour.isOpen ? "opacity-25 pointer-events-none" : ""}`}>
+                        <input type="time" value={hour.openTime} disabled={!hour.isOpen}
+                          onChange={(e) => updateBranchHour(dayOfWeek, "openTime", e.target.value)}
+                          className="input-field text-xs sm:text-sm w-[110px] sm:w-[115px] py-1.5" />
+                        <span className="text-stone-400 text-[10px]">a</span>
+                        <input type="time" value={hour.closeTime} disabled={!hour.isOpen}
+                          onChange={(e) => updateBranchHour(dayOfWeek, "closeTime", e.target.value)}
+                          className="input-field text-xs sm:text-sm w-[110px] sm:w-[115px] py-1.5" />
+                      </div>
                     </div>
                   </div>
                 );
@@ -323,18 +323,9 @@ export default function SchedulePage() {
                     const day = barberSchedule.find((s) => s.dayOfWeek === dayOfWeek);
                     if (!day) return null;
                     return (
-                      <div key={dayOfWeek} className={`flex items-center gap-3 sm:gap-4 px-5 py-3.5 ${!day.isWorking ? "bg-stone-50/50" : ""}`}>
-                        <span className={`w-24 text-sm font-semibold shrink-0 ${day.isWorking ? "text-stone-800" : "text-stone-400"}`}>{label}</span>
-                        <div className={`flex items-center gap-2 ${!day.isWorking ? "opacity-30 pointer-events-none" : ""}`}>
-                          <input type="time" value={day.startTime} disabled={!day.isWorking}
-                            onChange={(e) => updateBarberDay(dayOfWeek, "startTime", e.target.value)}
-                            className="input-field text-sm w-[120px]" />
-                          <span className="text-stone-400 text-xs font-medium">a</span>
-                          <input type="time" value={day.endTime} disabled={!day.isWorking}
-                            onChange={(e) => updateBarberDay(dayOfWeek, "endTime", e.target.value)}
-                            className="input-field text-sm w-[120px]" />
-                        </div>
-                        <div className="ml-auto shrink-0">
+                      <div key={dayOfWeek} className={`flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap px-5 py-3.5 ${!day.isWorking ? "bg-stone-50/50" : ""}`}>
+                        <span className={`w-20 sm:w-24 text-sm font-semibold shrink-0 ${day.isWorking ? "text-stone-800" : "text-stone-400"}`}>{label}</span>
+                        <div className="ml-auto sm:ml-0 shrink-0 order-2 sm:order-none">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={day.isWorking}
                               onChange={(e) => updateBarberDay(dayOfWeek, "isWorking", e.target.checked)}
@@ -343,6 +334,15 @@ export default function SchedulePage() {
                               {day.isWorking ? "Trabaja" : "Libre"}
                             </span>
                           </label>
+                        </div>
+                        <div className={`flex items-center gap-2 basis-full sm:basis-auto sm:ml-auto order-3 sm:order-none ${!day.isWorking ? "opacity-30 pointer-events-none" : ""}`}>
+                          <input type="time" value={day.startTime} disabled={!day.isWorking}
+                            onChange={(e) => updateBarberDay(dayOfWeek, "startTime", e.target.value)}
+                            className="input-field text-sm w-[115px] sm:w-[120px]" />
+                          <span className="text-stone-400 text-xs font-medium">a</span>
+                          <input type="time" value={day.endTime} disabled={!day.isWorking}
+                            onChange={(e) => updateBarberDay(dayOfWeek, "endTime", e.target.value)}
+                            className="input-field text-sm w-[115px] sm:w-[120px]" />
                         </div>
                       </div>
                     );
