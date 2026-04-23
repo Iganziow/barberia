@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import UserAvatarBadge from "@/components/ui/UserAvatarBadge";
 
 type BranchRow = {
   id: string;
@@ -192,41 +193,58 @@ export default function BranchesPage() {
   return (
     <div className="space-y-6">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pb-5 border-b border-[#e8e2dc]">
         <div className="min-w-0">
           <h1 className="text-2xl font-extrabold tracking-tight text-stone-900">
             Sucursales
           </h1>
           <p className="text-sm text-stone-500 mt-0.5">
-            Gestiona las sedes de tu negocio: dirección, contacto y equipo.
+            Gestiona las sedes de tu negocio: dirección, contacto y equipo
           </p>
-          {/* Stats pills */}
+        </div>
+        <div className="flex items-start gap-4 sm:gap-8 flex-wrap">
+          {/* Stats inline (consistente con el resto del admin) */}
           {!loading && branches.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand">
-                <IconBuilding className="h-3.5 w-3.5" />
-                {totals.branches} {totals.branches === 1 ? "sucursal" : "sucursales"}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600">
-                <IconUsers className="h-3.5 w-3.5" />
-                {totals.barbers} {totals.barbers === 1 ? "barbero" : "barberos"}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                <IconCalendar className="h-3.5 w-3.5" />
-                {totals.appointments} citas este mes
-              </span>
+            <div className="flex items-start gap-6 sm:gap-8">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  Sucursales
+                </p>
+                <p className="text-2xl font-extrabold text-stone-900 mt-0.5 tabular-nums">
+                  {totals.branches}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  Barberos
+                </p>
+                <p className="text-2xl font-extrabold text-brand mt-0.5 tabular-nums">
+                  {totals.barbers}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  Citas mes
+                </p>
+                <p className="text-2xl font-extrabold text-emerald-600 mt-0.5 tabular-nums">
+                  {totals.appointments}
+                </p>
+              </div>
             </div>
           )}
+          <div className="flex items-center gap-3">
+            {!showForm && (
+              <button
+                onClick={openNew}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm shadow-brand/20 shrink-0"
+              >
+                <IconPlus className="h-3.5 w-3.5" />
+                Nueva sucursal
+              </button>
+            )}
+            <UserAvatarBadge />
+          </div>
         </div>
-        {!showForm && (
-          <button
-            onClick={openNew}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm shadow-brand/20 shrink-0"
-          >
-            <IconPlus className="h-3.5 w-3.5" />
-            Nueva sucursal
-          </button>
-        )}
       </div>
 
       {/* ── Formulario inline ──────────────────────────────────────────── */}
