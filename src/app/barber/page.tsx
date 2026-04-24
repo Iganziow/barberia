@@ -19,7 +19,23 @@ type Stats = {
   pendingToday: number;
   revenueToday: number;
 };
-type BarberInfo = { id: string; name: string; color: string | null; phone?: string | null };
+type BarberInfo = {
+  id: string;
+  name: string;
+  color: string | null;
+  phone?: string | null;
+  commissionType?: "PERCENTAGE" | "FIXED";
+  commissionValue?: number;
+};
+type MonthStats = {
+  revenue: number;
+  tips: number;
+  paidCount: number;
+  completed: number;
+  commissionEarned: number;
+  commissionDeltaPct: number | null;
+  avgTicket: number;
+};
 
 type ClientNote = {
   id: string;
@@ -74,10 +90,16 @@ function IconClock() { return <svg width="12" height="12" viewBox="0 0 24 24" fi
 export default function BarberPage() {
   const [barber, setBarber] = useState<BarberInfo | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [monthStats, setMonthStats] = useState<MonthStats | null>(null);
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [blockModal, setBlockModal] = useState<{ open: boolean; start?: string; end?: string }>({ open: false });
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+
+  // Cancel flow: cuando el barbero clickea "Cancelar", aparece un input
+  // para el motivo antes de enviar el PATCH (igual que el modal del admin).
+  const [showCancelInput, setShowCancelInput] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   // Filtro de status (oculta CANCELED por defecto — ruido visual)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -111,6 +133,7 @@ export default function BarberPage() {
         if (d) {
           setBarber(d.barber);
           setStats(d.stats);
+          if (d.month) setMonthStats(d.month);
         }
       })
       .catch(() => {});
@@ -124,7 +147,10 @@ export default function BarberPage() {
     fetch("/api/barber/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d) setStats(d.stats);
+        if (d) {
+          setStats(d.stats);
+          if (d.month) setMonthStats(d.month);
+        }
       })
       .catch(() => {});
   }, []);
@@ -204,6 +230,8 @@ export default function BarberPage() {
     setNoteInput(selectedEvent.noteInternal || "");
     setNoteSaved(false);
     setEditingNote(false);
+    setShowCancelInput(false);
+    setCancelReason("");
     setLoadingClientNotes(true);
     fetch(`/api/barber/clients/${selectedEvent.clientId}/notes`)
       .then((r) => (r.ok ? r.json() : { notes: [] }))
@@ -228,7 +256,9 @@ export default function BarberPage() {
   }, []);
 
   // ─── Status change con optimistic UI ─────────────────────────────
-  async function updateStatus(id: string, status: "DONE" | "NO_SHOW" | "RESERVED") {
+  type NextStatus = "RESERVED" | "ARRIVED" | "IN_PROGRESS" | "DONE" | "NO_SHOW" | "CANCELED";
+
+  async function updateStatus(id: string, status: NextStatus, reason?: string) {
     if (status === "NO_SHOW" && !window.confirm("¿Marcar como no asistió?")) return;
 
     // Optimistic update: cambiamos antes de esperar al backend
@@ -241,15 +271,21 @@ export default function BarberPage() {
 
     setUpdatingId(id);
     try {
+      const payload: Record<string, unknown> = { status };
+      if (status === "CANCELED" && reason && reason.trim()) {
+        payload.cancelReason = reason.trim();
+      }
       const res = await fetch(`/api/barber/appointments/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
+        // Reset del input de cancelación si estaba abierto
+        setShowCancelInput(false);
+        setCancelReason("");
         refreshStats();
       } else {
-        // Rollback si falla
         setCalEvents(prevEvents);
         setSelectedEvent(prevSelected);
         alert("No se pudo actualizar el estado. Intenta de nuevo.");
@@ -326,6 +362,62 @@ export default function BarberPage() {
             <p className="text-xl font-extrabold text-brand mt-0.5 tabular-nums">{formatCLP(stats.revenueToday)}</p>
           </div>
         </div>
+      )}
+
+      {/* ── Card "Mi mes": comisión acumulada + revenue ── */}
+      {monthStats && barber && (
+        <section className="rounded-xl border border-[#e8e2dc] bg-gradient-to-br from-brand/[0.06] via-white to-white shadow-sm p-4 sm:p-5 mb-4 overflow-hidden relative">
+          {/* Decorative corner glow */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-brand/10 blur-3xl pointer-events-none" aria-hidden />
+          <div className="relative flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-brand">
+                Tu mes
+              </p>
+              <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+                <p className="text-3xl sm:text-4xl font-extrabold text-stone-900 tabular-nums leading-none">
+                  {formatCLP(monthStats.commissionEarned)}
+                </p>
+                {monthStats.commissionDeltaPct !== null && (
+                  <span
+                    className={`text-xs font-bold tabular-nums ${
+                      monthStats.commissionDeltaPct >= 0 ? "text-emerald-600" : "text-red-500"
+                    }`}
+                  >
+                    {monthStats.commissionDeltaPct >= 0 ? "↑" : "↓"} {Math.abs(monthStats.commissionDeltaPct)}% vs mes pasado
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-stone-500 mt-1">
+                Comisión estimada · {" "}
+                {barber.commissionType === "PERCENTAGE"
+                  ? `${barber.commissionValue ?? 0}% de los ingresos`
+                  : `${formatCLP(barber.commissionValue ?? 0)} por cita completada`}
+              </p>
+            </div>
+            {/* Mini breakdown de la derecha */}
+            <div className="grid grid-cols-3 gap-4 sm:gap-6 sm:border-l sm:border-stone-200 sm:pl-5">
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">Ingresos</p>
+                <p className="text-sm font-bold text-stone-900 mt-0.5 tabular-nums">
+                  {formatCLP(monthStats.revenue)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">Completadas</p>
+                <p className="text-sm font-bold text-stone-900 mt-0.5 tabular-nums">
+                  {monthStats.completed}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">Propinas</p>
+                <p className="text-sm font-bold text-emerald-600 mt-0.5 tabular-nums">
+                  {formatCLP(monthStats.tips)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* ── Próximas citas (card inicial) ── */}
@@ -591,18 +683,125 @@ export default function BarberPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-[#f0ece8] bg-stone-50/40 p-4 grid grid-cols-2 gap-2 shrink-0">
-                  {ev.status === "RESERVED" && (
-                    <>
-                      <button onClick={() => updateStatus(ev.id, "DONE")} disabled={isUpdating} className="rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm shadow-emerald-500/20">Completar cita</button>
-                      <button onClick={() => updateStatus(ev.id, "NO_SHOW")} disabled={isUpdating} className="rounded-xl bg-red-50 py-2.5 text-sm font-bold text-red-600 hover:bg-red-100 transition disabled:opacity-50">No asistió</button>
-                    </>
-                  )}
-                  {(ev.status === "DONE" || ev.status === "NO_SHOW") && (
-                    <button onClick={() => updateStatus(ev.id, "RESERVED")} disabled={isUpdating} className="rounded-xl bg-stone-100 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-200 transition disabled:opacity-50">Deshacer</button>
-                  )}
-                  <button onClick={() => setSelectedEvent(null)} className="rounded-xl border border-[#e8e2dc] bg-white py-2.5 text-sm font-medium text-stone-500 hover:bg-stone-50 transition col-span-2 sm:col-auto">Cerrar</button>
-                </div>
+                {/* Cancel reason input — aparece cuando el barbero pulsa "Cancelar" */}
+                {showCancelInput && (
+                  <div className="border-t border-red-100 bg-red-50/60 p-4 space-y-2 shrink-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-red-700">
+                      Motivo de cancelación
+                    </p>
+                    <textarea
+                      className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 resize-y min-h-[60px]"
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="Ej: Cliente avisó que no podía venir, reagendó por teléfono…"
+                      maxLength={500}
+                      autoFocus
+                    />
+                    <div className="flex gap-2 justify-end flex-wrap">
+                      <button
+                        onClick={() => { setShowCancelInput(false); setCancelReason(""); }}
+                        className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition"
+                      >
+                        Volver
+                      </button>
+                      <button
+                        onClick={() => updateStatus(ev.id, "CANCELED", cancelReason)}
+                        disabled={isUpdating}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition disabled:opacity-50"
+                      >
+                        {isUpdating ? "Cancelando..." : "Confirmar cancelación"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status action buttons — flow granular igual que el admin */}
+                {!showCancelInput && (
+                  <div className="border-t border-[#f0ece8] bg-stone-50/40 p-4 shrink-0 space-y-2">
+                    {/* Línea principal de avance — botón grande destacado según estado actual */}
+                    {ev.status === "RESERVED" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          onClick={() => updateStatus(ev.id, "ARRIVED")}
+                          disabled={isUpdating}
+                          className="rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition disabled:opacity-50 shadow-sm shadow-blue-500/20"
+                        >
+                          Marcar llegó
+                        </button>
+                        <button
+                          onClick={() => updateStatus(ev.id, "DONE")}
+                          disabled={isUpdating}
+                          className="rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm shadow-emerald-500/20"
+                        >
+                          Completar cita
+                        </button>
+                      </div>
+                    )}
+                    {ev.status === "ARRIVED" && (
+                      <button
+                        onClick={() => updateStatus(ev.id, "IN_PROGRESS")}
+                        disabled={isUpdating}
+                        className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition disabled:opacity-50 shadow-sm shadow-violet-500/20"
+                      >
+                        Empezar corte
+                      </button>
+                    )}
+                    {ev.status === "IN_PROGRESS" && (
+                      <button
+                        onClick={() => updateStatus(ev.id, "DONE")}
+                        disabled={isUpdating}
+                        className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm shadow-emerald-500/20"
+                      >
+                        Completar cita
+                      </button>
+                    )}
+                    {(ev.status === "DONE" || ev.status === "NO_SHOW" || ev.status === "CANCELED") && (
+                      <button
+                        onClick={() => updateStatus(ev.id, "RESERVED")}
+                        disabled={isUpdating}
+                        className="w-full rounded-xl bg-stone-100 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-200 transition disabled:opacity-50"
+                      >
+                        Deshacer · volver a pendiente
+                      </button>
+                    )}
+
+                    {/* Acciones secundarias (No asistió / Cancelar / Cerrar) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(ev.status === "RESERVED" || ev.status === "ARRIVED") && (
+                        <>
+                          <button
+                            onClick={() => updateStatus(ev.id, "NO_SHOW")}
+                            disabled={isUpdating}
+                            className="rounded-xl bg-red-50 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+                          >
+                            No asistió
+                          </button>
+                          <button
+                            onClick={() => { setShowCancelInput(true); setCancelReason(""); }}
+                            disabled={isUpdating}
+                            className="rounded-xl border border-red-200 bg-white py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                          >
+                            Cancelar…
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => setSelectedEvent(null)}
+                        className="rounded-xl border border-[#e8e2dc] bg-white py-2 text-xs font-medium text-stone-500 hover:bg-stone-50 transition col-span-2 sm:col-span-1"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+
+                    {/* Motivo de cancelación si ya existe */}
+                    {ev.status === "CANCELED" && (
+                      <div className="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                        <p className="font-semibold mb-0.5">Motivo de cancelación</p>
+                        <p className="text-red-600">Se guardó al cancelar · revisa desde la ficha del cliente si necesitas más contexto.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
