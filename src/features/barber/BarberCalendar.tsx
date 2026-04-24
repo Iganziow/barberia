@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
+import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
 type SlotMinutesValue = 5 | 10 | 15 | 20 | 30 | 45 | 60;
@@ -91,14 +92,20 @@ export default function BarberCalendar({
     <div className="fc-wrapper">
       <FullCalendar
         ref={calRef}
-        plugins={[timeGridPlugin, interactionPlugin]}
+        plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView={mobile ? "timeGridDay" : "timeGridWeek"}
         locale="es"
         headerToolbar={
           mobile
             ? { left: "prev,next", center: "title", right: "today" }
-            : { left: "prev,next today", center: "title", right: "timeGridWeek,timeGridDay" }
+            : { left: "prev,next today", center: "title", right: "timeGridWeek,timeGridDay,dayGridMonth" }
         }
+        views={{
+          dayGridMonth: {
+            dayMaxEventRows: 3,
+            fixedWeekCount: false,
+          },
+        }}
         slotMinTime="09:00:00"
         slotMaxTime="21:00:00"
         slotDuration={minutesToHMS(slotMinutes)}
@@ -141,7 +148,7 @@ export default function BarberCalendar({
             </div>
           );
         }}
-        buttonText={{ today: "Hoy", week: "Semana", day: "Día" }}
+        buttonText={{ today: "Hoy", week: "Semana", day: "Día", month: "Mes" }}
       />
     </div>
   );

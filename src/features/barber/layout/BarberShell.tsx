@@ -143,10 +143,13 @@ export default function BarberShell({
           </div>
         </div>
 
-        {/* Greeting en mobile (debajo de la top bar) */}
-        <div className="sm:hidden px-4 pb-2 pt-0">
-          <p className="text-[11px] text-white/50 truncate capitalize">
-            {greeting}, <span className="text-white/80 font-medium">{firstName}</span>
+        {/* Greeting en mobile (debajo de la top bar) — más rico */}
+        <div className="sm:hidden px-4 pb-2.5 pt-0">
+          <p className="text-xs text-white/70 capitalize leading-tight">
+            {greeting}, <span className="text-white font-semibold">{firstName}</span>
+          </p>
+          <p className="text-[10px] text-white/40 capitalize mt-0.5 truncate">
+            {today}
           </p>
         </div>
       </header>
