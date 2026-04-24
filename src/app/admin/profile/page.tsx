@@ -120,7 +120,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    // Container centrado: limita el ancho del contenido para que no se
+    // estire hasta los 1400px del shell del admin (demasiado aire en
+    // monitores anchos). 5xl = 1024px, cómodo para lectura.
+    <div className="mx-auto w-full max-w-5xl space-y-6">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pb-5 border-b border-[#e8e2dc]">
         <div className="min-w-0">
@@ -134,7 +137,7 @@ export default function ProfilePage() {
 
       {/* ── Loading state ─────────────────────────────────────────── */}
       {loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 max-w-4xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 h-60 rounded-2xl bg-stone-100 animate-pulse" />
           <div className="h-60 rounded-2xl bg-stone-100 animate-pulse" />
           <div className="lg:col-span-3 h-80 rounded-2xl bg-stone-100 animate-pulse" />
@@ -151,7 +154,7 @@ export default function ProfilePage() {
 
       {/* ── Content ────────────────────────────────────────────────── */}
       {!loading && user && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 max-w-5xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* ── Identidad ──────────────────────────────────────── */}
           <div className="lg:col-span-2 rounded-2xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden">
             <div className="flex items-start gap-3 px-5 sm:px-6 py-4 border-b border-[#e8e2dc]">

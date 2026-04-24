@@ -233,7 +233,10 @@ export default function SettingsPage() {
     latitude && longitude && !isNaN(Number(latitude)) && !isNaN(Number(longitude));
 
   return (
-    <div className="space-y-6">
+    // Container centrado con max-w razonable: el layout 1fr + 340px
+    // (izq datos + der QR) se siente bien hasta ~1100px. Más ancho que
+    // eso es aire desperdiciado en monitores grandes.
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pb-5 border-b border-[#e8e2dc]">
         <div className="min-w-0">
