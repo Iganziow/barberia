@@ -5,6 +5,8 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
+type SlotMinutesValue = 5 | 10 | 15 | 20 | 30 | 45 | 60;
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -29,6 +31,14 @@ interface BarberCalendarProps {
   onSelectSlot: (info: { isoStart: string; isoEnd: string }) => void;
   onClickEvent: (event: CalendarEvent) => void;
   onRangeChange: (from: string, to: string) => void;
+  /** Granularidad de los slots. Default 30 min. */
+  slotMinutes?: SlotMinutesValue;
+}
+
+function minutesToHMS(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
 }
 
 function eventStyle(event: CalendarEvent) {
@@ -57,6 +67,7 @@ export default function BarberCalendar({
   onSelectSlot,
   onClickEvent,
   onRangeChange,
+  slotMinutes = 30,
 }: BarberCalendarProps) {
   const calRef = useRef<FullCalendar>(null);
   const mobile = isMobile();
@@ -90,7 +101,7 @@ export default function BarberCalendar({
         }
         slotMinTime="09:00:00"
         slotMaxTime="21:00:00"
-        slotDuration="00:30:00"
+        slotDuration={minutesToHMS(slotMinutes)}
         scrollTime="09:00:00"
         allDaySlot={false}
         nowIndicator={true}

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import BarberShell from "@/features/barber/layout/BarberShell";
 import BlockTimeModal from "@/features/barber/BlockTimeModal";
+import SlotMinutesPicker from "@/features/admin/agenda/SlotMinutesPicker";
+import { useSlotMinutes } from "@/hooks/use-slot-minutes";
 import type { CalendarEvent } from "@/features/barber/BarberCalendar";
 
 const BarberCalendar = dynamic(() => import("@/features/barber/BarberCalendar"), { ssr: false });
@@ -78,6 +80,11 @@ export default function BarberPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [blockModal, setBlockModal] = useState<{ open: boolean; start?: string; end?: string }>({ open: false });
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+
+  // Granularidad de slots del calendario (5/10/15/20/30/45/60 min).
+  // Usa el mismo hook que el admin — persiste la preferencia en
+  // localStorage y el barbero la mantiene entre sesiones.
+  const { slotMinutes, setSlotMinutes } = useSlotMinutes();
 
   // Estado del flujo de notas del barbero
   const [noteInput, setNoteInput] = useState("");
@@ -275,6 +282,15 @@ export default function BarberPage() {
         </div>
       )}
 
+      {/* ── Toolbar del calendario: granularidad de slots ── */}
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <p className="text-xs text-stone-500">
+          Mostrando bloques de{" "}
+          <span className="font-semibold text-stone-700 tabular-nums">{slotMinutes} min</span>
+        </p>
+        <SlotMinutesPicker value={slotMinutes} onChange={setSlotMinutes} />
+      </div>
+
       {/* ── Calendar ── */}
       <section className="rounded-xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden">
         <div className="p-1 sm:p-2">
@@ -286,6 +302,7 @@ export default function BarberPage() {
             }}
             onClickEvent={(event) => setSelectedEvent(event)}
             onRangeChange={loadCalendarEvents}
+            slotMinutes={slotMinutes}
           />
         </div>
       </section>
