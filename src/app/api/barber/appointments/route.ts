@@ -41,9 +41,20 @@ export const GET = withBarber(async (req, { userId, orgId }) => {
       barberId: barber.id,
       start: { gte: startFilter, lt: endFilter },
     },
-    include: {
+    select: {
+      id: true,
+      start: true,
+      end: true,
+      status: true,
+      price: true,
+      notePublic: true,
+      // noteInternal es clave para el flujo "cliente X pidió Y" — el
+      // barbero la consulta cuando el cliente vuelve a cortar.
+      noteInternal: true,
+      clientId: true,
       service: { select: { name: true, durationMin: true } },
-      client: { include: { user: { select: { name: true, phone: true } } } },
+      client: { select: { user: { select: { name: true, phone: true } } } },
+      payment: { select: { id: true } },
     },
     orderBy: { start: "asc" },
   });
@@ -57,9 +68,12 @@ export const GET = withBarber(async (req, { userId, orgId }) => {
       price: a.price,
       serviceName: a.service.name,
       serviceDuration: a.service.durationMin,
+      clientId: a.clientId,
       clientName: a.client.user.name,
       clientPhone: a.client.user.phone,
       notePublic: a.notePublic,
+      noteInternal: a.noteInternal,
+      paid: !!a.payment,
     })),
   });
 });
