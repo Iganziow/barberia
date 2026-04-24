@@ -92,8 +92,14 @@ export default function BarberCalendar({
         allDaySlot={false}
         nowIndicator={true}
         stickyHeaderDates={true}
-        height="calc(100dvh - 160px)"
-        expandRows={true}
+        // Antes height era calc(100dvh - 160px) fijo — con el agregado
+        // de stats cards arriba, el cálculo quedaba corto y el scroll
+        // interno no alcanzaba a mostrar las últimas horas. Ahora el
+        // calendario crece según su contenido y la página scrollea
+        // verticalmente como en el resto del admin.
+        height="auto"
+        contentHeight="auto"
+        expandRows={false}
         hiddenDays={[0]}
         events={fcEvents}
         selectable={true}
