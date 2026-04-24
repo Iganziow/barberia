@@ -39,6 +39,7 @@ export const GET = withAdmin(async (_req, { orgId }, { params }) => {
         barberName: a.barber.user.name,
         price: a.price,
         payment: a.payment,
+        noteInternal: a.noteInternal,
       })),
     },
   });

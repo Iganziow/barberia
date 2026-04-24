@@ -139,6 +139,11 @@ export async function updateAppointmentStatus(
       data: {
         status: data.status,
         ...(data.cancelReason ? { cancelReason: data.cancelReason } : {}),
+        // Si se envía noteInternal (incluso string vacío como null),
+        // lo persistimos en la misma transacción atómica.
+        ...(data.noteInternal !== undefined
+          ? { noteInternal: data.noteInternal || null }
+          : {}),
       },
       include: {
         branch: { select: { orgId: true } },

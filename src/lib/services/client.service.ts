@@ -119,9 +119,15 @@ export async function getClientDetail(id: string, orgId: string) {
       user: { select: { name: true, email: true, phone: true } },
       appointments: {
         where: { branch: { orgId } },
-        include: {
+        select: {
+          id: true,
+          start: true,
+          end: true,
+          status: true,
+          price: true,
+          noteInternal: true,
           service: { select: { name: true } },
-          barber: { include: { user: { select: { name: true } } } },
+          barber: { select: { user: { select: { name: true } } } },
           payment: { select: { amount: true, tip: true, method: true } },
         },
         orderBy: { start: "desc" },

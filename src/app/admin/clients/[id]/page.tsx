@@ -28,6 +28,7 @@ type ClientDetail = {
     barberName: string;
     price: number;
     payment: { amount: number; tip: number; method: string } | null;
+    noteInternal: string | null;
   }>;
 };
 
@@ -296,6 +297,63 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
+      {/* ── Historial de notas internas (timeline) ──
+          Muestra solo las citas que tienen noteInternal. Sirve para que
+          el barbero/admin revise "¿qué corte pidió la vez pasada?"
+          antes de atenderlo de nuevo. */}
+      {(() => {
+        const notesHistory = client.appointments.filter((a) => a.noteInternal && a.noteInternal.trim());
+        if (notesHistory.length === 0) return null;
+        return (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/40 shadow-sm overflow-hidden">
+            <div className="border-b border-amber-200/60 px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-amber-600">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                </svg>
+                <div>
+                  <h2 className="text-sm font-bold text-stone-900">Notas del historial</h2>
+                  <p className="text-xs text-stone-500">
+                    Preferencias y observaciones registradas en citas anteriores
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-800">
+                {notesHistory.length} {notesHistory.length === 1 ? "nota" : "notas"}
+              </span>
+            </div>
+            <ol className="divide-y divide-amber-200/40">
+              {notesHistory.map((apt) => (
+                <li key={apt.id} className="px-5 py-4 flex gap-4">
+                  {/* Timeline dot */}
+                  <div className="relative shrink-0 pt-1">
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-500 border-2 border-amber-200 shadow-sm" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2 flex-wrap mb-1">
+                      <span className="text-xs font-semibold text-stone-900 capitalize">
+                        {formatDate(apt.start)}
+                      </span>
+                      <span className="text-stone-300">·</span>
+                      <span className="text-xs text-stone-600">{apt.serviceName}</span>
+                      <span className="text-stone-300">·</span>
+                      <span className="text-xs text-stone-500">con {apt.barberName}</span>
+                      <span className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${STATUS_COLORS[apt.status] || "bg-gray-100"}`}>
+                        {STATUS_LABELS[apt.status] || apt.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed">
+                      {apt.noteInternal}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
+      })()}
+
       {/* Appointment history */}
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <div className="border-b px-5 py-4">
@@ -349,7 +407,20 @@ export default function ClientDetailPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3 text-sm text-gray-700">
-                    {apt.serviceName}
+                    <div className="flex items-center gap-2">
+                      <span>{apt.serviceName}</span>
+                      {apt.noteInternal && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[10px] font-semibold"
+                          title={apt.noteInternal}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                          </svg>
+                          nota
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-sm text-gray-700">
                     {apt.barberName}

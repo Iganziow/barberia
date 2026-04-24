@@ -42,6 +42,15 @@ export const UpdateStatusSchema = z.object({
         .default("CASH"),
     })
     .optional(),
+  // Nota interna opcional: permite capturar preferencias del cliente
+  // ("pidió tapper fade", "conversó de su trabajo", etc.) en el mismo
+  // flujo de cerrar la cita. Luego aparece en el historial del cliente.
+  noteInternal: z
+    .string()
+    .max(2000)
+    .transform(stripHtml)
+    .nullable()
+    .optional(),
 });
 
 export type UpdateStatusInput = z.infer<typeof UpdateStatusSchema>;

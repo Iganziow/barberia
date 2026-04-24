@@ -90,6 +90,14 @@ export default function AppointmentDetailModal({
   const [payMethod, setPayMethod] = useState<string>("CASH");
   const [errorMsg, setErrorMsg] = useState<string>("");
 
+  // Nota interna: se puede editar en cualquier momento, pero especialmente
+  // al cerrar la cita para capturar preferencias del cliente ("pidió tapper
+  // fade", "conversó de su viaje") y poder consultarlas la próxima vez.
+  const [noteInput, setNoteInput] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+
   useEffect(() => {
     if (!open || !appointmentId) return;
     setLoading(true);
@@ -97,6 +105,9 @@ export default function AppointmentDetailModal({
     setShowCancelInput(false);
     setShowPayment(false);
     setErrorMsg("");
+    setNoteInput("");
+    setNoteSaved(false);
+    setEditingNote(false);
 
     fetch(`/api/admin/appointments/${appointmentId}`)
       .then(async (r) => {
@@ -107,11 +118,44 @@ export default function AppointmentDetailModal({
         return r.json();
       })
       .then((data) => {
-        if (data?.appointment) setApt(data.appointment);
+        if (data?.appointment) {
+          setApt(data.appointment);
+          setNoteInput(data.appointment.noteInternal || "");
+        }
       })
       .catch((e: Error) => setErrorMsg(e.message || "Error de conexión"))
       .finally(() => setLoading(false));
   }, [open, appointmentId]);
+
+  // Guarda (o actualiza) la nota interna de la cita. Se puede llamar en
+  // cualquier momento — incluso después de DONE — para que el barbero
+  // anote preferencias del cliente luego de atenderlo.
+  async function saveNote() {
+    if (!apt) return;
+    setSavingNote(true);
+    setNoteSaved(false);
+    try {
+      const res = await fetch(`/api/admin/appointments/${apt.id}/note`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteInternal: noteInput.trim() || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "No se pudo guardar la nota" }));
+        setErrorMsg(err.message || "Error al guardar la nota");
+        return;
+      }
+      setApt((prev) => (prev ? { ...prev, noteInternal: noteInput.trim() || null } : null));
+      setNoteSaved(true);
+      setEditingNote(false);
+      setTimeout(() => setNoteSaved(false), 2500);
+      onStatusChange();
+    } catch {
+      setErrorMsg("Error de conexión al guardar la nota");
+    } finally {
+      setSavingNote(false);
+    }
+  }
 
   async function handleStatusChange(newStatus: string) {
     if (!apt) return;
@@ -149,6 +193,11 @@ export default function AppointmentDetailModal({
           method: payMethod,
         };
       }
+      // Si hay nota y el campo cambió, la incluimos en la misma
+      // transacción para guardar preferencia + cerrar cita de un tiro.
+      if ((noteInput.trim() || null) !== (apt.noteInternal ?? null)) {
+        payload.noteInternal = noteInput.trim() || null;
+      }
 
       const res = await fetch(`/api/admin/appointments/${apt.id}/status`, {
         method: "PATCH",
@@ -163,7 +212,17 @@ export default function AppointmentDetailModal({
 
       const data = await res.json();
       setApt((prev) =>
-        prev ? { ...prev, status: data.appointment.status } : null
+        prev
+          ? {
+              ...prev,
+              status: data.appointment.status,
+              // Reflejar la nota persistida (si se envió)
+              noteInternal:
+                payload.noteInternal !== undefined
+                  ? (payload.noteInternal as string | null)
+                  : prev.noteInternal,
+            }
+          : null
       );
       setShowCancelInput(false);
       setCancelReason("");
@@ -273,27 +332,85 @@ export default function AppointmentDetailModal({
             </div>
           </div>
 
-          {/* Notes */}
-          {(apt.notePublic || apt.noteInternal) && (
-            <div className="rounded-xl border p-4 space-y-2">
-              {apt.notePublic && (
-                <div>
-                  <p className="text-xs font-medium text-stone-500">
-                    Nota pública
-                  </p>
-                  <p className="text-sm">{apt.notePublic}</p>
-                </div>
-              )}
-              {apt.noteInternal && (
-                <div>
-                  <p className="text-xs font-medium text-stone-500">
-                    Nota interna
-                  </p>
-                  <p className="text-sm">{apt.noteInternal}</p>
-                </div>
-              )}
+          {/* Nota pública del cliente (read-only) */}
+          {apt.notePublic && (
+            <div className="rounded-xl border border-[#e8e2dc] bg-stone-50/60 p-4">
+              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1">
+                Nota del cliente
+              </p>
+              <p className="text-sm text-stone-700">{apt.notePublic}</p>
             </div>
           )}
+
+          {/* Nota interna — siempre visible, editable. Este es el campo
+              clave para capturar preferencias ("pidió tapper fade") que
+              el equipo consulta la próxima vez que el cliente vuelve. */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-amber-600">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                </svg>
+                <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-widest">
+                  Nota interna del equipo
+                </p>
+              </div>
+              {!editingNote && apt.noteInternal && (
+                <button
+                  type="button"
+                  onClick={() => setEditingNote(true)}
+                  className="text-[11px] font-semibold text-amber-700 hover:text-amber-900"
+                >
+                  Editar
+                </button>
+              )}
+            </div>
+
+            {/* Vista read-only si hay nota y no está editando */}
+            {apt.noteInternal && !editingNote ? (
+              <p className="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed">
+                {apt.noteInternal}
+              </p>
+            ) : (
+              <>
+                <textarea
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 resize-y min-h-[70px]"
+                  value={noteInput}
+                  onChange={(e) => { setNoteInput(e.target.value); setNoteSaved(false); }}
+                  placeholder="Ej: Pidió tapper fade con degradado bajo. Le gusta conversar poco. Alérgico a cierto producto."
+                  maxLength={2000}
+                />
+                <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+                  <p className="text-[10px] text-stone-500 leading-snug">
+                    Visible solo para el equipo. Aparece en el historial del cliente.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {noteSaved && (
+                      <span className="text-[11px] text-emerald-700 font-semibold">✓ Guardada</span>
+                    )}
+                    {apt.noteInternal && editingNote && (
+                      <button
+                        type="button"
+                        onClick={() => { setNoteInput(apt.noteInternal || ""); setEditingNote(false); }}
+                        className="text-xs font-medium text-stone-500 hover:text-stone-800"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={saveNote}
+                      disabled={savingNote || noteInput.trim() === (apt.noteInternal || "")}
+                      className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {savingNote ? "Guardando..." : "Guardar nota"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Cancel reason */}
           {apt.cancelReason && (
