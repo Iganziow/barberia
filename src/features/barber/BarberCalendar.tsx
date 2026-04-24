@@ -74,7 +74,10 @@ export default function BarberCalendar({
   });
 
   return (
-    <div className="fc-wrapper -mx-4">
+    // Antes: -mx-4 hacía que el calendario se extendiera fuera del card,
+    // pero el overflow-hidden del parent recortaba los labels de hora
+    // del eje izquierdo. Ahora el calendario respeta los bordes del card.
+    <div className="fc-wrapper">
       <FullCalendar
         ref={calRef}
         plugins={[timeGridPlugin, interactionPlugin]}
