@@ -205,6 +205,19 @@ export default function BarbersPage() {
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [scheduleSaveError, setScheduleSaveError] = useState("");
 
+  // Stats del barbero (mes en curso + totales) — se cargan cuando seleccionas
+  // un barbero y se usan en el tab Perfil para contextualizar performance.
+  type BarberStats = {
+    month: {
+      appointments: { total: number; completed: number; canceled: number; noShow: number; upcoming: number };
+      revenue: { total: number; tips: number; paidCount: number; avgTicket: number };
+    };
+    allTime: { completedAppointments: number };
+    joinedAt: string;
+  };
+  const [barberStats, setBarberStats] = useState<BarberStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
   // Assignments error + copy modal
   const [assignError, setAssignError] = useState("");
   const [showCopyServices, setShowCopyServices] = useState(false);
@@ -256,6 +269,19 @@ export default function BarbersPage() {
     setScheduleSaved(false);
     setScheduleLoadError("");
     setScheduleSaveError("");
+    // Stats del barbero: se fetchan de una para mostrarlas en el tab Perfil
+    setBarberStats(null);
+    setLoadingStats(true);
+    fetch(`/api/admin/barbers/${id}/stats`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error("stats fetch failed");
+        return r.json();
+      })
+      .then((d: BarberStats) => setBarberStats(d))
+      .catch(() => {
+        // No bloqueamos la UX del perfil si stats falla — solo se muestra "—"
+      })
+      .finally(() => setLoadingStats(false));
     // En mobile llevar el viewport al panel para que el usuario vea el
     // resultado de la selección (md+ tiene 2 cols y no hace falta)
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -731,72 +757,199 @@ export default function BarbersPage() {
                 <div className="p-5 sm:p-6">
                   {/* ── Profile tab ── */}
                   {innerTab === "profile" && (
-                    <div className="max-w-xl space-y-5">
-                      <h2 className="font-bold text-stone-900">Perfil de {firstName(ab.name)}</h2>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="field-label">Nombre</label>
-                          <input
-                            className="input-field"
-                            value={editName}
-                            onChange={(e) => {
-                              setEditName(e.target.value);
-                              setProfileSaved(false);
-                            }}
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="field-label">Email</label>
-                            <input
-                              type="email"
-                              className="input-field"
-                              value={editEmail}
-                              onChange={(e) => {
-                                setEditEmail(e.target.value);
-                                setProfileSaved(false);
-                              }}
-                            />
+                    <div className="space-y-6">
+                      {/* ── Preview card — cómo ve el admin/cliente a este barbero ── */}
+                      <div
+                        className="relative overflow-hidden rounded-2xl border border-[#e8e2dc] p-5 sm:p-6"
+                        style={{
+                          background: `linear-gradient(135deg, ${editColor}14 0%, ${editColor}05 60%, transparent 100%)`,
+                        }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="h-16 w-16 rounded-full flex items-center justify-center text-white font-extrabold text-xl shrink-0 shadow-lg"
+                            style={{ backgroundColor: editColor, boxShadow: `0 8px 20px -6px ${editColor}66` }}
+                          >
+                            {initials(editName || ab.name)}
                           </div>
-                          <div>
-                            <label className="field-label">Teléfono</label>
-                            <input
-                              className="input-field"
-                              value={editPhone}
-                              onChange={(e) => {
-                                setEditPhone(e.target.value);
-                                setProfileSaved(false);
-                              }}
-                              placeholder="+56..."
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="field-label">Color en calendario</label>
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="color"
-                              value={editColor}
-                              onChange={(e) => {
-                                setEditColor(e.target.value);
-                                setProfileSaved(false);
-                              }}
-                              className="h-9 w-14 rounded-lg border border-[#e8e2dc] cursor-pointer p-0.5 bg-white"
-                            />
-                            <span className="text-xs text-stone-400 font-mono tabular-nums">{editColor}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-500">
+                              Preview · como aparece en la agenda
+                            </p>
+                            <h3 className="text-xl font-extrabold text-stone-900 truncate">
+                              {editName || ab.name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Activo
+                              </span>
+                              {barberStats && (
+                                <span className="inline-flex items-center rounded-full bg-white/70 backdrop-blur-sm px-2 py-0.5 text-[10px] font-semibold text-stone-600">
+                                  {barberStats.allTime.completedAppointments} citas completadas en total
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                      {profileError && <p className="text-sm text-red-600">{profileError}</p>}
-                      <div className="pt-3 border-t border-[#f0ece8] flex items-center gap-3 flex-wrap">
-                        <button onClick={saveProfile} disabled={savingProfile} className="btn-primary text-sm">
+
+                      {/* ── Stats del mes ── */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="rounded-xl border border-[#e8e2dc] bg-white p-4" style={{ borderLeftWidth: 3, borderLeftColor: "#10b981" }}>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">Completadas</p>
+                          <p className="text-xl font-extrabold text-stone-900 mt-1 tabular-nums">
+                            {loadingStats ? "—" : barberStats?.month.appointments.completed ?? 0}
+                          </p>
+                          <p className="text-[10px] text-stone-500 mt-0.5">este mes</p>
+                        </div>
+                        <div className="rounded-xl border border-[#e8e2dc] bg-white p-4" style={{ borderLeftWidth: 3, borderLeftColor: "#c87941" }}>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">Ingresos</p>
+                          <p className="text-xl font-extrabold text-brand mt-1 tabular-nums">
+                            {loadingStats ? "—" : formatCLP(barberStats?.month.revenue.total ?? 0)}
+                          </p>
+                          <p className="text-[10px] text-stone-500 mt-0.5">mes actual</p>
+                        </div>
+                        <div className="rounded-xl border border-[#e8e2dc] bg-white p-4" style={{ borderLeftWidth: 3, borderLeftColor: "#78716c" }}>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">Ticket prom.</p>
+                          <p className="text-xl font-extrabold text-stone-900 mt-1 tabular-nums">
+                            {loadingStats ? "—" : formatCLP(barberStats?.month.revenue.avgTicket ?? 0)}
+                          </p>
+                          <p className="text-[10px] text-stone-500 mt-0.5">por cita pagada</p>
+                        </div>
+                        <div className="rounded-xl border border-[#e8e2dc] bg-white p-4" style={{ borderLeftWidth: 3, borderLeftColor: "#3b82f6" }}>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">Próximas</p>
+                          <p className="text-xl font-extrabold text-stone-900 mt-1 tabular-nums">
+                            {loadingStats ? "—" : barberStats?.month.appointments.upcoming ?? 0}
+                          </p>
+                          <p className="text-[10px] text-stone-500 mt-0.5">agendadas</p>
+                        </div>
+                      </div>
+
+                      {/* ── Section: Datos personales ── */}
+                      <div className="rounded-2xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-start gap-3 px-5 py-4 border-b border-[#e8e2dc]">
+                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand/10 text-brand shrink-0">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                              <circle cx="12" cy="8" r="4" />
+                              <path d="M4 22c0-4 3-7 8-7s8 3 8 7" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-stone-900">Datos personales</h3>
+                            <p className="text-xs text-stone-500 mt-0.5">
+                              Información de contacto del barbero
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-5 space-y-4 max-w-2xl">
+                          <div>
+                            <label className="field-label">Nombre</label>
+                            <input
+                              className="input-field"
+                              value={editName}
+                              onChange={(e) => { setEditName(e.target.value); setProfileSaved(false); }}
+                              maxLength={100}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="field-label">Email (login)</label>
+                              <input
+                                type="email"
+                                className="input-field"
+                                value={editEmail}
+                                onChange={(e) => { setEditEmail(e.target.value); setProfileSaved(false); }}
+                                maxLength={255}
+                              />
+                            </div>
+                            <div>
+                              <label className="field-label">Teléfono</label>
+                              <input
+                                className="input-field"
+                                value={editPhone}
+                                onChange={(e) => { setEditPhone(e.target.value); setProfileSaved(false); }}
+                                placeholder="+56 9 1234 5678"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── Section: Apariencia en el calendario ── */}
+                      <div className="rounded-2xl border border-[#e8e2dc] bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-start gap-3 px-5 py-4 border-b border-[#e8e2dc]">
+                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand/10 text-brand shrink-0">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                              <circle cx="13.5" cy="6.5" r="2.5" />
+                              <circle cx="17.5" cy="10.5" r="2.5" />
+                              <circle cx="8.5" cy="7.5" r="2.5" />
+                              <circle cx="6.5" cy="12.5" r="2.5" />
+                              <path d="M12 22a10 10 0 110-20c6 0 10 3 10 8 0 3-2 5-5 5h-2a2 2 0 00-1 4 1.5 1.5 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-stone-900">Apariencia</h3>
+                            <p className="text-xs text-stone-500 mt-0.5">
+                              Color que usará la agenda para diferenciar sus citas
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-5">
+                          <label className="field-label">Color en calendario</label>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <input
+                              type="color"
+                              value={editColor}
+                              onChange={(e) => { setEditColor(e.target.value); setProfileSaved(false); }}
+                              className="h-10 w-16 rounded-lg border border-[#e8e2dc] cursor-pointer p-0.5 bg-white"
+                            />
+                            <span className="text-xs text-stone-500 font-mono tabular-nums">{editColor}</span>
+                            {/* Swatches sugeridos */}
+                            <div className="flex items-center gap-1.5 ml-2">
+                              {["#c87941", "#059669", "#2563eb", "#9333ea", "#dc2626", "#6b7280"].map((hex) => (
+                                <button
+                                  key={hex}
+                                  type="button"
+                                  onClick={() => { setEditColor(hex); setProfileSaved(false); }}
+                                  className={`h-6 w-6 rounded-full border-2 transition ${
+                                    editColor.toLowerCase() === hex.toLowerCase()
+                                      ? "border-stone-800 scale-110"
+                                      : "border-white shadow-sm hover:scale-110"
+                                  }`}
+                                  style={{ backgroundColor: hex }}
+                                  aria-label={`Usar color ${hex}`}
+                                  title={hex}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── Error + save actions ── */}
+                      {profileError && (
+                        <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                          {profileError}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          onClick={saveProfile}
+                          disabled={savingProfile || !editName.trim()}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-sm shadow-brand/20 disabled:opacity-50"
+                        >
+                          <IconSave />
                           {savingProfile ? "Guardando..." : "Guardar perfil"}
                         </button>
-                        <button onClick={() => setShowPassword(true)} className="btn-secondary text-sm">
+                        <button
+                          onClick={() => setShowPassword(true)}
+                          className="btn-secondary text-sm"
+                        >
                           Cambiar clave
                         </button>
                         {profileSaved && (
-                          <span className="text-xs text-emerald-600 font-medium">✓ Guardado</span>
+                          <span className="text-xs text-emerald-600 font-semibold">✓ Guardado</span>
                         )}
                       </div>
                     </div>
