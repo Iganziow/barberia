@@ -121,12 +121,14 @@ export default function BarberPage() {
     t.setHours(0, 0, 0, 0);
     return t;
   });
-  const nextMonthDate = useMemo(() => {
-    const d = new Date(sidebarDate);
-    d.setDate(1);
-    d.setMonth(d.getMonth() + 1);
-    return d;
-  }, [sidebarDate]);
+
+  // Cursor del mini-calendario del sidebar — controlado para que el
+  // dropdown de mes/año persista entre renders y se pueda navegar a
+  // cualquier mes/año libremente.
+  const [miniCursor, setMiniCursor] = useState<Date>(() => {
+    const t = new Date();
+    return new Date(t.getFullYear(), t.getMonth(), 1);
+  });
 
   // Notas: estado del modal de detalle
   const [noteInput, setNoteInput] = useState("");
@@ -364,25 +366,17 @@ export default function BarberPage() {
           <MiniMonthCalendar
             selectedDate={sidebarDate}
             onSelectDate={(d) => setSidebarDate(d)}
+            cursorMonth={miniCursor}
+            onCursorChange={setMiniCursor}
           />
         </div>
-        <div className="rounded-xl border border-[#e8e2dc] bg-white p-3 shadow-sm opacity-90">
-          {/* Mismo selectedDate (sidebarDate) pero arranca en el mes
-              siguiente. Si el día seleccionado cae en este mes, también
-              lo resalta correctamente. */}
-          <MiniMonthCalendar
-            selectedDate={sidebarDate}
-            initialMonth={nextMonthDate}
-            onSelectDate={(d) => setSidebarDate(d)}
-          />
-        </div>
-        {/* Quick action: volver a hoy */}
         <button
           type="button"
           onClick={() => {
             const t = new Date();
             t.setHours(0, 0, 0, 0);
             setSidebarDate(t);
+            setMiniCursor(new Date(t.getFullYear(), t.getMonth(), 1));
           }}
           className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-2 text-xs font-semibold text-stone-600 hover:border-brand/40 hover:text-brand transition"
         >
