@@ -461,12 +461,12 @@ export default function BarberPage() {
   // ─── Render ─────────────────────────────────────────────────────
   return (
     <BarberShell name={barber?.name ?? ""} initials={initials}>
-      <div className="grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[230px_1fr] gap-4 lg:gap-5">
       {/* ── Sidebar con mini-calendarios (solo desktop) ────────────── */}
       {/* Sidebar centrado verticalmente con justify-center para que cuando
           haya espacio extra (monitor alto) los calendarios queden a la
           mitad y no pegados al top. */}
-      <aside className="hidden lg:flex flex-col gap-3 sticky top-6 self-start max-h-[calc(100vh-50px)] overflow-y-auto pr-1 py-4 justify-start">
+      <aside className="hidden md:flex flex-col gap-3 sticky top-6 self-start max-h-[calc(100vh-50px)] overflow-y-auto pr-1 py-4 justify-start">
         {/* Mini principal con dropdowns mes + año + flechas */}
         <div className="rounded-xl border border-[#e8e2dc] bg-white p-3 shadow-sm">
           <MiniMonthCalendar
@@ -551,39 +551,39 @@ export default function BarberPage() {
       {/* ── Card "Mi mes": comisión acumulada + revenue ── */}
       {monthStats && barber && (
         <section className="rounded-xl border border-[#e8e2dc] bg-gradient-to-br from-brand/[0.06] via-white to-white shadow-sm p-4 sm:p-5 mb-4 overflow-hidden relative">
-          {/* Decorative corner glow */}
           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-brand/10 blur-3xl pointer-events-none" aria-hidden />
-          <div className="relative flex items-start justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
+          <div className="relative">
+            {/* Header del card: label + delta % alineados */}
+            <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <p className="text-[10px] font-bold uppercase tracking-widest text-brand">
                 Tu mes
               </p>
-              <div className="flex items-baseline gap-3 mt-1 flex-wrap">
-                <p className="text-3xl sm:text-4xl font-extrabold text-stone-900 tabular-nums leading-none">
-                  {formatCLP(monthStats.commissionEarned)}
-                </p>
-                {monthStats.commissionDeltaPct !== null && (
-                  <span
-                    className={`text-xs font-bold tabular-nums ${
-                      monthStats.commissionDeltaPct >= 0 ? "text-emerald-600" : "text-red-500"
-                    }`}
-                  >
-                    {monthStats.commissionDeltaPct >= 0 ? "↑" : "↓"} {Math.abs(monthStats.commissionDeltaPct)}% vs mes pasado
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-stone-500 mt-1">
-                Comisión estimada · {" "}
-                {barber.commissionType === "PERCENTAGE"
-                  ? `${barber.commissionValue ?? 0}% de los ingresos`
-                  : `${formatCLP(barber.commissionValue ?? 0)} por cita completada`}
-              </p>
+              {monthStats.commissionDeltaPct !== null && (
+                <span
+                  className={`text-[11px] font-bold tabular-nums ${
+                    monthStats.commissionDeltaPct >= 0 ? "text-emerald-600" : "text-red-500"
+                  }`}
+                >
+                  {monthStats.commissionDeltaPct >= 0 ? "↑" : "↓"} {Math.abs(monthStats.commissionDeltaPct)}% vs mes pasado
+                </span>
+              )}
             </div>
-            {/* Mini breakdown de la derecha */}
-            <div className="grid grid-cols-3 gap-4 sm:gap-6 sm:border-l sm:border-stone-200 sm:pl-5">
+            {/* Cifra principal */}
+            <p className="text-[28px] sm:text-4xl font-extrabold text-stone-900 tabular-nums leading-none mt-1">
+              {formatCLP(monthStats.commissionEarned)}
+            </p>
+            <p className="text-[11px] sm:text-xs text-stone-500 mt-1.5">
+              Comisión estimada · {" "}
+              {barber.commissionType === "PERCENTAGE"
+                ? `${barber.commissionValue ?? 0}% de los ingresos`
+                : `${formatCLP(barber.commissionValue ?? 0)} por cita completada`}
+            </p>
+            {/* Breakdown: en mobile va debajo (3 cols equispaciadas con
+                separator top), en sm+ se mantiene visible en línea */}
+            <div className="mt-3 pt-3 border-t border-stone-200/60 grid grid-cols-3 gap-2 sm:gap-4">
               <div>
                 <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">Ingresos</p>
-                <p className="text-sm font-bold text-stone-900 mt-0.5 tabular-nums">
+                <p className="text-sm font-bold text-stone-900 mt-0.5 tabular-nums truncate">
                   {formatCLP(monthStats.revenue)}
                 </p>
               </div>
@@ -595,7 +595,7 @@ export default function BarberPage() {
               </div>
               <div>
                 <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">Propinas</p>
-                <p className="text-sm font-bold text-emerald-600 mt-0.5 tabular-nums">
+                <p className="text-sm font-bold text-emerald-600 mt-0.5 tabular-nums truncate">
                   {formatCLP(monthStats.tips)}
                 </p>
               </div>
@@ -618,19 +618,26 @@ export default function BarberPage() {
               <button
                 key={a.id}
                 onClick={() => setSelectedEvent(a)}
-                className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-white/40 -mx-3 px-3 transition rounded"
+                className="w-full text-left py-3 flex items-center gap-2.5 sm:gap-3 hover:bg-white/40 -mx-3 px-3 transition rounded active:bg-white/60"
               >
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-bold text-stone-900 tabular-nums">{formatTime(a.start)}</p>
-                  <p className="text-[10px] text-brand font-semibold">{relativeInMinutes(a.start)}</p>
+                <div className="text-right shrink-0 w-14 sm:w-16">
+                  <p className="text-xs font-bold text-stone-900 tabular-nums leading-tight">{formatTime(a.start)}</p>
+                  <p className="text-[9px] sm:text-[10px] text-brand font-semibold leading-tight mt-0.5 break-words">
+                    {relativeInMinutes(a.start)}
+                  </p>
                 </div>
-                <div className="h-8 w-px bg-brand/20 shrink-0" />
+                <div className="h-9 w-px bg-brand/20 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-stone-900 truncate">{a.clientName}</p>
-                  <p className="text-xs text-stone-500 truncate">{a.serviceName} · {a.serviceDuration} min</p>
+                  <p className="text-[11px] sm:text-xs text-stone-500 truncate">
+                    {a.serviceName} · {a.serviceDuration} min
+                  </p>
                 </div>
                 {a.noteInternal && (
-                  <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[10px] font-semibold">
+                  <span
+                    className="shrink-0 inline-flex items-center rounded-full bg-amber-100 text-amber-700 p-1.5 text-[10px] font-semibold"
+                    aria-label="Tiene nota interna"
+                  >
                     <IconNote />
                   </span>
                 )}
@@ -641,8 +648,9 @@ export default function BarberPage() {
       )}
 
       {/* ── Toolbar del calendario ── */}
-      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        {/* Filter pills — overflow-x scroll en mobile narrow para no wrappear */}
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 sm:flex-wrap min-w-0 scroll-chips">
           {([
             { v: "all", label: "Todas" },
             { v: "active", label: "Activas" },
@@ -652,7 +660,7 @@ export default function BarberPage() {
             <button
               key={f.v}
               onClick={() => setStatusFilter(f.v)}
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
                 statusFilter === f.v
                   ? "bg-brand text-white shadow-sm"
                   : "bg-white border border-[#e8e2dc] text-stone-500 hover:border-brand/30 hover:text-stone-700"
@@ -662,20 +670,22 @@ export default function BarberPage() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={() => setSearchOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 hover:border-brand/40 hover:text-brand transition"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white h-9 px-2.5 sm:px-3 text-xs font-semibold text-stone-600 hover:border-brand/40 hover:text-brand transition"
             title="Buscar cliente (Ctrl+K)"
+            aria-label="Buscar cliente"
           >
             <IconSearch />
             <span className="hidden sm:inline">Buscar</span>
-            <kbd className="hidden sm:inline-flex text-[9px] font-semibold bg-stone-100 border border-stone-200 rounded px-1 py-0.5 text-stone-500">Ctrl+K</kbd>
+            <kbd className="hidden md:inline-flex text-[9px] font-semibold bg-stone-100 border border-stone-200 rounded px-1 py-0.5 text-stone-500">Ctrl+K</kbd>
           </button>
           <button
             onClick={() => setProfileOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 hover:border-brand/40 hover:text-brand transition"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#e8e2dc] bg-white h-9 px-2.5 sm:px-3 text-xs font-semibold text-stone-600 hover:border-brand/40 hover:text-brand transition"
             title="Editar mi perfil"
+            aria-label="Editar mi perfil"
           >
             <IconUser />
             <span className="hidden sm:inline">Perfil</span>
@@ -704,27 +714,30 @@ export default function BarberPage() {
       </div>{/* end main content (col 2) */}
       </div>{/* end grid wrapper */}
 
-      {/* ── FAB: bloquear tiempo — oculto cuando hay modal abierto ── */}
+      {/* ── FAB: bloquear tiempo — oculto cuando hay modal abierto.
+          Respeta safe-area-inset-bottom (iOS notch / home indicator). ── */}
       {!anyModalOpen && (
         <button
           onClick={() => setBlockModal({ open: true })}
-          className="fixed bottom-6 right-6 z-20 flex items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-bold text-white shadow-lg shadow-brand/25 hover:bg-brand-hover transition"
+          className="fixed right-4 sm:right-6 z-20 flex items-center gap-2 rounded-full bg-brand px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/30 hover:bg-brand-hover transition active:scale-95"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
         >
           <IconLock />
-          Bloquear
+          <span>Bloquear</span>
         </button>
       )}
 
-      {/* ── Event detail modal ── */}
+      {/* ── Event detail modal — mobile-first ── */}
       {ev && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
           onClick={() => setSelectedEvent(null)}
           role="presentation"
         >
           <div
-            className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
           >
             <div
               className="h-1.5"
@@ -917,7 +930,7 @@ export default function BarberPage() {
                       <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 block mb-1">
                         Método
                       </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1">
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                         {([
                           { v: "CASH", label: "Efectivo", icon: "💵" },
                           { v: "DEBIT_CARD", label: "Débito", icon: "💳" },
@@ -1178,13 +1191,14 @@ function ClientSearchModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-20 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-start justify-center p-0 sm:p-4 sm:pt-20 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full sm:max-w-lg sm:rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col h-full sm:h-auto sm:max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e8e2dc]">
           <IconSearch />
@@ -1304,13 +1318,14 @@ function ProfileEditModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="px-5 py-4 border-b border-[#e8e2dc] flex items-center justify-between">
           <div className="flex items-center gap-2">

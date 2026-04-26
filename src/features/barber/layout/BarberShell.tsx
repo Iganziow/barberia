@@ -1,7 +1,8 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -29,12 +30,18 @@ type BarberShellProps = {
   initials: string;
 };
 
+const NAV = [
+  { href: "/barber", label: "Agenda" },
+  { href: "/barber/reports", label: "Reportes" },
+] as const;
+
 export default function BarberShell({
   children,
   name,
   initials,
 }: BarberShellProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,16 +92,39 @@ export default function BarberShell({
   return (
     <div className="min-h-screen bg-[#faf8f6] flex flex-col">
       {/* ── Top bar — dark espresso con acento cobre ── */}
-      <header className="sticky top-0 z-30 bg-[#1a1412] text-white border-b border-black/20">
-        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-3">
-          {/* Brand */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="text-lg font-extrabold tracking-tight shrink-0">
+      <header
+        className="sticky top-0 z-30 bg-[#1a1412] text-white border-b border-black/20"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
+        <div className="mx-auto max-w-6xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
+          {/* Brand + nav */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="text-base sm:text-lg font-extrabold tracking-tight shrink-0">
               Mar<span className="text-brand">Brava</span>
             </div>
             <div className="hidden sm:block h-6 w-px bg-white/10 shrink-0" />
-            <p className="text-[11px] text-white/50 hidden sm:block truncate capitalize">
-              {greeting}, <span className="text-white/80 font-medium">{firstName}</span> · {today}
+            {/* Nav segmentado: Agenda / Reportes */}
+            <nav className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-0.5">
+              {NAV.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "px-3 py-1 text-[11px] sm:text-xs font-semibold rounded-full transition",
+                      active
+                        ? "bg-brand text-white shadow-sm"
+                        : "text-white/60 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <p className="text-[11px] text-white/50 hidden lg:block truncate capitalize ml-1">
+              {greeting}, <span className="text-white/80 font-medium">{firstName}</span>
             </p>
           </div>
 
@@ -143,19 +173,21 @@ export default function BarberShell({
           </div>
         </div>
 
-        {/* Greeting en mobile (debajo de la top bar) — más rico */}
-        <div className="sm:hidden px-4 pb-2.5 pt-0">
-          <p className="text-xs text-white/70 capitalize leading-tight">
+        {/* Greeting en mobile compacto: una sola línea con greeting + fecha */}
+        <div className="sm:hidden px-3 pb-2 pt-0">
+          <p className="text-[11px] text-white/60 capitalize leading-tight truncate">
             {greeting}, <span className="text-white font-semibold">{firstName}</span>
-          </p>
-          <p className="text-[10px] text-white/40 capitalize mt-0.5 truncate">
-            {today}
+            <span className="text-white/30"> · </span>
+            <span className="text-white/40">{today}</span>
           </p>
         </div>
       </header>
 
       {/* ── Content ── */}
-      <main className="flex-1 mx-auto w-full max-w-6xl px-4 pt-4 pb-6">
+      <main
+        className="flex-1 mx-auto w-full max-w-6xl px-3 sm:px-4 pt-3 sm:pt-4 pb-24 sm:pb-6"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }}
+      >
         {children}
       </main>
     </div>
