@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 
 type SlotMinutesValue = 5 | 10 | 15 | 20 | 30 | 45 | 60;
@@ -108,18 +109,25 @@ export default function BarberCalendar({
     <div className="fc-wrapper">
       <FullCalendar
         ref={calRef}
-        plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
+        plugins={[timeGridPlugin, dayGridPlugin, listPlugin, interactionPlugin]}
         initialView={mobile ? "timeGridDay" : "timeGridWeek"}
         locale="es"
         headerToolbar={
           mobile
-            ? { left: "prev,next", center: "title", right: "today" }
-            : { left: "prev,next today", center: "title", right: "timeGridWeek,timeGridDay,dayGridMonth" }
+            ? { left: "prev,next", center: "title", right: "today,listWeek" }
+            : { left: "prev,next today", center: "title", right: "timeGridWeek,timeGridDay,dayGridMonth,listWeek" }
         }
         views={{
           dayGridMonth: {
             dayMaxEventRows: 3,
             fixedWeekCount: false,
+          },
+          listWeek: {
+            // Vista lista que muestra todas las citas de la semana en
+            // formato compacto — útil para barberos que prefieren
+            // ver una agenda como timeline de "el viernes a las 14h
+            // Juan, después Carlos a las 14:30…".
+            noEventsContent: "No hay citas en este rango",
           },
         }}
         slotMinTime="09:00:00"
@@ -164,7 +172,7 @@ export default function BarberCalendar({
             </div>
           );
         }}
-        buttonText={{ today: "Hoy", week: "Semana", day: "Día", month: "Mes" }}
+        buttonText={{ today: "Hoy", week: "Semana", day: "Día", month: "Mes", list: "Lista" }}
       />
     </div>
   );

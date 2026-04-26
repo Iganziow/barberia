@@ -102,6 +102,14 @@ export default function BarberPage() {
   const [showCancelInput, setShowCancelInput] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
+  // Payment flow al cerrar la cita: cuando hace click en "Completar" y
+  // todavía no hay payment, mostramos un form para capturar amount + tip
+  // + method. Backend hace el insert atómico junto con el status change.
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [payAmount, setPayAmount] = useState(0);
+  const [payTip, setPayTip] = useState(0);
+  const [payMethod, setPayMethod] = useState<"CASH" | "DEBIT_CARD" | "CREDIT_CARD" | "TRANSFER" | "OTHER">("CASH");
+
   // Filtro de status (oculta CANCELED por defecto — ruido visual)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -122,13 +130,17 @@ export default function BarberPage() {
     return t;
   });
 
-  // Cursor del mini-calendario del sidebar — controlado para que el
-  // dropdown de mes/año persista entre renders y se pueda navegar a
-  // cualquier mes/año libremente.
+  // Cursor del mini-calendario principal del sidebar — controlado para
+  // que el dropdown de mes/año persista entre renders. El segundo mini
+  // (simpleHeader) muestra automáticamente el mes siguiente al primero.
   const [miniCursor, setMiniCursor] = useState<Date>(() => {
     const t = new Date();
     return new Date(t.getFullYear(), t.getMonth(), 1);
   });
+  const miniCursorNext = useMemo(
+    () => new Date(miniCursor.getFullYear(), miniCursor.getMonth() + 1, 1),
+    [miniCursor]
+  );
 
   // Notas: estado del modal de detalle
   const [noteInput, setNoteInput] = useState("");
@@ -249,6 +261,10 @@ export default function BarberPage() {
     setEditingNote(false);
     setShowCancelInput(false);
     setCancelReason("");
+    setShowPaymentForm(false);
+    setPayAmount(selectedEvent.price ?? 0);
+    setPayTip(0);
+    setPayMethod("CASH");
     setLoadingClientNotes(true);
     fetch(`/api/barber/clients/${selectedEvent.clientId}/notes`)
       .then((r) => (r.ok ? r.json() : { notes: [] }))
@@ -272,25 +288,88 @@ export default function BarberPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // ─── Notificaciones del navegador: aviso 15 min antes de cada cita ─
+  // Funciona mientras la pestaña esté abierta. Para notificaciones en
+  // background necesitaríamos service worker + Push API + VAPID, lo que
+  // requiere infra del backend. Esta versión es suficiente para "tengo
+  // la app abierta y quiero que me avise antes de la próxima cita".
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
+
+  function requestNotifPermission() {
+    if (typeof Notification === "undefined") return;
+    Notification.requestPermission().then((p) => setNotifPermission(p));
+  }
+
+  useEffect(() => {
+    if (notifPermission !== "granted") return;
+    if (typeof Notification === "undefined") return;
+    // Programa un timeout por cada cita futura no cancelada para 15 min antes
+    const now = Date.now();
+    const scheduled: number[] = [];
+    for (const e of calEvents) {
+      if (e.kind !== "APPOINTMENT") continue;
+      if (e.status === "CANCELED" || e.status === "NO_SHOW" || e.status === "DONE") continue;
+      const startMs = new Date(e.start).getTime();
+      const fireAt = startMs - 15 * 60 * 1000;
+      const delay = fireAt - now;
+      if (delay <= 0 || delay > 24 * 60 * 60 * 1000) continue; // solo próximas 24h
+      const timer = window.setTimeout(() => {
+        try {
+          new Notification("Próxima cita en 15 min", {
+            body: `${e.clientName ?? "Cliente"} · ${e.serviceName ?? ""}`,
+            tag: e.id, // evita duplicados si re-arma
+            icon: "/icons/icon-192.svg",
+          });
+        } catch {
+          // ignore: fallo silencioso si el navegador no soporta opciones
+        }
+      }, delay);
+      scheduled.push(timer);
+    }
+    return () => {
+      scheduled.forEach((t) => window.clearTimeout(t));
+    };
+  }, [calEvents, notifPermission]);
+
   // ─── Status change con optimistic UI ─────────────────────────────
   type NextStatus = "RESERVED" | "ARRIVED" | "IN_PROGRESS" | "DONE" | "NO_SHOW" | "CANCELED";
+  type PaymentPayload = {
+    amount: number;
+    tip: number;
+    method: "CASH" | "DEBIT_CARD" | "CREDIT_CARD" | "TRANSFER" | "OTHER";
+  };
 
-  async function updateStatus(id: string, status: NextStatus, reason?: string) {
+  async function updateStatus(
+    id: string,
+    status: NextStatus,
+    opts: { reason?: string; payment?: PaymentPayload } = {}
+  ) {
     if (status === "NO_SHOW" && !window.confirm("¿Marcar como no asistió?")) return;
 
-    // Optimistic update: cambiamos antes de esperar al backend
+    // Optimistic update
     const prevEvents = calEvents;
     const prevSelected = selectedEvent;
-    setCalEvents((curr) => curr.map((e) => (e.id === id ? { ...e, status } : e)));
+    setCalEvents((curr) =>
+      curr.map((e) =>
+        e.id === id ? { ...e, status, paid: opts.payment ? true : e.paid } : e
+      )
+    );
     if (selectedEvent?.id === id) {
-      setSelectedEvent((prev) => (prev ? { ...prev, status } : null));
+      setSelectedEvent((prev) =>
+        prev ? { ...prev, status, paid: opts.payment ? true : prev.paid } : null
+      );
     }
 
     setUpdatingId(id);
     try {
       const payload: Record<string, unknown> = { status };
-      if (status === "CANCELED" && reason && reason.trim()) {
-        payload.cancelReason = reason.trim();
+      if (status === "CANCELED" && opts.reason && opts.reason.trim()) {
+        payload.cancelReason = opts.reason.trim();
+      }
+      if (opts.payment) {
+        payload.payment = opts.payment;
       }
       const res = await fetch(`/api/barber/appointments/${id}/status`, {
         method: "PATCH",
@@ -298,14 +377,15 @@ export default function BarberPage() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        // Reset del input de cancelación si estaba abierto
         setShowCancelInput(false);
         setCancelReason("");
+        setShowPaymentForm(false);
         refreshStats();
       } else {
         setCalEvents(prevEvents);
         setSelectedEvent(prevSelected);
-        alert("No se pudo actualizar el estado. Intenta de nuevo.");
+        const d = await res.json().catch(() => ({ message: "Error" }));
+        alert(d.message || "No se pudo actualizar. Intenta de nuevo.");
       }
     } catch {
       setCalEvents(prevEvents);
@@ -314,6 +394,28 @@ export default function BarberPage() {
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  /**
+   * Click en "Completar cita":
+   *  - Si la cita NO tiene payment → abre form de pago (no marca DONE aún)
+   *  - Si ya tiene payment → solo marca DONE
+   */
+  function handleCompleteClick(ev: CalendarEvent) {
+    if (ev.paid) {
+      updateStatus(ev.id, "DONE");
+    } else {
+      setShowPaymentForm(true);
+      setPayAmount(ev.price ?? 0);
+      setPayTip(0);
+      setPayMethod("CASH");
+    }
+  }
+
+  function submitPayment(ev: CalendarEvent) {
+    updateStatus(ev.id, "DONE", {
+      payment: { amount: payAmount, tip: payTip, method: payMethod },
+    });
   }
 
   async function saveNote() {
@@ -361,13 +463,32 @@ export default function BarberPage() {
     <BarberShell name={barber?.name ?? ""} initials={initials}>
       <div className="grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-5">
       {/* ── Sidebar con mini-calendarios (solo desktop) ────────────── */}
-      <aside className="hidden lg:flex flex-col gap-4 sticky top-20 self-start max-h-[calc(100vh-90px)] overflow-y-auto pr-1">
+      {/* Sidebar centrado verticalmente con justify-center para que cuando
+          haya espacio extra (monitor alto) los calendarios queden a la
+          mitad y no pegados al top. */}
+      <aside className="hidden lg:flex flex-col gap-3 sticky top-6 self-start max-h-[calc(100vh-50px)] overflow-y-auto pr-1 py-4 justify-start">
+        {/* Mini principal con dropdowns mes + año + flechas */}
         <div className="rounded-xl border border-[#e8e2dc] bg-white p-3 shadow-sm">
           <MiniMonthCalendar
             selectedDate={sidebarDate}
             onSelectDate={(d) => setSidebarDate(d)}
             cursorMonth={miniCursor}
             onCursorChange={setMiniCursor}
+          />
+        </div>
+        {/* Mini secundario — solo label de mes, sin controles. Sincronizado
+            automáticamente con el primero (mes siguiente). Sirve como
+            preview rápido del mes que viene. */}
+        <div className="rounded-xl border border-[#e8e2dc] bg-white p-3 shadow-sm opacity-95">
+          <MiniMonthCalendar
+            selectedDate={sidebarDate}
+            onSelectDate={(d) => setSidebarDate(d)}
+            cursorMonth={miniCursorNext}
+            onCursorChange={() => {
+              /* read-only: cualquier nav del mini siguiente
+                 ignora — el usuario navega con el principal */
+            }}
+            simpleHeader
           />
         </div>
         <button
@@ -382,6 +503,25 @@ export default function BarberPage() {
         >
           Volver a hoy
         </button>
+
+        {/* Notificaciones del navegador — pedir permiso si aún no */}
+        {notifPermission === "default" && (
+          <button
+            type="button"
+            onClick={requestNotifPermission}
+            className="rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-xs font-semibold text-brand hover:bg-brand/10 transition flex items-center gap-1.5"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+            </svg>
+            Activar avisos 15 min antes
+          </button>
+        )}
+        {notifPermission === "granted" && (
+          <p className="text-[10px] text-emerald-600 text-center leading-snug">
+            ✓ Recibirás avisos 15 min antes de cada cita
+          </p>
+        )}
       </aside>
 
       {/* ── Main content ────────────────────────────────────────── */}
@@ -731,8 +871,100 @@ export default function BarberPage() {
                   </div>
                 </div>
 
+                {/* Payment form — aparece cuando el barbero pulsa "Completar"
+                    y la cita aún no tiene payment registrado. */}
+                {showPaymentForm && !ev.paid && (
+                  <div className="border-t border-emerald-100 bg-emerald-50/50 p-4 space-y-3 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-600">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M3 7h18M3 12h18M3 17h18" />
+                        </svg>
+                      </span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                        Registrar pago
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 block mb-1">
+                          Monto
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="500"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(Number(e.target.value))}
+                          className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-stone-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 tabular-nums"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 block mb-1">
+                          Propina
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="500"
+                          value={payTip}
+                          onChange={(e) => setPayTip(Number(e.target.value))}
+                          className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-stone-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 tabular-nums"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 block mb-1">
+                        Método
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1">
+                        {([
+                          { v: "CASH", label: "Efectivo", icon: "💵" },
+                          { v: "DEBIT_CARD", label: "Débito", icon: "💳" },
+                          { v: "CREDIT_CARD", label: "Crédito", icon: "💳" },
+                          { v: "TRANSFER", label: "Transfer", icon: "🏦" },
+                          { v: "OTHER", label: "Otro", icon: "•" },
+                        ] as const).map((m) => (
+                          <button
+                            key={m.v}
+                            type="button"
+                            onClick={() => setPayMethod(m.v)}
+                            className={`rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
+                              payMethod === m.v
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "bg-white border border-[#e8e2dc] text-stone-600 hover:border-emerald-300"
+                            }`}
+                          >
+                            <span className="mr-0.5">{m.icon}</span> {m.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                      <p className="text-xs text-stone-600 tabular-nums">
+                        Total: <span className="font-bold text-stone-900">{formatCLP(payAmount + payTip)}</span>
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowPaymentForm(false)}
+                          className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition"
+                        >
+                          Volver
+                        </button>
+                        <button
+                          onClick={() => submitPayment(ev)}
+                          disabled={isUpdating || payAmount < 0}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50"
+                        >
+                          {isUpdating ? "Guardando..." : "Cobrar y completar"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Cancel reason input — aparece cuando el barbero pulsa "Cancelar" */}
-                {showCancelInput && (
+                {showCancelInput && !showPaymentForm && (
                   <div className="border-t border-red-100 bg-red-50/60 p-4 space-y-2 shrink-0">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-red-700">
                       Motivo de cancelación
@@ -753,7 +985,7 @@ export default function BarberPage() {
                         Volver
                       </button>
                       <button
-                        onClick={() => updateStatus(ev.id, "CANCELED", cancelReason)}
+                        onClick={() => updateStatus(ev.id, "CANCELED", { reason: cancelReason })}
                         disabled={isUpdating}
                         className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition disabled:opacity-50"
                       >
@@ -764,7 +996,7 @@ export default function BarberPage() {
                 )}
 
                 {/* Status action buttons — flow granular igual que el admin */}
-                {!showCancelInput && (
+                {!showCancelInput && !showPaymentForm && (
                   <div className="border-t border-[#f0ece8] bg-stone-50/40 p-4 shrink-0 space-y-2">
                     {/* Línea principal de avance — botón grande destacado según estado actual */}
                     {ev.status === "RESERVED" && (
@@ -777,7 +1009,7 @@ export default function BarberPage() {
                           Marcar llegó
                         </button>
                         <button
-                          onClick={() => updateStatus(ev.id, "DONE")}
+                          onClick={() => handleCompleteClick(ev)}
                           disabled={isUpdating}
                           className="rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm shadow-emerald-500/20"
                         >
@@ -786,21 +1018,30 @@ export default function BarberPage() {
                       </div>
                     )}
                     {ev.status === "ARRIVED" && (
-                      <button
-                        onClick={() => updateStatus(ev.id, "IN_PROGRESS")}
-                        disabled={isUpdating}
-                        className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition disabled:opacity-50 shadow-sm shadow-violet-500/20"
-                      >
-                        Empezar corte
-                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          onClick={() => updateStatus(ev.id, "IN_PROGRESS")}
+                          disabled={isUpdating}
+                          className="rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition disabled:opacity-50 shadow-sm shadow-violet-500/20"
+                        >
+                          Empezar corte
+                        </button>
+                        <button
+                          onClick={() => handleCompleteClick(ev)}
+                          disabled={isUpdating}
+                          className="rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm shadow-emerald-500/20"
+                        >
+                          Completar cita
+                        </button>
+                      </div>
                     )}
                     {ev.status === "IN_PROGRESS" && (
                       <button
-                        onClick={() => updateStatus(ev.id, "DONE")}
+                        onClick={() => handleCompleteClick(ev)}
                         disabled={isUpdating}
                         className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm shadow-emerald-500/20"
                       >
-                        Completar cita
+                        Completar cita y cobrar
                       </button>
                     )}
                     {(ev.status === "DONE" || ev.status === "NO_SHOW" || ev.status === "CANCELED") && (

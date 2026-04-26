@@ -59,12 +59,16 @@ export default function MiniMonthCalendar({
   initialMonth,
   cursorMonth,
   onCursorChange,
+  simpleHeader = false,
 }: {
   selectedDate: Date;
   onSelectDate: (d: Date) => void;
   initialMonth?: Date;
   cursorMonth?: Date;
   onCursorChange?: (next: Date) => void;
+  /** Si true, el header muestra solo "Mes Año" centrado, sin dropdowns
+   *  ni flechas. Útil para mini-cals secundarios sincronizados con otro. */
+  simpleHeader?: boolean;
 }) {
   const isControlled = cursorMonth !== undefined && onCursorChange !== undefined;
 
@@ -152,66 +156,77 @@ export default function MiniMonthCalendar({
 
   return (
     <div className="text-xs">
-      {/* Header con flecha < / dropdowns mes+año / flecha > */}
-      <div className="flex items-center justify-between gap-1 mb-2">
-        <button
-          type="button"
-          onClick={() => shiftMonth(-1)}
-          className="grid h-7 w-7 place-items-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800 transition shrink-0"
-          aria-label="Mes anterior"
-        >
-          <IconArrow dir="left" />
-        </button>
-
-        <div className="flex items-center gap-1.5 flex-1 justify-center">
-          {/* Dropdown de mes */}
-          <div className="relative">
-            <select
-              value={cursor.getMonth()}
-              onChange={(e) => pickMonth(Number(e.target.value))}
-              className="appearance-none bg-transparent pr-4 pl-1 py-1 text-[12px] font-semibold text-stone-800 hover:text-brand cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 rounded"
-              aria-label="Seleccionar mes"
-            >
-              {MONTH_NAMES.map((name, i) => (
-                <option key={name} value={i}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-stone-400">
-              <IconChev />
+      {/* Header — completo (con dropdowns) o simple (solo label centrado) */}
+      {simpleHeader ? (
+        <div className="text-center mb-2">
+          <p className="text-[12px] font-semibold text-stone-700">
+            {MONTH_NAMES[cursor.getMonth()]}{" "}
+            <span className="text-stone-400 font-normal tabular-nums">
+              {cursor.getFullYear()}
             </span>
-          </div>
-
-          {/* Dropdown de año */}
-          <div className="relative">
-            <select
-              value={cursor.getFullYear()}
-              onChange={(e) => pickYear(Number(e.target.value))}
-              className="appearance-none bg-transparent pr-4 pl-1 py-1 text-[12px] text-stone-500 hover:text-brand cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 rounded tabular-nums"
-              aria-label="Seleccionar año"
-            >
-              {yearRange.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-stone-400">
-              <IconChev />
-            </span>
-          </div>
+          </p>
         </div>
+      ) : (
+        <div className="flex items-center justify-between gap-1 mb-2">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="grid h-7 w-7 place-items-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800 transition shrink-0"
+            aria-label="Mes anterior"
+          >
+            <IconArrow dir="left" />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => shiftMonth(1)}
-          className="grid h-7 w-7 place-items-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800 transition shrink-0"
-          aria-label="Mes siguiente"
-        >
-          <IconArrow dir="right" />
-        </button>
-      </div>
+          <div className="flex items-center gap-1.5 flex-1 justify-center">
+            {/* Dropdown de mes */}
+            <div className="relative">
+              <select
+                value={cursor.getMonth()}
+                onChange={(e) => pickMonth(Number(e.target.value))}
+                className="appearance-none bg-transparent pr-4 pl-1 py-1 text-[12px] font-semibold text-stone-800 hover:text-brand cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 rounded"
+                aria-label="Seleccionar mes"
+              >
+                {MONTH_NAMES.map((name, i) => (
+                  <option key={name} value={i}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-stone-400">
+                <IconChev />
+              </span>
+            </div>
+
+            {/* Dropdown de año */}
+            <div className="relative">
+              <select
+                value={cursor.getFullYear()}
+                onChange={(e) => pickYear(Number(e.target.value))}
+                className="appearance-none bg-transparent pr-4 pl-1 py-1 text-[12px] text-stone-500 hover:text-brand cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/30 rounded tabular-nums"
+                aria-label="Seleccionar año"
+              >
+                {yearRange.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-stone-400">
+                <IconChev />
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="grid h-7 w-7 place-items-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-800 transition shrink-0"
+            aria-label="Mes siguiente"
+          >
+            <IconArrow dir="right" />
+          </button>
+        </div>
+      )}
 
       {/* Day headers */}
       <div className="grid grid-cols-7 text-center text-[9px] font-semibold text-stone-400 mb-0.5 uppercase">

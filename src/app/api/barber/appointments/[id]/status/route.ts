@@ -25,6 +25,17 @@ const StatusSchema = z.object({
     .transform(stripHtml)
     .nullable()
     .optional(),
+  // Payment opcional: igual que en el admin, si se envía junto con
+  // status=DONE se crea en la misma transacción atómica.
+  payment: z
+    .object({
+      amount: z.number().int().nonnegative(),
+      tip: z.number().int().nonnegative().default(0),
+      method: z
+        .enum(["CASH", "DEBIT_CARD", "CREDIT_CARD", "TRANSFER", "OTHER"])
+        .default("CASH"),
+    })
+    .optional(),
 });
 
 export const PATCH = withBarber(async (req, { userId }, { params }) => {
@@ -38,7 +49,7 @@ export const PATCH = withBarber(async (req, { userId }, { params }) => {
   // Verifica que la cita pertenezca a este barbero
   const appointment = await prisma.appointment.findFirst({
     where: { id, barberId: barber.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, payment: { select: { id: true } } },
   });
   if (!appointment) {
     throw AppError.notFound("Cita no encontrada");
@@ -53,16 +64,40 @@ export const PATCH = withBarber(async (req, { userId }, { params }) => {
     );
   }
 
-  const updated = await prisma.appointment.update({
-    where: { id },
-    data: {
-      status: parsed.data.status,
-      // Guardamos el motivo sólo si se está cancelando
-      ...(parsed.data.status === "CANCELED" && parsed.data.cancelReason
-        ? { cancelReason: parsed.data.cancelReason }
-        : {}),
-    },
-    select: { id: true, status: true, cancelReason: true },
+  // Si piden crear payment pero ya existe, evitamos duplicados
+  if (parsed.data.payment && appointment.payment) {
+    return NextResponse.json(
+      { message: "Esta cita ya tiene un pago registrado" },
+      { status: 400 }
+    );
+  }
+
+  // Atómico: payment (si aplica) + cambio de status. Si falla cualquiera,
+  // ninguno persiste — evita el caso "registré el pago pero no avancé el
+  // estado" que dejaría la cita inconsistente.
+  const updated = await prisma.$transaction(async (tx) => {
+    if (parsed.data.payment) {
+      await tx.payment.create({
+        data: {
+          appointmentId: id,
+          amount: parsed.data.payment.amount,
+          tip: parsed.data.payment.tip,
+          method: parsed.data.payment.method,
+          status: "PAID",
+          paidAt: new Date(),
+        },
+      });
+    }
+    return tx.appointment.update({
+      where: { id },
+      data: {
+        status: parsed.data.status,
+        ...(parsed.data.status === "CANCELED" && parsed.data.cancelReason
+          ? { cancelReason: parsed.data.cancelReason }
+          : {}),
+      },
+      select: { id: true, status: true, cancelReason: true },
+    });
   });
 
   return NextResponse.json({ appointment: updated });
