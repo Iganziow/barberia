@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -34,6 +34,11 @@ interface BarberCalendarProps {
   onRangeChange: (from: string, to: string) => void;
   /** Granularidad de los slots. Default 30 min. */
   slotMinutes?: SlotMinutesValue;
+  /**
+   * Cuando cambia, el calendario navega programáticamente a esa fecha.
+   * Se usa desde el sidebar de mini-calendarios para sincronizar la vista.
+   */
+  currentDate?: Date;
 }
 
 function minutesToHMS(min: number): string {
@@ -69,9 +74,20 @@ export default function BarberCalendar({
   onClickEvent,
   onRangeChange,
   slotMinutes = 30,
+  currentDate,
 }: BarberCalendarProps) {
   const calRef = useRef<FullCalendar>(null);
   const mobile = isMobile();
+
+  // Navegar a la fecha seleccionada en el sidebar (mini-calendarios).
+  // FullCalendar.gotoDate() sólo cambia la vista visible; no dispara
+  // datesSet, así que el onRangeChange igual se activa por la natural
+  // re-render del view.
+  useEffect(() => {
+    if (currentDate && calRef.current) {
+      calRef.current.getApi().gotoDate(currentDate);
+    }
+  }, [currentDate]);
 
   const fcEvents = events.map((e) => {
     const colors = eventStyle(e);

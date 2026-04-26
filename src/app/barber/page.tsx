@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import BarberShell from "@/features/barber/layout/BarberShell";
 import BlockTimeModal from "@/features/barber/BlockTimeModal";
 import SlotMinutesPicker from "@/features/admin/agenda/SlotMinutesPicker";
+import MiniMonthCalendar from "@/features/admin/agenda/MiniMonthCalendar";
 import { useSlotMinutes } from "@/hooks/use-slot-minutes";
 import type { CalendarEvent } from "@/features/barber/BarberCalendar";
 
@@ -112,6 +113,20 @@ export default function BarberPage() {
 
   // Slot minutes (granularidad del calendar)
   const { slotMinutes, setSlotMinutes } = useSlotMinutes();
+
+  // Fecha seleccionada en los mini-calendarios del sidebar. Cuando cambia,
+  // BarberCalendar navega via gotoDate(). Inicializa en hoy.
+  const [sidebarDate, setSidebarDate] = useState<Date>(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  });
+  const nextMonthDate = useMemo(() => {
+    const d = new Date(sidebarDate);
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 1);
+    return d;
+  }, [sidebarDate]);
 
   // Notas: estado del modal de detalle
   const [noteInput, setNoteInput] = useState("");
@@ -342,6 +357,41 @@ export default function BarberPage() {
   // ─── Render ─────────────────────────────────────────────────────
   return (
     <BarberShell name={barber?.name ?? ""} initials={initials}>
+      <div className="grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-5">
+      {/* ── Sidebar con mini-calendarios (solo desktop) ────────────── */}
+      <aside className="hidden lg:flex flex-col gap-4 sticky top-20 self-start max-h-[calc(100vh-90px)] overflow-y-auto pr-1">
+        <div className="rounded-xl border border-[#e8e2dc] bg-white p-3 shadow-sm">
+          <MiniMonthCalendar
+            selectedDate={sidebarDate}
+            onSelectDate={(d) => setSidebarDate(d)}
+          />
+        </div>
+        <div className="rounded-xl border border-[#e8e2dc] bg-white p-3 shadow-sm opacity-90">
+          {/* Mismo selectedDate (sidebarDate) pero arranca en el mes
+              siguiente. Si el día seleccionado cae en este mes, también
+              lo resalta correctamente. */}
+          <MiniMonthCalendar
+            selectedDate={sidebarDate}
+            initialMonth={nextMonthDate}
+            onSelectDate={(d) => setSidebarDate(d)}
+          />
+        </div>
+        {/* Quick action: volver a hoy */}
+        <button
+          type="button"
+          onClick={() => {
+            const t = new Date();
+            t.setHours(0, 0, 0, 0);
+            setSidebarDate(t);
+          }}
+          className="rounded-lg border border-[#e8e2dc] bg-white px-3 py-2 text-xs font-semibold text-stone-600 hover:border-brand/40 hover:text-brand transition"
+        >
+          Volver a hoy
+        </button>
+      </aside>
+
+      {/* ── Main content ────────────────────────────────────────── */}
+      <div className="min-w-0">
       {/* ── Stats bar ── */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
@@ -512,9 +562,13 @@ export default function BarberPage() {
             onClickEvent={(event) => setSelectedEvent(event)}
             onRangeChange={loadCalendarEvents}
             slotMinutes={slotMinutes}
+            currentDate={sidebarDate}
           />
         </div>
       </section>
+
+      </div>{/* end main content (col 2) */}
+      </div>{/* end grid wrapper */}
 
       {/* ── FAB: bloquear tiempo — oculto cuando hay modal abierto ── */}
       {!anyModalOpen && (

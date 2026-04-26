@@ -30,17 +30,25 @@ function sameDay(a: Date, b: Date): boolean {
 /**
  * Mini calendario mensual. Lunes-primero.
  * Marca hoy con un círculo relleno y la fecha seleccionada con un ring.
+ *
+ * Props opcionales:
+ * - initialMonth: fuerza al cursor a un mes distinto al de selectedDate.
+ *   Útil cuando muestras 2 mini-cals lado a lado (uno mes actual, otro
+ *   mes siguiente) compartiendo el mismo selectedDate.
  */
 export default function MiniMonthCalendar({
   selectedDate,
   onSelectDate,
+  initialMonth,
 }: {
   selectedDate: Date;
   onSelectDate: (d: Date) => void;
+  initialMonth?: Date;
 }) {
-  const [cursor, setCursor] = useState(
-    new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
-  );
+  const [cursor, setCursor] = useState(() => {
+    const ref = initialMonth ?? selectedDate;
+    return new Date(ref.getFullYear(), ref.getMonth(), 1);
+  });
 
   const today = useMemo(() => {
     const t = new Date();
