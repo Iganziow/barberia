@@ -155,6 +155,11 @@ model User {
   client Client?
 
   @@index([orgId])
+  // Garantiza dedup por (teléfono, rol). Sin esto, un race condition
+  // (dos POSTs simultáneos del mismo cliente nuevo) podía crear 2 usuarios
+  // con el mismo phone normalizado → historial roto. Postgres permite
+  // múltiples nulls, así que usuarios sin teléfono no chocan.
+  @@unique([phone, role])
 }
 
 // ─── Client ─────────────────────────────────────────────

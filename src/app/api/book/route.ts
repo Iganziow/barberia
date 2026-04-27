@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { withPublic } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { z } from "zod";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { getAvailableSlots } from "@/lib/services/availability.service";
+import {
+  validateAppointmentSlot,
+  slotConflictMessage,
+} from "@/lib/services/availability.service";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
 import { stripHtml } from "@/lib/sanitize";
 import { rateLimit } from "@/lib/rate-limit";
@@ -26,9 +29,27 @@ const BookingSchema = z.object({
     .min(8)
     .regex(/^\+?[\d\s\-().]+$/, "Teléfono inválido"),
   clientEmail: z.string().email().optional().or(z.literal("")),
+  // Mensaje opcional que el cliente deja al reservar — el equipo lo ve en el
+  // detalle de la cita ("vengo apurado", "alérgico a X", "rápido por favor").
+  // Sanitizamos HTML y limitamos a 500 chars para evitar abuso.
+  notePublic: z
+    .string()
+    .max(500)
+    .transform((s) => stripHtml(s.trim()))
+    .optional()
+    .or(z.literal("")),
 }).refine(
   (data) => new Date(data.start) < new Date(data.end),
   { message: "La hora de inicio debe ser anterior a la hora de fin", path: ["start"] }
+).refine(
+  (data) => {
+    // Bloquea reservas a más de 60 días en el futuro. Defense-in-depth
+    // contra clientes que mandan POST directo bypaseando la UI.
+    const maxFuture = new Date();
+    maxFuture.setDate(maxFuture.getDate() + 60);
+    return new Date(data.start) <= maxFuture;
+  },
+  { message: "Solo se pueden reservar fechas dentro de los próximos 60 días", path: ["start"] }
 );
 
 export const POST = withPublic(async (req) => {
@@ -61,7 +82,10 @@ export const POST = withPublic(async (req) => {
     throw AppError.notFound("Servicio no encontrado");
   }
 
-  // Verify barber belongs to this org and offers this service
+  // Verify barber belongs to this org and offers this service. Traemos
+  // BarberService con customDuration/customPrice para respetar overrides
+  // del barbero (ej: Daniel cobra $15k por "Corte" cuando el base es $10k).
+  // Antes el booking público los ignoraba → discrepancia de cobranza.
   const barber = await prisma.barber.findFirst({
     where: { id: data.barberId, branch: { orgId } },
     include: { services: { where: { serviceId: data.serviceId } } },
@@ -72,6 +96,9 @@ export const POST = withPublic(async (req) => {
   if (barber.services.length === 0) {
     throw AppError.badRequest("Este barbero no ofrece el servicio seleccionado");
   }
+  const barberService = barber.services[0];
+  const effectiveDuration = barberService.customDuration ?? service.durationMin;
+  const effectivePrice = barberService.customPrice ?? service.price;
 
   // Verify branch belongs to org
   const branch = await prisma.branch.findFirst({
@@ -81,38 +108,33 @@ export const POST = withPublic(async (req) => {
     throw AppError.notFound("Sucursal no encontrada");
   }
 
-  // Validate slot duration matches service duration
+  // Validate slot duration matches the EFFECTIVE service duration (custom
+  // del barbero si existe, sino la base). Antes comparaba contra
+  // service.durationMin lo que rompía si el barbero tenía custom.
   const slotDurationMs = new Date(data.end).getTime() - new Date(data.start).getTime();
   const slotDurationMin = Math.round(slotDurationMs / 60_000);
-  if (slotDurationMin !== service.durationMin) {
+  if (slotDurationMin !== effectiveDuration) {
     throw AppError.badRequest("La duración del horario no coincide con el servicio");
   }
 
-  const dateStr = data.start.split("T")[0];
-  const slots = await getAvailableSlots(
-    data.barberId,
-    dateStr,
-    service.durationMin
-  );
-
-  const slotAvailable = slots.some((s) => s.start === data.start);
-  if (!slotAvailable) {
-    throw AppError.conflict("Este horario ya no está disponible. Intenta otro.");
-  }
-
-  // Use transaction with overlap check inside to prevent race condition
+  // Validación atómica del slot DENTRO de la transacción: schedule del
+  // barbero + horario de sucursal + overlap con citas + overlap con
+  // bloqueos. Reemplaza el check parcial anterior que solo miraba
+  // appointment overlap (un block creado entre el getAvailableSlots y
+  // el commit no se detectaba).
   const result = await prisma.$transaction(async (tx) => {
-    // Double-check no overlapping appointment exists (prevents race condition)
-    const overlapping = await tx.appointment.findFirst({
-      where: {
+    const conflict = await validateAppointmentSlot(
+      tx as unknown as typeof prisma,
+      {
         barberId: data.barberId,
-        status: { notIn: ["CANCELED", "NO_SHOW"] },
-        start: { lt: new Date(data.end) },
-        end: { gt: new Date(data.start) },
+        branchId: data.branchId,
+        start: new Date(data.start),
+        end: new Date(data.end),
       },
-    });
-    if (overlapping) {
-      throw new Error("SLOT_TAKEN");
+      { rejectPast: true }
+    );
+    if (conflict) {
+      throw new Error(`SLOT_INVALID:${slotConflictMessage(conflict)}`);
     }
 
     // Find or create client by normalized phone
@@ -121,10 +143,15 @@ export const POST = withPublic(async (req) => {
     });
 
     if (!user) {
+      // Email sintético cuando el cliente no provee email — necesario
+      // porque User.email es UNIQUE en el schema. Antes usábamos
+      // `Date.now()` lo que podía colisionar si dos clientes se
+      // registraban en el mismo milisegundo (raro pero posible bajo
+      // carga). UUID v4 elimina esa posibilidad por completo.
       user = await tx.user.create({
         data: {
           name: data.clientName,
-          email: data.clientEmail || `client.${Date.now()}@noemail.local`,
+          email: data.clientEmail || `client.${randomUUID()}@noemail.local`,
           phone: normalizedPhone,
           password: randomBytes(32).toString("hex"),
           role: "CLIENT",
@@ -142,17 +169,21 @@ export const POST = withPublic(async (req) => {
       });
     }
 
-    // Create appointment
+    // Create appointment con el precio EFECTIVO (custom del barbero si
+    // existe, sino el base). Antes guardaba siempre service.price.
     const appointment = await tx.appointment.create({
       data: {
         start: new Date(data.start),
         end: new Date(data.end),
-        price: service.price,
+        price: effectivePrice,
         barberId: data.barberId,
         serviceId: data.serviceId,
         clientId: client.id,
         branchId: data.branchId,
         status: "RESERVED",
+        // Si el cliente dejó un mensaje, persistirlo (notePublic). Lo
+        // ven el barbero y el admin en el detalle de la cita.
+        notePublic: data.notePublic ? data.notePublic : null,
       },
       include: {
         barber: { include: { user: { select: { name: true } } } },
@@ -164,7 +195,12 @@ export const POST = withPublic(async (req) => {
 
     return appointment;
   }).catch((err: Error) => {
-    if (err.message === "SLOT_TAKEN") return null;
+    if (err.message.startsWith("SLOT_INVALID:")) {
+      // Devolvemos null + mensaje específico (extraído del error) para
+      // que el cliente sepa exactamente qué falló.
+      const message = err.message.slice("SLOT_INVALID:".length);
+      throw AppError.conflict(message || "Este horario ya no está disponible. Intenta otro.");
+    }
     throw err;
   });
 

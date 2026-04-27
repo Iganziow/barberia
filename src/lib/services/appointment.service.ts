@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { dispatchWebhook } from "@/lib/services/webhook.service";
 import { sendStatusChangeEmail } from "@/lib/services/email.service";
-import type { CreateAppointmentInput, UpdateStatusInput } from "@/lib/validations/appointment";
+import type { UpdateStatusInput } from "@/lib/validations/appointment";
 
 export type AppointmentFilters = {
   orgId: string;
@@ -50,21 +50,10 @@ export async function getAppointments(filters: AppointmentFilters) {
   });
 }
 
-export async function createAppointment(data: CreateAppointmentInput) {
-  return prisma.appointment.create({
-    data: {
-      start: new Date(data.start),
-      end: new Date(data.end),
-      price: data.price,
-      barberId: data.barberId,
-      serviceId: data.serviceId,
-      clientId: data.clientId,
-      branchId: data.branchId,
-      notePublic: data.notePublic || null,
-      noteInternal: data.noteInternal || null,
-    },
-  });
-}
+// `createAppointment` se eliminó: la creación ahora vive directamente
+// en /api/admin/appointments POST envuelta en transacción + validación
+// atómica de slot. Mantener el helper exportable invitaba a usarlo
+// sin validar (admin POST anterior tenía ese bug exacto).
 
 export async function getAppointmentById(id: string, orgId?: string) {
   return prisma.appointment.findFirst({
@@ -85,6 +74,17 @@ export async function getAppointmentById(id: string, orgId?: string) {
       barber: { select: { id: true, user: { select: { name: true } } } },
       service: { select: { id: true, name: true, durationMin: true, price: true } },
       client: { select: { id: true, user: { select: { name: true, email: true, phone: true } } } },
+      branch: {
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          phone: true,
+          latitude: true,
+          longitude: true,
+          organization: { select: { name: true } },
+        },
+      },
       payment: {
         select: {
           id: true,
@@ -179,8 +179,13 @@ export async function updateAppointmentStatus(
 }
 
 /**
- * Reprogramar una cita (drag-to-reschedule o cambio de barbero).
- * Valida overlap con otras citas/bloqueos del mismo barbero.
+ * Reprogramar una cita (drag-to-reschedule, resize, o cambio de barbero).
+ * Reusa `validateAppointmentSlot` para validar TODO: schedule del barbero
+ * + horario de sucursal + overlap citas + overlap bloqueos. Antes solo
+ * miraba citas y bloqueos, perdiendo el caso "el barbero no trabaja ese día".
+ *
+ * Throws Error con mensaje legible si hay conflicto. Devuelve null si la
+ * cita no existe en el org.
  */
 export async function rescheduleAppointment(
   id: string,
@@ -189,7 +194,7 @@ export async function rescheduleAppointment(
 ) {
   const existing = await prisma.appointment.findFirst({
     where: { id, branch: { orgId } },
-    select: { id: true, barberId: true },
+    select: { id: true, barberId: true, branchId: true },
   });
   if (!existing) return null;
 
@@ -197,40 +202,32 @@ export async function rescheduleAppointment(
   const newEnd = new Date(data.end);
   const targetBarberId = data.barberId || existing.barberId;
 
-  // Check overlap con otras citas activas del barbero
-  const overlappingApt = await prisma.appointment.findFirst({
-    where: {
-      id: { not: id },
-      barberId: targetBarberId,
-      status: { notIn: ["CANCELED", "NO_SHOW"] },
-      start: { lt: newEnd },
-      end: { gt: newStart },
-    },
-    select: { id: true },
-  });
-  if (overlappingApt) {
-    throw new Error("Overlap con otra cita del barbero");
-  }
+  // Lazy import para evitar ciclo (availability.service podría usar este file).
+  const { validateAppointmentSlot, slotConflictMessage } = await import(
+    "@/lib/services/availability.service"
+  );
 
-  // Check overlap con bloqueos
-  const overlappingBlock = await prisma.blockTime.findFirst({
-    where: {
-      barberId: targetBarberId,
-      start: { lt: newEnd },
-      end: { gt: newStart },
-    },
-    select: { id: true },
-  });
-  if (overlappingBlock) {
-    throw new Error("Overlap con horario bloqueado");
-  }
-
-  return prisma.appointment.update({
-    where: { id },
-    data: {
-      start: newStart,
-      end: newEnd,
-      ...(data.barberId ? { barberId: data.barberId } : {}),
-    },
+  return prisma.$transaction(async (tx) => {
+    const conflict = await validateAppointmentSlot(
+      tx as unknown as typeof prisma,
+      {
+        barberId: targetBarberId,
+        branchId: existing.branchId,
+        start: newStart,
+        end: newEnd,
+      },
+      { excludeAppointmentId: id, rejectPast: false }
+    );
+    if (conflict) {
+      throw new Error(slotConflictMessage(conflict));
+    }
+    return tx.appointment.update({
+      where: { id },
+      data: {
+        start: newStart,
+        end: newEnd,
+        ...(data.barberId ? { barberId: data.barberId } : {}),
+      },
+    });
   });
 }

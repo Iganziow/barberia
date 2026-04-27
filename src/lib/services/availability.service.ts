@@ -136,7 +136,8 @@ function earlierTime(a: string, b: string): string {
 export async function getBarbersWithAvailability(
   branchId: string,
   date: string,
-  durationMin: number
+  durationMin: number,
+  serviceId?: string
 ) {
   const dayDate = new Date(date + "T00:00:00");
   const dayOfWeek = dayDate.getDay();
@@ -144,8 +145,16 @@ export async function getBarbersWithAvailability(
   const dayEnd = new Date(date + "T23:59:59");
   const nowMs = Date.now();
 
+  // Si vino un serviceId, filtramos los barberos que tengan ese servicio
+  // asignado. Sin este filtro, el flujo de reserva permitía elegir un
+  // barbero que no ofrece el servicio y el POST fallaba al final con
+  // "Este barbero no ofrece el servicio seleccionado" — mala UX.
   const barbers = await prisma.barber.findMany({
-    where: { branchId, active: true },
+    where: {
+      branchId,
+      active: true,
+      ...(serviceId ? { services: { some: { serviceId } } } : {}),
+    },
     select: {
       id: true,
       color: true,
@@ -244,6 +253,141 @@ export async function getBarbersWithAvailability(
   });
 }
 
+type SlotConflict =
+  | { kind: "barber_off" }
+  | { kind: "branch_closed" }
+  | { kind: "outside_schedule"; workStart: string; workEnd: string }
+  | { kind: "outside_branch_hours"; openTime: string; closeTime: string }
+  | { kind: "appointment_overlap"; appointmentId: string }
+  | { kind: "block_overlap"; blockId: string };
+
+export type ValidateSlotOptions = {
+  /** Si se está reprogramando, ignorar esta cita en el overlap check. */
+  excludeAppointmentId?: string;
+  /** Si true, rechaza slots en el pasado. Default true (público), false (admin). */
+  rejectPast?: boolean;
+};
+
+/**
+ * Validador central de slots — fuente única de verdad para todas las
+ * creaciones/reprogramaciones de citas. Devuelve null si el slot es válido,
+ * o un objeto describiendo el primer conflicto encontrado.
+ *
+ * Verifica en orden:
+ *   1. Slot en el pasado (si rejectPast)
+ *   2. Barbero trabaja ese día (BarberSchedule)
+ *   3. Sucursal abierta ese día (WorkingHours)
+ *   4. Slot dentro del horario del barbero (intersección con sucursal)
+ *   5. No solapa con otra cita activa
+ *   6. No solapa con un bloqueo de tiempo
+ *
+ * Diseñado para usarse DENTRO de una transacción Prisma (acepta el cliente
+ * `tx`) — así el check es atómico con el INSERT que viene después.
+ */
+export async function validateAppointmentSlot(
+  tx: typeof prisma,
+  args: {
+    barberId: string;
+    branchId: string;
+    start: Date;
+    end: Date;
+  },
+  options: ValidateSlotOptions = {}
+): Promise<SlotConflict | null> {
+  const { barberId, branchId, start, end } = args;
+  const { excludeAppointmentId, rejectPast = true } = options;
+
+  if (rejectPast && start.getTime() <= Date.now()) {
+    // Reservar en el pasado nunca es válido para clientes; los admins
+    // que pasan rejectPast=false explícitamente sí pueden (ej: registrar
+    // una cita histórica que olvidaron cargar).
+    return { kind: "outside_schedule", workStart: "00:00", workEnd: "00:00" };
+  }
+
+  const dayOfWeek = start.getDay();
+  const dayDate = new Date(start);
+  dayDate.setHours(0, 0, 0, 0);
+
+  const [schedule, branchHours] = await Promise.all([
+    tx.barberSchedule.findUnique({
+      where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
+    }),
+    tx.workingHours.findUnique({
+      where: { branchId_dayOfWeek: { branchId, dayOfWeek } },
+    }),
+  ]);
+
+  if (!schedule || !schedule.isWorking) return { kind: "barber_off" };
+  if (!branchHours || !branchHours.isOpen) return { kind: "branch_closed" };
+
+  // Construir ventana de trabajo (intersección barbero + sucursal).
+  const workStart = schedule.startTime > branchHours.openTime ? schedule.startTime : branchHours.openTime;
+  const workEnd = schedule.endTime < branchHours.closeTime ? schedule.endTime : branchHours.closeTime;
+
+  const [wsH, wsM] = workStart.split(":").map(Number);
+  const [weH, weM] = workEnd.split(":").map(Number);
+  const windowStart = new Date(dayDate);
+  windowStart.setHours(wsH, wsM, 0, 0);
+  const windowEnd = new Date(dayDate);
+  windowEnd.setHours(weH, weM, 0, 0);
+
+  // Slot debe quedar completamente dentro de la ventana.
+  if (start < windowStart || end > windowEnd) {
+    return { kind: "outside_schedule", workStart, workEnd };
+  }
+
+  // Overlap con otras citas activas del mismo barbero.
+  const overlappingApt = await tx.appointment.findFirst({
+    where: {
+      barberId,
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+      status: { notIn: ["CANCELED", "NO_SHOW"] },
+      start: { lt: end },
+      end: { gt: start },
+    },
+    select: { id: true },
+  });
+  if (overlappingApt) {
+    return { kind: "appointment_overlap", appointmentId: overlappingApt.id };
+  }
+
+  // Overlap con bloqueos del barbero (vacaciones, almuerzo, etc.).
+  const overlappingBlock = await tx.blockTime.findFirst({
+    where: {
+      barberId,
+      start: { lt: end },
+      end: { gt: start },
+    },
+    select: { id: true },
+  });
+  if (overlappingBlock) {
+    return { kind: "block_overlap", blockId: overlappingBlock.id };
+  }
+
+  return null;
+}
+
+/**
+ * Convierte un SlotConflict en mensaje en español listo para mostrar al
+ * usuario. Centralizar acá garantiza consistencia entre endpoints.
+ */
+export function slotConflictMessage(c: SlotConflict): string {
+  switch (c.kind) {
+    case "barber_off":
+      return "El barbero no trabaja ese día.";
+    case "branch_closed":
+      return "La sucursal está cerrada ese día.";
+    case "outside_schedule":
+      return `Fuera del horario del barbero (${c.workStart}–${c.workEnd}).`;
+    case "outside_branch_hours":
+      return `Fuera del horario de la sucursal (${c.openTime}–${c.closeTime}).`;
+    case "appointment_overlap":
+      return "Ya hay otra cita en ese horario.";
+    case "block_overlap":
+      return "Ese horario está bloqueado para el barbero.";
+  }
+}
+
 export type HeatmapDay = {
   date: string;
   totalSlots: number;
@@ -268,9 +412,15 @@ export async function getAvailabilityHeatmap(
   });
   if (!service) return [];
 
-  // Get all active barbers in this branch
+  // Solo barberos que ofrecen este servicio. Sin el filtro, el heatmap
+  // contaba la disponibilidad de barberos que no podían ejecutar el
+  // servicio → mostraba más cupos de los que realmente había.
   const barbers = await prisma.barber.findMany({
-    where: { branchId, active: true },
+    where: {
+      branchId,
+      active: true,
+      services: { some: { serviceId } },
+    },
     select: { id: true },
   });
   if (barbers.length === 0) return [];

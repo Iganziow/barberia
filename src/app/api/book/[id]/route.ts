@@ -23,6 +23,14 @@ export const GET = withPublic(async (_req, { params }) => {
       serviceName: apt.service.name,
       serviceDuration: apt.service.durationMin,
       clientName: apt.client.user.name,
+      branch: {
+        name: apt.branch.name,
+        address: apt.branch.address,
+        phone: apt.branch.phone,
+        latitude: apt.branch.latitude,
+        longitude: apt.branch.longitude,
+        orgName: apt.branch.organization?.name ?? null,
+      },
     },
   });
 });

@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { AppError } from "@/lib/api-error";
 
 // In-memory cache for slug → orgId resolution
 const slugCache = new Map<string, { orgId: string; expiresAt: number }>();
@@ -56,7 +57,11 @@ export async function getOrgIdFromHeaders(req?: Request): Promise<string> {
     if (resolved) return resolved;
   }
 
-  throw new Error("Missing tenant context.");
+  // No pudimos resolver un orgId. Si vino un slug en query/cookie pero no
+  // existe, devolvemos 404 para que el frontend muestre la página "Negocio
+  // no encontrado". Antes lanzábamos Error genérico → handleError lo
+  // convertía en 500 y el frontend no diferenciaba el caso.
+  throw AppError.notFound("Negocio no encontrado");
 }
 
 /**
