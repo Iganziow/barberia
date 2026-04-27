@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./booking.css";
 
 :root {
   --background: #faf8f6;
@@ -149,6 +150,10 @@ body {
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   color: #1c1917;
+  /* Cuando el navegador hace scroll-into-view al enfocar un input
+     (por ej. al abrir el teclado virtual), garantiza que quede al menos
+     8rem de espacio abajo para que el botón de submit no quede tapado. */
+  scroll-margin-bottom: 8rem;
 }
 .input-field:focus {
   border-color: var(--accent);

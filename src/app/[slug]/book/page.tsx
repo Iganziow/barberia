@@ -1,136 +1,332 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { formatCLP } from "@/lib/format";
+import {
+  formatChileanPhone,
+  isValidChileanPhone,
+  normalizeChileanLocal,
+  toE164ChileanPhone,
+} from "@/lib/phone";
 
+// ─── Tipos ──────────────────────────────────────────────────────────
 type Service = { id: string; name: string; durationMin: number; price: number; category: string | null };
 type BarberAvail = { id: string; name: string; color: string | null; availableSlots: number };
 type Slot = { start: string; end: string };
-type Step = "service" | "barber" | "datetime" | "confirm";
 type HeatmapDay = { date: string; totalSlots: number; availableSlots: number; level: string; waitlistCount: number };
+type BranchInfo = { name: string; orgName: string | null };
+type Branch = { id: string; name: string; address: string | null };
+/** Vista interna — todo en una sola URL para no perder estado al navegar. */
+type View = "express" | "confirm";
 
-function formatSlotTime(iso: string) {
+const ANY_BARBER_ID = "__any__";
+const TIME_PERIODS = [
+  { key: "morning", label: "Mañana", icon: "🌅", from: 7, to: 12 },
+  { key: "afternoon", label: "Tarde", icon: "☀️", from: 12, to: 18 },
+  { key: "evening", label: "Noche", icon: "🌙", from: 18, to: 23 },
+] as const;
+
+// ─── Helpers de UI ──────────────────────────────────────────────────
+function fmtSlot(iso: string) {
   return new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
 }
-
-function formatDate(date: string) {
-  return new Date(date + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
+function fmtDayLong(dateStr: string) {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("es-CL", {
+    weekday: "long", day: "numeric", month: "long",
+  });
 }
-
-function getDateOptions() {
-  const dates: string[] = [];
+function getDateOptions(): string[] {
+  const out: string[] = [];
   const now = new Date();
   for (let i = 0; i < 14; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
-    dates.push(d.toISOString().split("T")[0]);
+    out.push(d.toISOString().split("T")[0]);
   }
-  return dates;
+  return out;
+}
+function initials(name: string) {
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+function heatColor(level?: string): string {
+  if (!level || level === "closed") return "var(--mb-heat-closed)";
+  if (level === "full") return "var(--mb-heat-full)";
+  if (level === "low") return "var(--mb-heat-low)";
+  if (level === "medium") return "var(--mb-heat-medium)";
+  return "var(--mb-heat-high)";
 }
 
-const STEPS: { key: Step; label: string }[] = [
-  { key: "service", label: "Servicio" },
-  { key: "barber", label: "Profesional" },
-  { key: "datetime", label: "Horario" },
-  { key: "confirm", label: "Confirmar" },
-];
+// ─── Iconos inline ───────────────────────────────────────────────────
+function IconPin(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+function IconChevDown(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+function IconArrow(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+function IconCheck(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+function IconBell(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" />
+    </svg>
+  );
+}
+function IconBack(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
 
+// ════════════════════════════════════════════════════════════════════
+// Página principal
+// ════════════════════════════════════════════════════════════════════
 export default function BookingPage() {
   const router = useRouter();
   const { slug } = useParams<{ slug: string }>();
 
+  // Cookie tenant
   useEffect(() => {
     document.cookie = `bb_org=${slug};path=/;max-age=${60 * 60 * 24 * 30}`;
   }, [slug]);
 
-  const [step, setStep] = useState<Step>("service");
+  // ── State principal ───────────────────────────────────────────────
+  const [view, setView] = useState<View>("express");
+  const [orgNotFound, setOrgNotFound] = useState(false);
+
+  // Tenant + sucursales
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
-  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
+
+  // Servicios disponibles
+  const [services, setServices] = useState<Service[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+
+  // Selección del usuario
+  const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedBarber, setSelectedBarber] = useState<BarberAvail | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [clientNote, setClientNote] = useState("");
+
+  // Datos derivados
+  const [barbers, setBarbers] = useState<BarberAvail[]>([]);
+  const [barbersLoading, setBarbersLoading] = useState(false);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  /** Mapeo start→barberId real cuando "any" está activo. */
+  const [slotBarberMap, setSlotBarberMap] = useState<Record<string, string>>({});
+  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
+
+  // Form de cliente (paso "confirm")
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
-  const [services, setServices] = useState<Service[]>([]);
-  const [barbers, setBarbers] = useState<BarberAvail[]>([]);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [agree, setAgree] = useState(true);
+
+  // Submit + waitlist
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
   const [waitlistPosition, setWaitlistPosition] = useState<number | null>(null);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
 
-  // Filtro de rango horario para el paso 3 (selección de hora)
-  type TimePreset = "all" | "morning" | "afternoon" | "evening";
-  const [timePreset, setTimePreset] = useState<TimePreset>("all");
+  const dateOptions = useMemo(() => getDateOptions(), []);
 
-  const TIME_PRESETS: { key: TimePreset; label: string; icon: string; from: number; to: number }[] = [
-    { key: "all", label: "Todo el día", icon: "☀️", from: 0, to: 24 },
-    { key: "morning", label: "Mañana", icon: "🌅", from: 7, to: 12 },
-    { key: "afternoon", label: "Tarde", icon: "☀️", from: 12, to: 18 },
-    { key: "evening", label: "Noche", icon: "🌙", from: 18, to: 23 },
-  ];
+  // ── Selección derivada ────────────────────────────────────────────
+  const selectedService = useMemo(
+    () => services.find((s) => s.id === selectedServiceId) || null,
+    [services, selectedServiceId]
+  );
+  const dayHeat = useMemo(
+    () => heatmap.find((h) => h.date === selectedDate),
+    [heatmap, selectedDate]
+  );
+  const ready = !!(selectedService && selectedBarber && selectedSlot && branchId);
 
-  const filteredSlots = slots.filter((s) => {
-    if (timePreset === "all") return true;
-    const preset = TIME_PRESETS.find((p) => p.key === timePreset);
-    if (!preset) return true;
-    const hour = new Date(s.start).getHours();
-    return hour >= preset.from && hour < preset.to;
-  });
+  // ── Loaders ───────────────────────────────────────────────────────
+  // Fetch sucursales + info del local
+  useEffect(() => {
+    fetch(`/api/book/branches?slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const list: Branch[] = d.branches || [];
+        setBranches(list);
+        if (list.length === 1) setBranchId(list[0].id);
+      })
+      .catch(() => {});
+    fetch(`/api/book/info?slug=${slug}`)
+      .then((r) => {
+        if (r.status === 404) { setOrgNotFound(true); return null; }
+        return r.ok ? r.json() : null;
+      })
+      .then((d) => {
+        if (d?.branch) setBranchInfo({ name: d.branch.name, orgName: d.branch.orgName });
+      })
+      .catch(() => {});
+  }, [slug]);
 
+  // Fetch servicios (filtrados a los que tienen al menos 1 barbero)
   useEffect(() => {
     fetch(`/api/book/services?slug=${slug}`)
       .then((r) => r.json())
       .then((d) => setServices(d.services || []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setServicesLoading(false));
   }, [slug]);
 
+  // Cuando cambia servicio o sucursal: cargar heatmap + reset selecciones derivadas
   useEffect(() => {
-    fetch(`/api/book/branches?slug=${slug}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.branches?.[0]) setBranchId(d.branches[0].id); })
+    if (!selectedServiceId || !branchId) {
+      setHeatmap([]);
+      return;
+    }
+    fetch(`/api/book/heatmap?branchId=${branchId}&serviceId=${selectedServiceId}&days=14&slug=${slug}`)
+      .then((r) => r.ok ? r.json() : { heatmap: [] })
+      .then((d) => setHeatmap(d.heatmap || []))
       .catch(() => {});
-  }, [slug]);
-
-  // Computed values for multi-service
-  const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
-  const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
-  const primaryService = selectedServices[0] || null;
-
-  function toggleService(svc: Service) {
-    setSelectedServices((prev) => {
-      const exists = prev.find((s) => s.id === svc.id);
-      if (exists) return prev.filter((s) => s.id !== svc.id);
-      if (prev.length >= 2) return prev; // max 2
-      return [...prev, svc];
-    });
-  }
-
-  function confirmServices() {
-    if (selectedServices.length === 0) return;
+    // Reset cuando cambia servicio
     setSelectedBarber(null);
     setSelectedSlot(null);
     setSelectedDate("");
+    setBarbers([]);
+    setSlots([]);
     setWaitlistSubmitted(false);
     setWaitlistPosition(null);
-    setStep("barber");
-    // Load heatmap for date picker
-    if (branchId && selectedServices[0]) {
-      fetch(`/api/book/heatmap?branchId=${branchId}&serviceId=${selectedServices[0].id}&days=14&slug=${slug}`)
-        .then((r) => r.ok ? r.json() : { heatmap: [] })
-        .then((d) => setHeatmap(d.heatmap || []))
-        .catch(() => {});
+  }, [selectedServiceId, branchId, slug]);
+
+  // Cuando cambia fecha o servicio: cargar lista de barberos disponibles
+  useEffect(() => {
+    if (!selectedDate || !selectedServiceId || !branchId) {
+      setBarbers([]);
+      return;
     }
+    setBarbersLoading(true);
+    fetch(`/api/book/availability?serviceId=${selectedServiceId}&date=${selectedDate}&branchId=${branchId}&slug=${slug}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const list: BarberAvail[] = d.barbers || [];
+        setBarbers(list);
+      })
+      .catch(() => {})
+      .finally(() => setBarbersLoading(false));
+  }, [selectedDate, selectedServiceId, branchId, slug]);
+
+  // Cuando cambia barbero+fecha: cargar slots
+  useEffect(() => {
+    if (!selectedBarber || !selectedDate || !selectedServiceId) {
+      setSlots([]);
+      setSlotBarberMap({});
+      return;
+    }
+    setSlotsLoading(true);
+    setSlotBarberMap({});
+
+    if (selectedBarber.id === ANY_BARBER_ID) {
+      // Modo "cualquier disponible": fetch en paralelo de todos los barberos con cupos
+      const eligible = barbers.filter((b) => b.availableSlots > 0);
+      eligible.sort((a, b) => b.availableSlots - a.availableSlots);
+      Promise.all(
+        eligible.map((b) =>
+          fetch(`/api/book/availability?serviceId=${selectedServiceId}&date=${selectedDate}&barberId=${b.id}&slug=${slug}`)
+            .then((r) => r.ok ? r.json() : { slots: [] })
+            .then((d) => ({ barberId: b.id, slots: (d.slots || []) as Slot[] }))
+            .catch(() => ({ barberId: b.id, slots: [] as Slot[] }))
+        )
+      )
+        .then((responses) => {
+          const map: Record<string, string> = {};
+          const merged: Slot[] = [];
+          for (const r of responses) {
+            for (const s of r.slots) {
+              if (!map[s.start]) {
+                map[s.start] = r.barberId;
+                merged.push(s);
+              }
+            }
+          }
+          merged.sort((a, b) => a.start.localeCompare(b.start));
+          setSlots(merged);
+          setSlotBarberMap(map);
+        })
+        .finally(() => setSlotsLoading(false));
+    } else {
+      fetch(`/api/book/availability?serviceId=${selectedServiceId}&date=${selectedDate}&barberId=${selectedBarber.id}&slug=${slug}`)
+        .then((r) => r.json())
+        .then((d) => setSlots(d.slots || []))
+        .catch(() => {})
+        .finally(() => setSlotsLoading(false));
+    }
+  }, [selectedBarber, selectedDate, selectedServiceId, barbers, slug]);
+
+  // ── Acciones ──────────────────────────────────────────────────────
+  function pickService(svcId: string) {
+    setSelectedServiceId((prev) => (prev === svcId ? "" : svcId));
+  }
+  function pickBranch(bId: string) {
+    setBranchId(bId);
+    setSelectedServiceId("");
+    setSelectedBarber(null);
+    setSelectedDate("");
+    setSelectedSlot(null);
+    setHeatmap([]);
+  }
+  function pickBarber(b: BarberAvail | "any") {
+    if (b === "any") {
+      const total = barbers.reduce((sum, x) => sum + x.availableSlots, 0);
+      setSelectedBarber({ id: ANY_BARBER_ID, name: "Cualquier disponible", color: null, availableSlots: total });
+    } else {
+      setSelectedBarber(b);
+    }
+    setSelectedSlot(null);
+  }
+  function pickDate(d: string) {
+    setSelectedDate(d);
+    setSelectedBarber(null);
+    setSelectedSlot(null);
+  }
+  function pickSlot(s: Slot) {
+    if (selectedBarber?.id === ANY_BARBER_ID) {
+      const realBarberId = slotBarberMap[s.start];
+      const real = barbers.find((b) => b.id === realBarberId);
+      if (real) setSelectedBarber(real);
+    }
+    setSelectedSlot(s);
   }
 
   async function handleJoinWaitlist() {
-    if (!primaryService || !selectedDate || !branchId || !clientName.trim() || !clientPhone.trim()) return;
+    if (!selectedService || !selectedDate || !branchId || !clientName.trim()) return;
+    if (!isValidChileanPhone(clientPhone)) {
+      setPhoneTouched(true);
+      return;
+    }
     setWaitlistLoading(true);
     try {
       const res = await fetch(`/api/book/waitlist?slug=${slug}`, {
@@ -138,9 +334,9 @@ export default function BookingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientName: clientName.trim(),
-          clientPhone: clientPhone.trim(),
-          serviceId: primaryService.id,
-          barberId: selectedBarber?.id || "",
+          clientPhone: toE164ChileanPhone(clientPhone),
+          serviceId: selectedService.id,
+          barberId: selectedBarber?.id === ANY_BARBER_ID ? "" : selectedBarber?.id || "",
           preferredDate: selectedDate,
           branchId,
         }),
@@ -154,45 +350,18 @@ export default function BookingPage() {
     finally { setWaitlistLoading(false); }
   }
 
-  function loadBarbers(serviceId: string, date: string, branch: string) {
-    setLoading(true);
-    fetch(`/api/book/availability?serviceId=${serviceId}&date=${date}&branchId=${branch}&slug=${slug}`)
-      .then((r) => r.json())
-      .then((d) => setBarbers(d.barbers || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }
-
-  function loadSlots(serviceId: string, date: string, barber: string) {
-    setLoading(true);
-    fetch(`/api/book/availability?serviceId=${serviceId}&date=${date}&barberId=${barber}&slug=${slug}`)
-      .then((r) => r.json())
-      .then((d) => setSlots(d.slots || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }
-
-  function handleSelectDate(date: string) {
-    setSelectedDate(date);
-    setSelectedBarber(null);
-    setSelectedSlot(null);
-    if (primaryService && branchId) loadBarbers(primaryService.id, date, branchId);
-  }
-
-  function handleSelectBarber(barber: BarberAvail) {
-    setSelectedBarber(barber);
-    setSelectedSlot(null);
-    setStep("datetime");
-    if (primaryService && selectedDate) loadSlots(primaryService.id, selectedDate, barber.id);
-  }
-
-  function handleSelectSlot(slot: Slot) {
-    setSelectedSlot(slot);
-    setStep("confirm");
-  }
-
-  async function handleSubmit() {
-    if (selectedServices.length === 0 || !selectedBarber || !selectedSlot || !clientName.trim() || !clientPhone.trim()) return;
+  async function handleConfirm() {
+    if (!ready || !selectedService || !selectedBarber || !selectedSlot) return;
+    if (selectedBarber.id === ANY_BARBER_ID) {
+      setError("Selecciona un horario para asignar el profesional.");
+      return;
+    }
+    const phoneE164 = toE164ChileanPhone(clientPhone);
+    if (!phoneE164) {
+      setPhoneTouched(true);
+      setError("Revisa el teléfono. Debe ser un número chileno válido.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -200,18 +369,31 @@ export default function BookingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceId: primaryService!.id,
+          serviceId: selectedService.id,
           barberId: selectedBarber.id,
           branchId,
           start: selectedSlot.start,
           end: selectedSlot.end,
           clientName: clientName.trim(),
-          clientPhone: clientPhone.trim(),
+          clientPhone: phoneE164,
           clientEmail: clientEmail.trim() || undefined,
+          notePublic: clientNote.trim() || undefined,
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || "Error al reservar"); setSubmitting(false); return; }
+      if (!res.ok) {
+        // Race condition (slot tomado mientras llenaba el form): volvemos a Express
+        // y refrescamos slots para que vea las opciones que quedan.
+        if (res.status === 409) {
+          setError(`${data.message || "Este horario ya no está disponible."} Te volvimos a la pantalla anterior con horarios actualizados.`);
+          setSelectedSlot(null);
+          setView("express");
+        } else {
+          setError(data.message || "Error al reservar");
+        }
+        setSubmitting(false);
+        return;
+      }
       router.push(`/${slug}/book/confirmation?id=${data.booking.id}`);
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
@@ -219,446 +401,519 @@ export default function BookingPage() {
     }
   }
 
-  const dateOptions = getDateOptions();
-  const stepIndex = STEPS.findIndex((s) => s.key === step);
-
-  return (
-    <div className="min-h-screen bg-[#faf8f6]">
-      {/* Header */}
-      <header className="bg-[#1a1412] text-white">
-        <div className="mx-auto max-w-lg px-4 py-4 flex items-center justify-between">
-          <Link href={`/${slug}`} className="text-lg font-extrabold tracking-tight">
-            {slug}
-          </Link>
-          <span className="text-xs text-white/40">Reservar hora</span>
+  // ── 404 si el slug no existe ───────────────────────────────────────
+  if (orgNotFound) {
+    return (
+      <div className="bk bk-state">
+        <div className="bk-state__icon">
+          <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" /><path d="M9 9l6 6M15 9l-6 6" />
+          </svg>
         </div>
-      </header>
-
-      {/* Progress steps */}
-      <div className="mx-auto max-w-lg px-4 pt-5 pb-3">
-        <div className="flex items-center">
-          {STEPS.map((s, i) => {
-            const done = i < stepIndex;
-            const active = i === stepIndex;
-            return (
-              <div key={s.key} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                      done
-                        ? "bg-gradient-to-br from-brand to-[#b56a35] text-white shadow-md shadow-brand/25"
-                        : active
-                          ? "bg-white text-brand ring-2 ring-brand shadow-[0_0_0_4px_rgba(200,121,65,0.12)]"
-                          : "bg-stone-100 text-stone-400 border border-stone-200"
-                    }`}
-                  >
-                    {done ? (
-                      <svg className="step-pop h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                        <path d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      i + 1
-                    )}
-                  </div>
-                  <p className={`text-[10px] mt-2 font-semibold tracking-wide ${active ? "text-brand" : done ? "text-stone-700" : "text-stone-300"}`}>
-                    {s.label}
-                  </p>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className="h-0.5 flex-1 rounded-full -mt-5 mx-1 bg-stone-200 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ease-out ${
-                        i < stepIndex ? "w-full bg-gradient-to-r from-brand to-[#b56a35]" : "w-0"
-                      }`}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <h1 className="bk-state__h">Negocio no encontrado</h1>
+        <p className="bk-state__p">
+          El link <strong>/{slug}</strong> no existe o ya no está activo. Verifica con el negocio.
+        </p>
       </div>
+    );
+  }
 
-      <main className="mx-auto max-w-lg px-4 pb-12">
-        {/* Step 1: Service selection (1-2 services) */}
-        {step === "service" && (
-          <div className="space-y-3 pt-2">
-            <div>
-              <h2 className="text-base font-bold text-stone-900">Elige tus servicios</h2>
-              <p className="text-xs text-stone-400 mt-0.5">Puedes seleccionar hasta 2 servicios</p>
-            </div>
-            {services.length === 0 && (
-              <p className="text-sm text-stone-400 py-8 text-center">Cargando servicios...</p>
-            )}
-            {services.map((svc) => {
-              const isSelected = selectedServices.some((s) => s.id === svc.id);
-              const isDisabled = !isSelected && selectedServices.length >= 2;
-              return (
-                <button
-                  key={svc.id}
-                  onClick={() => toggleService(svc)}
-                  disabled={isDisabled}
-                  className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 ${
-                    isSelected
-                      ? "border-brand bg-gradient-to-br from-brand/10 via-brand/5 to-white ring-1 ring-brand/30 shadow-md shadow-brand/10"
-                      : "border-[#e8e2dc] bg-white hover:border-brand/40 hover:shadow-md hover:-translate-y-0.5"
-                  } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${
-                      isSelected ? "border-brand bg-brand" : "border-stone-300"
-                    }`}>
-                      {isSelected && (
-                        <svg className="h-3 w-3 text-white step-pop" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-stone-800">{svc.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-500">
-                          <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .2.08.39.22.53l3 3a.75.75 0 101.06-1.06L10.75 9.69V5z" clipRule="evenodd" /></svg>
-                          {svc.durationMin} min
-                        </span>
-                      </div>
-                    </div>
-                    <p className="font-extrabold text-brand text-lg shrink-0 tracking-tight">{formatCLP(svc.price)}</p>
-                  </div>
-                </button>
-              );
-            })}
+  // ── Vista CONFIRMAR (después de que el usuario tocó "Reservar") ────
+  if (view === "confirm" && selectedService && selectedBarber && selectedSlot) {
+    const totalDuration = selectedService.durationMin;
+    const totalPrice = selectedService.price;
+    const barberLabel = selectedBarber.name;
+    const branchLabel = branches.find((b) => b.id === branchId)?.name || branchInfo?.name || "";
+    const phoneOk = isValidChileanPhone(clientPhone);
+    const canConfirm = !!(agree && clientName.trim() && phoneOk && !submitting);
 
-            {/* Summary + Continue */}
-            {selectedServices.length > 0 && (
-              <div className="sticky bottom-0 bg-[#faf8f6] pt-3 pb-2 border-t border-[#e8e2dc] -mx-4 px-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-sm text-stone-600">
-                      {selectedServices.length} servicio{selectedServices.length > 1 ? "s" : ""} · {totalDuration} min
-                    </p>
-                    <p className="text-lg font-bold text-brand">{formatCLP(totalPrice)}</p>
-                  </div>
-                  <button
-                    onClick={confirmServices}
-                    className="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover transition shadow-lg shadow-brand/20"
-                  >
-                    Continuar
-                  </button>
-                </div>
+    return (
+      <div className="bk bk-cf">
+        <header className="bk-cf__bar">
+          <button
+            type="button"
+            className="bk-cf__back"
+            aria-label="Volver"
+            onClick={() => { setView("express"); setError(""); }}
+          >
+            <IconBack className="bk-icon-sm" />
+          </button>
+          <h1>Confirmar reserva</h1>
+          <span className="bk-cf__step">Casi listo</span>
+        </header>
+
+        <div className="bk-cf__main">
+          {/* Ticket-resumen */}
+          <section className="bk-cf__ticket" aria-label="Resumen de tu reserva">
+            <p className="bk-cf__ticket-eyebrow">Resumen</p>
+            <h2 className="bk-cf__ticket-h2">{selectedService.name}</h2>
+            <p className="bk-cf__ticket-when">
+              {fmtDayLong(selectedDate)} · {fmtSlot(selectedSlot.start)} hrs
+            </p>
+            <hr className="bk-cf__ticket-rule" />
+            <dl className="bk-cf__ticket-rows">
+              <div className="bk-cf__ticket-row">
+                <dt>Sucursal</dt>
+                <dd>{branchLabel}</dd>
               </div>
-            )}
-          </div>
-        )}
+              <div className="bk-cf__ticket-row">
+                <dt>Profesional</dt>
+                <dd>{barberLabel}</dd>
+              </div>
+              <div className="bk-cf__ticket-row">
+                <dt>Duración</dt>
+                <dd>{totalDuration} min</dd>
+              </div>
+              <div className="bk-cf__ticket-row">
+                <dt>Reserva</dt>
+                <dd>Sin pago previo</dd>
+              </div>
+            </dl>
+            <div className="bk-cf__ticket-total">
+              <dt>Total</dt>
+              <dd>{formatCLP(totalPrice)}</dd>
+            </div>
+          </section>
 
-        {/* Step 2: Date + Barber */}
-        {step === "barber" && selectedServices.length > 0 && (
-          <div className="space-y-4 pt-2">
-            <button onClick={() => setStep("service")} className="text-xs text-brand hover:text-brand-hover font-medium">
-              ← Cambiar servicios
-            </button>
+          <section>
+            <p className="bk-cf__form-h">Tus datos</p>
 
-            <div className="rounded-xl border border-brand/20 bg-brand/5 px-4 py-2.5">
-              {selectedServices.map((svc) => (
-                <div key={svc.id} className="flex justify-between items-center py-0.5">
-                  <span className="text-sm text-stone-800">{svc.name}</span>
-                  <span className="text-xs text-stone-500">{formatCLP(svc.price)}</span>
-                </div>
-              ))}
-              {selectedServices.length > 1 && (
-                <div className="flex justify-between items-center pt-1 mt-1 border-t border-brand/10">
-                  <span className="text-xs font-medium text-stone-600">Total · {totalDuration} min</span>
-                  <span className="text-sm font-bold text-brand">{formatCLP(totalPrice)}</span>
-                </div>
+            <div className="bk-cf__field">
+              <label className="bk-cf__field-label">Nombre completo</label>
+              <input
+                className="bk-cf__input"
+                type="text"
+                placeholder="Ej: Diego Rojas"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                autoComplete="name"
+              />
+            </div>
+
+            <div className="bk-cf__field">
+              <label className="bk-cf__field-label">Teléfono</label>
+              <div className={`bk-cf__phone-wrap${phoneTouched && clientPhone && !phoneOk ? " is-error" : ""}`}>
+                <span className="bk-cf__phone-cc">🇨🇱 +56</span>
+                <input
+                  className="bk-cf__phone-input"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="9 1234 5678"
+                  value={normalizeChileanLocal(clientPhone)}
+                  onChange={(e) => setClientPhone(formatChileanPhone(e.target.value))}
+                  onBlur={() => setPhoneTouched(true)}
+                  maxLength={11}
+                />
+              </div>
+              {phoneTouched && clientPhone && !phoneOk && (
+                <p className="bk-cf__error">
+                  Ingresa un número chileno válido (9 dígitos, ej: 9 1234 5678)
+                </p>
               )}
             </div>
 
-            <div>
-              <h2 className="text-base font-bold text-stone-900 mb-3">Elige una fecha</h2>
-              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                {dateOptions.map((date) => {
-                  const d = new Date(date + "T12:00:00");
-                  const isSelected = date === selectedDate;
-                  const dayName = d.toLocaleDateString("es-CL", { weekday: "short" });
-                  const dayNum = d.getDate();
-                  const isToday = date === new Date().toISOString().split("T")[0];
-                  const hm = heatmap.find((h) => h.date === date);
-                  const dotColor =
-                    !hm || hm.level === "closed" ? "bg-stone-300"
-                    : hm.level === "full" ? "bg-red-400"
-                    : hm.level === "low" ? "bg-amber-400"
-                    : hm.level === "medium" ? "bg-yellow-400"
-                    : "bg-emerald-400";
-
-                  return (
-                    <button
-                      key={date}
-                      onClick={() => handleSelectDate(date)}
-                      className={`flex-shrink-0 w-14 rounded-xl border p-2 text-center transition ${
-                        isSelected
-                          ? "border-brand bg-brand text-white"
-                          : hm?.level === "closed"
-                            ? "border-[#e8e2dc] bg-stone-50 opacity-50"
-                            : "border-[#e8e2dc] bg-white hover:border-brand/30"
-                      }`}
-                      disabled={hm?.level === "closed"}
-                    >
-                      <p className={`text-[10px] uppercase ${isSelected ? "text-white/70" : "text-stone-400"}`}>
-                        {isToday ? "Hoy" : dayName}
-                      </p>
-                      <p className="text-lg font-bold leading-tight">{dayNum}</p>
-                      {/* Heatmap dot */}
-                      <div className="flex justify-center mt-1">
-                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white/60" : dotColor}`} />
-                      </div>
-                      {hm && hm.level !== "closed" && (
-                        <p className={`text-[8px] mt-0.5 ${isSelected ? "text-white/60" : "text-stone-400"}`}>
-                          {hm.availableSlots > 0 ? hm.availableSlots : "Lleno"}
-                        </p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="bk-cf__field">
+              <label className="bk-cf__field-label">
+                Email <span style={{ color: "var(--mb-fg-subtle)", fontWeight: 400 }}>· opcional</span>
+              </label>
+              <input
+                className="bk-cf__input"
+                type="email"
+                placeholder="diego@ejemplo.cl"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                autoComplete="email"
+              />
             </div>
 
-            {selectedDate && (
-              <div>
-                <h2 className="text-base font-bold text-stone-900 mb-3">Elige un profesional</h2>
-                {loading ? (
-                  <p className="text-stone-400 text-sm py-4 text-center">Cargando disponibilidad...</p>
-                ) : barbers.length === 0 ? (
-                  <p className="text-stone-500 text-sm py-4 text-center">No hay disponibilidad para esta fecha</p>
-                ) : (
-                  <div className="space-y-2">
-                    {barbers.map((b) => {
-                      const initials = b.name.split(" ").map((w) => w[0]).join("").slice(0, 2);
-                      return (
-                        <button
-                          key={b.id}
-                          onClick={() => handleSelectBarber(b)}
-                          disabled={b.availableSlots === 0}
-                          className="w-full rounded-xl border border-[#e8e2dc] bg-white p-3.5 text-left hover:border-brand/30 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                              style={{ backgroundColor: b.color || "#c87941" }}
-                            >
-                              {initials}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-stone-800 text-sm">{b.name}</p>
-                              <p className="text-xs text-stone-400">
-                                {b.availableSlots > 0
-                                  ? `${b.availableSlots} horario${b.availableSlots !== 1 ? "s" : ""} disponible${b.availableSlots !== 1 ? "s" : ""}`
-                                  : "Sin disponibilidad"}
-                              </p>
-                            </div>
-                            {b.availableSlots > 0 && (
-                              <svg className="h-4 w-4 text-stone-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+            <label className="bk-cf__check">
+              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+              <span>
+                Acepto recibir confirmación y recordatorio por WhatsApp.
+              </span>
+            </label>
+          </section>
+
+          {error && (
+            <div role="alert" aria-live="assertive" style={{ marginTop: 16, padding: "12px 14px", borderRadius: 8, background: "var(--mb-danger-soft)", border: "1px solid color-mix(in srgb, var(--mb-danger) 30%, transparent)", color: "var(--mb-danger)", fontSize: 13 }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="bk-cf__cta">
+          <button
+            type="button"
+            className="bk-cf__cta-btn"
+            disabled={!canConfirm}
+            onClick={handleConfirm}
+          >
+            <IconCheck className="bk-icon-sm" />
+            {submitting ? "Reservando..." : `Confirmar reserva · ${formatCLP(totalPrice)}`}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // Vista EXPRESS (default) — todo visible en una sola pantalla
+  // ════════════════════════════════════════════════════════════════════
+  const dayClosed = dayHeat?.level === "closed";
+  const dayFull = dayHeat?.level === "full";
+  const branchLabel = branches.find((b) => b.id === branchId)?.name || branchInfo?.name || "Sucursal";
+
+  return (
+    <div className="bk bk-a" aria-busy={submitting || servicesLoading}>
+      {/* Header */}
+      <header className="bk-a__bar">
+        <Link href={`/${slug}`} className="bk-a__brand" style={{ textDecoration: "none" }}>
+          {branchInfo?.orgName?.split(" ").length === 2 ? (
+            <>
+              {branchInfo.orgName.split(" ")[0]}
+              <span>{branchInfo.orgName.split(" ")[1]}</span>
+            </>
+          ) : (
+            branchInfo?.orgName || slug
+          )}
+        </Link>
+        {branches.length >= 2 ? (
+          <button
+            type="button"
+            className="bk-a__location"
+            onClick={() => {
+              const idx = branches.findIndex((b) => b.id === branchId);
+              const next = branches[(idx + 1) % branches.length];
+              if (next) pickBranch(next.id);
+            }}
+            aria-label="Cambiar sucursal"
+          >
+            <IconPin width={14} height={14} />
+            {branchLabel}
+            <IconChevDown className="bk-a__location-chev" width={14} height={14} />
+          </button>
+        ) : (
+          <span className="bk-a__location" style={{ cursor: "default", color: "var(--mb-fg-muted)" }}>
+            <IconPin width={14} height={14} />
+            {branchLabel}
+          </span>
+        )}
+      </header>
+
+      <div className="bk-a__main">
+        <h1 className="bk-a__hello">
+          Reserva tu hora <em>en 30 segundos</em>.
+        </h1>
+        <p className="bk-a__sub">Elige y confirmamos al instante.</p>
+
+        {/* SERVICIOS */}
+        <section className="bk-a__section">
+          <div className="bk-a__h">
+            <h3>1 · Servicio</h3>
+            {selectedService && (
+              <span className="bk-a__h-counter">
+                {selectedService.durationMin} min · {formatCLP(selectedService.price)}
+              </span>
             )}
           </div>
+          {servicesLoading ? (
+            <div className="bk-a__svc-grid" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="bk-skel" style={{ height: 64 }} />
+              ))}
+            </div>
+          ) : services.length === 0 ? (
+            <div className="bk-a__empty"><p>No hay servicios disponibles ahora.</p></div>
+          ) : (
+            <div className="bk-a__svc-grid">
+              {services.map((s) => {
+                const on = s.id === selectedServiceId;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={`bk-a__svc${on ? " is-on" : ""}`}
+                    onClick={() => pickService(s.id)}
+                    aria-pressed={on}
+                  >
+                    <div className="bk-a__svc-info">
+                      <p className="bk-a__svc-name">{s.name}</p>
+                      <p className="bk-a__svc-meta">
+                        <span>{s.durationMin} min</span>
+                        {s.category && <span>· {s.category}</span>}
+                      </p>
+                    </div>
+                    <p className="bk-a__svc-price">{formatCLP(s.price)}</p>
+                    <span className="bk-a__svc-check">
+                      <IconCheck />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* DÍA — antes que profesional para que el cliente vea el heatmap */}
+        {selectedService && (
+          <section className="bk-a__section">
+            <div className="bk-a__h">
+              <h3>2 · Día</h3>
+              <span className="bk-a__h-counter">
+                {dayHeat ? (dayHeat.level === "closed" ? "Cerrado" : `${dayHeat.availableSlots} cupos`) : "Próximos 14 días"}
+              </span>
+            </div>
+            <div className="bk-a__days">
+              {dateOptions.map((date) => {
+                const d = new Date(date + "T12:00:00");
+                const isSelected = date === selectedDate;
+                const isToday = date === new Date().toISOString().split("T")[0];
+                const dayName = d.toLocaleDateString("es-CL", { weekday: "short" });
+                const hm = heatmap.find((h) => h.date === date);
+                const closed = hm?.level === "closed";
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    className={`bk-a__day${isSelected ? " is-on" : ""}${closed ? " is-closed" : ""}`}
+                    onClick={() => !closed && pickDate(date)}
+                    disabled={closed}
+                    aria-pressed={isSelected}
+                    aria-label={`${d.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}${hm ? ", " + (closed ? "cerrado" : `${hm.availableSlots} cupos`) : ""}`}
+                  >
+                    <div className="bk-a__day-dow">{isToday ? "Hoy" : dayName}</div>
+                    <div className="bk-a__day-num">{d.getDate()}</div>
+                    <div className="bk-a__day-dot" style={{ background: heatColor(hm?.level) }} />
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         )}
 
-        {/* Step 3: Time slot */}
-        {step === "datetime" && primaryService && selectedBarber && selectedDate && (
-          <div className="space-y-4 pt-2">
-            <button onClick={() => setStep("barber")} className="text-xs text-brand hover:text-brand-hover font-medium">
-              ← Cambiar profesional
-            </button>
-
-            <div className="rounded-xl border border-[#e8e2dc] bg-white px-4 py-3">
-              <p className="text-sm font-semibold text-stone-800">
-                {selectedServices.map((s) => s.name).join(" + ")} con {selectedBarber.name}
-              </p>
-              <p className="text-xs text-stone-400 mt-0.5 capitalize">{formatDate(selectedDate)}</p>
+        {/* PROFESIONAL */}
+        {selectedService && selectedDate && !dayClosed && (
+          <section className="bk-a__section">
+            <div className="bk-a__h">
+              <h3>3 · Profesional</h3>
+              <span className="bk-a__h-counter">
+                {barbers.filter((b) => b.availableSlots > 0).length} disponibles
+              </span>
             </div>
-
-            <h2 className="text-base font-bold text-stone-900">Elige un horario</h2>
-
-            {/* Filtro de rango horario */}
-            {slots.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {TIME_PRESETS.map((p) => {
-                  const count = slots.filter((s) => {
-                    if (p.key === "all") return true;
-                    const h = new Date(s.start).getHours();
-                    return h >= p.from && h < p.to;
-                  }).length;
+            {barbersLoading ? (
+              <div className="bk-a__barbers" aria-busy="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} style={{ width: 80, flex: "0 0 auto" }}>
+                    <div className="bk-skel" style={{ width: 64, height: 64, borderRadius: "50%", margin: "0 auto" }} />
+                    <div className="bk-skel" style={{ width: 50, height: 10, margin: "8px auto 0" }} />
+                  </div>
+                ))}
+              </div>
+            ) : barbers.length === 0 ? (
+              <div className="bk-a__empty"><p>Nadie disponible para este servicio. Probá otro día.</p></div>
+            ) : (
+              <div className="bk-a__barbers" role="radiogroup" aria-label="Profesional">
+                {barbers.filter((b) => b.availableSlots > 0).length >= 2 && (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={selectedBarber?.id === ANY_BARBER_ID}
+                    className={`bk-a__barber is-any${selectedBarber?.id === ANY_BARBER_ID ? " is-on" : ""}`}
+                    onClick={() => pickBarber("any")}
+                  >
+                    <span className="bk-a__bar-avatar">✦</span>
+                    <span className="bk-a__bar-name">Cualquiera</span>
+                    <span className="bk-a__bar-role">Más rápido</span>
+                  </button>
+                )}
+                {barbers.map((b) => {
+                  const on = selectedBarber?.id === b.id;
+                  const disabled = b.availableSlots === 0;
                   return (
                     <button
-                      key={p.key}
+                      key={b.id}
                       type="button"
-                      onClick={() => setTimePreset(p.key)}
-                      className={`shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-medium transition border ${
-                        timePreset === p.key
-                          ? "bg-brand text-white border-brand shadow-sm"
-                          : "bg-white text-stone-600 border-[#e8e2dc] hover:border-brand/40"
-                      }`}
+                      role="radio"
+                      aria-checked={on}
+                      disabled={disabled}
+                      className={`bk-a__barber${on ? " is-on" : ""}`}
+                      onClick={() => pickBarber(b)}
                     >
-                      <span className="mr-1">{p.icon}</span>
-                      {p.label}
-                      <span className={`ml-1.5 text-[10px] ${timePreset === p.key ? "text-white/70" : "text-stone-400"}`}>
-                        {count}
+                      <span
+                        className="bk-a__bar-avatar"
+                        style={on ? { borderColor: b.color || undefined } : undefined}
+                      >
+                        {initials(b.name)}
+                      </span>
+                      <span className="bk-a__bar-name">{b.name.split(" ")[0]}</span>
+                      <span className="bk-a__bar-role">
+                        {disabled ? "Sin cupos" : `${b.availableSlots} cupos`}
                       </span>
                     </button>
                   );
                 })}
               </div>
             )}
+          </section>
+        )}
 
-            {loading ? (
-              <p className="text-stone-400 text-sm py-4 text-center">Cargando horarios...</p>
-            ) : slots.length === 0 ? (
-              <div className="rounded-xl border border-[#e8e2dc] bg-white p-5 text-center">
-                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-amber-50">
-                  <svg width="24" height="24" fill="none" stroke="#F59E0B" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+        {/* HORA */}
+        {selectedBarber && (
+          <section className="bk-a__section">
+            <div className="bk-a__h">
+              <h3>4 · Hora</h3>
+              <span className="bk-a__h-counter">
+                {dayClosed ? "Cerrado" : dayFull ? "Lleno" : selectedSlot ? fmtSlot(selectedSlot.start) : "Disponible"}
+              </span>
+            </div>
+
+            {dayFull ? (
+              <div className="bk-a__waitlist">
+                <IconBell width={18} height={18} />
+                <div style={{ flex: 1 }}>
+                  <p className="bk-a__waitlist-h">Este día está lleno</p>
+                  {waitlistSubmitted ? (
+                    <p className="bk-a__waitlist-p">
+                      ✓ Te anotamos (posición #{waitlistPosition}). Te avisamos si se libera.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="bk-a__waitlist-p">
+                        Anótate y te avisamos si se libera un horario.
+                      </p>
+                      <input
+                        className="bk-cf__input"
+                        type="text"
+                        placeholder="Tu nombre"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        style={{ marginBottom: 8, padding: "8px 10px", fontSize: 13 }}
+                      />
+                      <div className={`bk-cf__phone-wrap${phoneTouched && clientPhone && !isValidChileanPhone(clientPhone) ? " is-error" : ""}`} style={{ marginBottom: 8 }}>
+                        <span className="bk-cf__phone-cc" style={{ padding: "8px 10px", fontSize: 13 }}>+56</span>
+                        <input
+                          className="bk-cf__phone-input"
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="9 1234 5678"
+                          value={normalizeChileanLocal(clientPhone)}
+                          onChange={(e) => setClientPhone(formatChileanPhone(e.target.value))}
+                          onBlur={() => setPhoneTouched(true)}
+                          style={{ padding: "8px 10px", fontSize: 13 }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="bk-a__waitlist-btn"
+                        onClick={handleJoinWaitlist}
+                        disabled={waitlistLoading || !clientName.trim() || !isValidChileanPhone(clientPhone)}
+                      >
+                        {waitlistLoading ? "Anotando..." : "Sumarme a la lista de espera"}
+                      </button>
+                    </>
+                  )}
                 </div>
-                <p className="text-sm font-bold text-stone-800">Este día está lleno</p>
-                <p className="text-xs text-stone-400 mt-1 mb-4">Todos los horarios están ocupados para esta fecha</p>
-
-                {waitlistSubmitted ? (
-                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3">
-                    <p className="text-sm font-bold text-emerald-700">Te anotamos en la lista de espera</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">Posición #{waitlistPosition} — Te contactaremos si se libera un horario</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-stone-500">Anótate y te avisamos si se libera un horario:</p>
-                    <input
-                      className="input-field text-sm"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      placeholder="Tu nombre *"
-                    />
-                    <input
-                      className="input-field text-sm"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      placeholder="Tu teléfono *"
-                    />
-                    <button
-                      onClick={handleJoinWaitlist}
-                      disabled={waitlistLoading || !clientName.trim() || !clientPhone.trim()}
-                      className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white hover:bg-brand-hover transition disabled:opacity-50"
-                    >
-                      {waitlistLoading ? "Anotando..." : "Anotarme en lista de espera"}
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setStep("barber")}
-                  className="mt-3 text-xs text-stone-400 hover:text-brand"
-                >
-                  Probar otra fecha o profesional
-                </button>
               </div>
-            ) : filteredSlots.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#e8e2dc] bg-white/50 p-5 text-center">
-                <p className="text-sm text-stone-500">Sin horarios en este rango</p>
-                <button
-                  type="button"
-                  onClick={() => setTimePreset("all")}
-                  className="mt-2 text-xs text-brand hover:text-brand-hover font-medium"
-                >
-                  Ver todos los horarios
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {filteredSlots.map((slot) => (
-                  <button
-                    key={slot.start}
-                    onClick={() => handleSelectSlot(slot)}
-                    className="rounded-lg border border-[#e8e2dc] bg-white px-2 py-2.5 text-center text-sm font-semibold text-stone-700 hover:border-brand hover:bg-brand/5 hover:text-brand transition tabular-nums"
-                  >
-                    {formatSlotTime(slot.start)}
-                  </button>
+            ) : slotsLoading ? (
+              <div className="bk-a__slots" aria-busy="true">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="bk-skel" style={{ height: 38 }} />
                 ))}
               </div>
+            ) : slots.length === 0 ? (
+              <div className="bk-a__empty"><p>Sin horarios disponibles para este día.</p></div>
+            ) : (
+              TIME_PERIODS.map((p) => {
+                const periodSlots = slots.filter((s) => {
+                  const h = new Date(s.start).getHours();
+                  return h >= p.from && h < p.to;
+                });
+                if (periodSlots.length === 0) return null;
+                return (
+                  <div key={p.key}>
+                    <p className="bk-a__period">
+                      <span>{p.icon}</span> {p.label}
+                    </p>
+                    <div className="bk-a__slots">
+                      {periodSlots.map((s) => {
+                        const on = selectedSlot?.start === s.start;
+                        return (
+                          <button
+                            key={s.start}
+                            type="button"
+                            className={`bk-a__slot${on ? " is-on" : ""}`}
+                            onClick={() => pickSlot(s)}
+                            aria-pressed={on}
+                          >
+                            {fmtSlot(s.start)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
             )}
-          </div>
+          </section>
         )}
 
-        {/* Step 4: Confirm */}
-        {step === "confirm" && primaryService && selectedBarber && selectedSlot && (
-          <div className="space-y-4 pt-2">
-            <button onClick={() => setStep("datetime")} className="text-xs text-brand hover:text-brand-hover font-medium">
-              ← Cambiar horario
-            </button>
-
-            {/* Summary card */}
-            <div className="rounded-xl border border-[#e8e2dc] bg-white overflow-hidden">
-              <div className="bg-[#1a1412] px-4 py-3">
-                <p className="text-xs font-medium text-white/50 uppercase tracking-wide">Resumen de tu reserva</p>
-              </div>
-              <div className="p-4 space-y-2.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Servicio{selectedServices.length > 1 ? "s" : ""}</span>
-                  <span className="font-medium text-stone-800 text-right">{selectedServices.map((s) => s.name).join(" + ")}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Profesional</span>
-                  <span className="font-medium text-stone-800">{selectedBarber.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Fecha</span>
-                  <span className="font-medium text-stone-800 capitalize">{formatDate(selectedDate)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Hora</span>
-                  <span className="font-medium text-stone-800">{formatSlotTime(selectedSlot.start)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-stone-500">Duración</span>
-                  <span className="font-medium text-stone-800">{totalDuration} min</span>
-                </div>
-                <div className="flex justify-between border-t border-[#e8e2dc] pt-2.5">
-                  <span className="text-stone-500">Total</span>
-                  <span className="text-lg font-bold text-brand">{formatCLP(totalPrice)}</span>
-                </div>
-              </div>
+        {/* NOTA */}
+        {selectedSlot && (
+          <section className="bk-a__section">
+            <div className="bk-a__h">
+              <h3>
+                Nota para el barbero{" "}
+                <em style={{ color: "var(--mb-fg-subtle)", fontWeight: 500, fontStyle: "normal", textTransform: "none", letterSpacing: 0 }}>
+                  · opcional
+                </em>
+              </h3>
+              <span className="bk-a__h-counter">{clientNote.length}/500</span>
             </div>
+            <textarea
+              className="bk-a__note"
+              placeholder="Ej: prefiero degradado bajo, vengo apurado, alérgico a ciertos productos"
+              value={clientNote}
+              onChange={(e) => setClientNote(e.target.value.slice(0, 500))}
+              maxLength={500}
+            />
+          </section>
+        )}
 
-            {/* Client info */}
-            <div className="rounded-xl border border-[#e8e2dc] bg-white p-4 space-y-3">
-              <h2 className="text-sm font-bold text-stone-800">Tus datos</h2>
-              <div>
-                <label className="field-label">Nombre completo *</label>
-                <input className="input-field" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Tu nombre" />
-              </div>
-              <div>
-                <label className="field-label">Teléfono *</label>
-                <input className="input-field" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="+56 9 1234 5678" type="tel" />
-              </div>
-              <div>
-                <label className="field-label">Email (opcional)</label>
-                <input className="input-field" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="tu@email.cl" type="email" />
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
-            )}
-
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !clientName.trim() || !clientPhone.trim()}
-              className="w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-brand/20"
-            >
-              {submitting ? "Reservando..." : "Confirmar reserva"}
-            </button>
+        {/* Mensaje de error inline (race 409) */}
+        {error && (
+          <div role="alert" aria-live="assertive" style={{ marginTop: 16, padding: "12px 14px", borderRadius: 8, background: "var(--mb-danger-soft)", border: "1px solid color-mix(in srgb, var(--mb-danger) 30%, transparent)", color: "var(--mb-danger)", fontSize: 13 }}>
+            {error}
           </div>
         )}
-      </main>
+      </div>
+
+      {/* Sticky CTA */}
+      <div className="bk-a__cta">
+        <div className="bk-a__cta-card">
+          <div className="bk-a__cta-info">
+            <div className="bk-a__cta-info-h">
+              {ready ? "Listo para reservar" : !selectedService ? "Falta servicio" : !selectedDate ? "Falta día" : !selectedBarber ? "Falta profesional" : "Falta hora"}
+            </div>
+            <div className="bk-a__cta-info-text">
+              {selectedService ? selectedService.name : "Sin servicio"}
+              {selectedSlot && ` · ${fmtSlot(selectedSlot.start)}`}
+              {selectedService && (
+                <> · <strong>{formatCLP(selectedService.price)}</strong></>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="bk-a__cta-go"
+            disabled={!ready}
+            onClick={() => { setError(""); setView("confirm"); }}
+          >
+            Reservar
+            <IconArrow className="bk-icon-sm" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
