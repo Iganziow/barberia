@@ -106,13 +106,24 @@ const NAV = [
 ];
 
 const NAV_COLLAPSED_KEY = "admin_nav_collapsed_v1";
+/** Evento custom para notificar cambios DENTRO de la misma ventana.
+ *  El evento `storage` solo dispara en OTRAS ventanas, así que al togglear
+ *  desde el botón el listener no se enteraba y el sidebar no se actualizaba. */
+const NAV_COLLAPSE_EVENT = "admin-nav-collapse-changed";
 
 // External store para leer el colapso del nav desde localStorage sin
 // caer en setState-within-effect (prohibido por react-hooks/set-state-in-effect).
+// Suscribe a 2 fuentes:
+//  - "storage" → cambios desde otra pestaña/ventana
+//  - NAV_COLLAPSE_EVENT → cambios desde la misma ventana (vía toggle)
 function subscribeNavCollapsed(cb: () => void) {
   if (typeof window === "undefined") return () => {};
   window.addEventListener("storage", cb);
-  return () => window.removeEventListener("storage", cb);
+  window.addEventListener(NAV_COLLAPSE_EVENT, cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener(NAV_COLLAPSE_EVENT, cb);
+  };
 }
 function getNavCollapsedSnapshot(): boolean {
   if (typeof window === "undefined") return false;
@@ -141,9 +152,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     const next = !getNavCollapsedSnapshot();
     try {
       window.localStorage.setItem(NAV_COLLAPSED_KEY, next ? "1" : "0");
-      // Disparamos un evento storage "sintético" para que useSyncExternalStore
-      // re-lea la snapshot y React re-renderice con el nuevo valor.
-      window.dispatchEvent(new StorageEvent("storage", { key: NAV_COLLAPSED_KEY }));
     } catch (err) {
       // Raro: localStorage lleno o bloqueado (private mode). No es crítico
       // pero lo logueamos para diagnosticar si aparece en producción.
@@ -151,6 +159,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         console.warn("No se pudo persistir preferencia de nav collapse", err);
       }
     }
+    // Notificamos a useSyncExternalStore con un evento propio (el evento
+    // "storage" nativo NO dispara en la misma ventana que escribió, solo
+    // en otras tabs — por eso antes el botón no actualizaba la UI).
+    window.dispatchEvent(new Event(NAV_COLLAPSE_EVENT));
   }, []);
 
   async function handleLogout() {
