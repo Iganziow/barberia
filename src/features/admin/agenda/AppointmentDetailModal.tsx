@@ -332,13 +332,32 @@ export default function AppointmentDetailModal({
             </div>
           </div>
 
-          {/* Nota pública del cliente (read-only) */}
+          {/* Mensaje del cliente — lo dejó al reservar. Read-only.
+              Visualmente diferenciado (azul) de la nota interna del equipo
+              (ámbar) para que no se confundan. */}
           {apt.notePublic && (
-            <div className="rounded-xl border border-[#e8e2dc] bg-stone-50/60 p-4">
-              <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1">
-                Nota del cliente
-              </p>
-              <p className="text-sm text-stone-700">{apt.notePublic}</p>
+            <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+              <div className="flex items-start gap-2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="text-sky-600 mt-0.5 shrink-0"
+                >
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-sky-700 uppercase tracking-widest mb-1">
+                    Mensaje del cliente
+                  </p>
+                  <p className="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed">
+                    {apt.notePublic}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

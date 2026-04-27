@@ -811,9 +811,20 @@ export default function BarberPage() {
                   )}
 
                   {ev.notePublic && (
-                    <div className="mb-4 rounded-xl bg-stone-50 border border-[#e8e2dc] p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-500 mb-1">Mensaje del cliente</p>
-                      <p className="text-sm text-stone-700">{ev.notePublic}</p>
+                    <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+                      <div className="flex items-start gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-sky-600 mt-0.5 shrink-0">
+                          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                        </svg>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-700 mb-1">
+                            Mensaje del cliente
+                          </p>
+                          <p className="text-sm text-stone-800 whitespace-pre-wrap leading-relaxed">
+                            {ev.notePublic}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 

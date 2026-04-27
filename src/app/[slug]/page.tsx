@@ -26,12 +26,21 @@ export default function OrgLandingPage() {
   const [showSchedule, setShowSchedule] = useState(false);
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  /** True si /api/book/info responde 404 — slug inválido. */
+  const [orgNotFound, setOrgNotFound] = useState(false);
 
   useEffect(() => {
     document.cookie = `bb_org=${encodeURIComponent(slug)};path=/;max-age=${60 * 60 * 24 * 30};SameSite=Strict`;
     fetch(`/api/book/info?slug=${slug}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 404) {
+          setOrgNotFound(true);
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
       .then((d) => {
+        if (!d) return;
         setBranch(d.branch);
         setBarbers(d.barbers || []);
         if (d.barbers?.[0]) {
@@ -80,6 +89,30 @@ export default function OrgLandingPage() {
       const first = [...cats][0];
       if (first) setOpenCategories(new Set([first]));
     }
+  }
+
+  if (orgNotFound) {
+    return (
+      <div className="min-h-screen bg-[#faf8f6] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-stone-100">
+            <svg width="36" height="36" fill="none" stroke="#a8a29e" strokeWidth="1.6" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9 9l6 6M15 9l-6 6" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-extrabold text-stone-900">Negocio no encontrado</h1>
+            <p className="text-sm text-stone-500 mt-1">
+              El link <span className="font-semibold text-stone-700">/{slug}</span> no existe o ya no está activo.
+            </p>
+          </div>
+          <p className="text-xs text-stone-400">
+            Verifica el link con el negocio o intenta con otra dirección.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
