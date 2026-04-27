@@ -16,8 +16,20 @@ type Service = { id: string; name: string; durationMin: number; price: number; c
 type BarberAvail = { id: string; name: string; color: string | null; availableSlots: number };
 type Slot = { start: string; end: string };
 type HeatmapDay = { date: string; totalSlots: number; availableSlots: number; level: string; waitlistCount: number };
-type BranchInfo = { name: string; orgName: string | null };
+type WorkingHour = { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string };
+type BranchInfo = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  orgName: string | null;
+  orgDescription: string | null;
+  orgLogo: string | null;
+  workingHours: WorkingHour[];
+};
 type Branch = { id: string; name: string; address: string | null };
+const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 /** Vista interna — todo en una sola URL para no perder estado al navegar. */
 type View = "express" | "confirm";
 
@@ -102,6 +114,20 @@ function IconBack(p: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+function IconClock(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+    </svg>
+  );
+}
+function IconWhatsApp(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...p} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.126 1.524 5.867L.05 23.308a.75.75 0 00.892.892l5.441-1.474A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
+    </svg>
+  );
+}
 
 // ════════════════════════════════════════════════════════════════════
 // Página principal
@@ -118,6 +144,8 @@ export default function BookingPage() {
   // ── State principal ───────────────────────────────────────────────
   const [view, setView] = useState<View>("express");
   const [orgNotFound, setOrgNotFound] = useState(false);
+  /** Toggle del horario semanal en el hero del negocio. */
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   // Tenant + sucursales
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -188,7 +216,19 @@ export default function BookingPage() {
         return r.ok ? r.json() : null;
       })
       .then((d) => {
-        if (d?.branch) setBranchInfo({ name: d.branch.name, orgName: d.branch.orgName });
+        if (d?.branch) {
+          setBranchInfo({
+            name: d.branch.name,
+            address: d.branch.address ?? null,
+            phone: d.branch.phone ?? null,
+            latitude: d.branch.latitude ?? null,
+            longitude: d.branch.longitude ?? null,
+            orgName: d.branch.orgName ?? null,
+            orgDescription: d.branch.orgDescription ?? null,
+            orgLogo: d.branch.orgLogo ?? null,
+            workingHours: d.branch.workingHours ?? [],
+          });
+        }
       })
       .catch(() => {});
   }, [slug]);
@@ -602,6 +642,94 @@ export default function BookingPage() {
       </header>
 
       <div className="bk-a__main">
+        {/* ── BLOQUE INFO DEL NEGOCIO (hero + contacto + horario + mapa) ──
+            Va arriba del flujo Express para darle contexto al cliente que
+            llega por primera vez (Google, Instagram, link compartido).
+            Si el negocio aún no cargó info, no rendea nada — los skeletons
+            del flujo de abajo cubren el loading. */}
+        {branchInfo && (
+          <section className="bk-a__biz">
+            <div className="bk-a__biz-hero">
+              {branchInfo.orgLogo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branchInfo.orgLogo}
+                  alt={branchInfo.orgName || branchInfo.name}
+                  className="bk-a__biz-logo"
+                />
+              )}
+              <p className="bk-a__biz-eyebrow">Barbería</p>
+              <h1 className="bk-a__biz-name">{branchInfo.orgName || branchInfo.name}</h1>
+              {branchInfo.orgDescription && (
+                <p className="bk-a__biz-desc">{branchInfo.orgDescription}</p>
+              )}
+              {branchInfo.address && (
+                <p className="bk-a__biz-address">
+                  <IconPin width={13} height={13} />
+                  {branchInfo.address}
+                </p>
+              )}
+            </div>
+
+            <div className="bk-a__biz-quick">
+              {branchInfo.phone && (
+                <a
+                  href={`https://wa.me/${branchInfo.phone.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bk-a__biz-quickbtn"
+                >
+                  <span className="bk-a__biz-quickbtn-icon" style={{ background: "color-mix(in srgb, var(--mb-whatsapp) 12%, white)", color: "var(--mb-whatsapp)" }}>
+                    <IconWhatsApp width={16} height={16} />
+                  </span>
+                  <span className="bk-a__biz-quickbtn-text">
+                    <strong>WhatsApp</strong>
+                    <small>{branchInfo.phone}</small>
+                  </span>
+                </a>
+              )}
+              {branchInfo.workingHours.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setScheduleOpen((v) => !v)}
+                  className="bk-a__biz-quickbtn"
+                  aria-expanded={scheduleOpen}
+                >
+                  <span className="bk-a__biz-quickbtn-icon" style={{ background: "var(--mb-brand-10)", color: "var(--mb-brand)" }}>
+                    <IconClock width={16} height={16} />
+                  </span>
+                  <span className="bk-a__biz-quickbtn-text">
+                    <strong>Horario</strong>
+                    <small>{scheduleOpen ? "Ocultar" : "Ver horario"}</small>
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {scheduleOpen && branchInfo.workingHours.length > 0 && (
+              <div className="bk-a__biz-schedule">
+                {branchInfo.workingHours.map((wh) => (
+                  <div key={wh.dayOfWeek} className="bk-a__biz-schedule-row">
+                    <span>{DAY_NAMES[wh.dayOfWeek]}</span>
+                    <span className={wh.isOpen ? "" : "is-closed"}>
+                      {wh.isOpen ? `${wh.openTime} – ${wh.closeTime}` : "Cerrado"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {branchInfo.latitude && branchInfo.longitude && (
+              <iframe
+                title="Ubicación"
+                className="bk-a__biz-map"
+                loading="lazy"
+                src={`https://maps.google.com/maps?q=${branchInfo.latitude},${branchInfo.longitude}&z=16&output=embed`}
+              />
+            )}
+          </section>
+        )}
+
         <h1 className="bk-a__hello">
           Reserva tu hora <em>en 30 segundos</em>.
         </h1>
