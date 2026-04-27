@@ -163,6 +163,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     // "storage" nativo NO dispara en la misma ventana que escribió, solo
     // en otras tabs — por eso antes el botón no actualizaba la UI).
     window.dispatchEvent(new Event(NAV_COLLAPSE_EVENT));
+    // Forzar reset del hover: como el usuario está clickeando el botón
+    // (mouse encima del aside), navHovered=true hace showCompact=false aunque
+    // navCollapsed pase a true → visualmente no se ve el colapso. Reseteamos
+    // a false para que la transición sea inmediata. Si el usuario quiere
+    // expandir temporalmente vía hover, sale + entra otra vez.
+    setNavHovered(false);
   }, []);
 
   async function handleLogout() {
