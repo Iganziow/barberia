@@ -67,7 +67,15 @@
 
 .bk * { box-sizing: border-box; }
 .bk svg { display: block; flex-shrink: 0; }
-.bk { font-family: var(--mb-font-sans); color: var(--mb-fg-strong); background: var(--mb-bg); -webkit-font-smoothing: antialiased; }
+.bk {
+  font-family: var(--mb-font-sans);
+  color: var(--mb-fg-strong);
+  background: var(--mb-bg);
+  -webkit-font-smoothing: antialiased;
+  /* Garantiza que ningún elemento interno desborde y genere scroll
+     horizontal (que en mobile se ve como una "barra" fea al fondo). */
+  overflow-x: hidden;
+}
 .bk button { font-family: inherit; }
 .bk-icon-sm { width: 14px; height: 14px; flex: 0 0 auto; }
 
@@ -278,13 +286,15 @@
 
 /* Barbers carousel */
 .bk-a__barbers {
-  display: flex; gap: 10px; overflow-x: auto;
-  padding-bottom: 6px;
+  display: flex; gap: 10px;
+  overflow-x: auto; overflow-y: hidden;
   margin: 0 -20px;
-  padding-left: 20px; padding-right: 20px;
+  padding: 4px 20px;
+  /* Hide scrollbar across browsers (Firefox + IE/Edge legacy + WebKit). */
   scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.bk-a__barbers::-webkit-scrollbar { display: none; }
+.bk-a__barbers::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .bk-a__barber {
   border: 0; background: transparent;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -310,8 +320,15 @@
 .bk-a__barber:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Day strip */
-.bk-a__days { display: flex; gap: 8px; overflow-x: auto; margin: 0 -20px; padding: 0 20px 6px; scrollbar-width: none; }
-.bk-a__days::-webkit-scrollbar { display: none; }
+.bk-a__days {
+  display: flex; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  margin: 0 -20px;
+  padding: 4px 20px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.bk-a__days::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .bk-a__day {
   flex: 0 0 auto; width: 56px;
   padding: 10px 0 8px;
@@ -346,18 +363,27 @@
 .bk-a__period {
   display: flex; align-items: center; gap: 8px;
   font-size: 11px; color: var(--mb-fg-muted);
-  margin: 16px 0 8px;
-  font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  margin: 18px 0 10px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
 }
-.bk-a__period::after { content: ""; flex: 1; height: 1px; background: var(--mb-border-soft); }
+/* Antes había un ::after con un fondo sólido que creaba 3 líneas
+   horizontales seguidas (Mañana ─, Tarde ─, Noche ─) — visualmente
+   parecían "barras feas". Las quitamos: el periodo se identifica por
+   el ícono + texto, no necesita un divider. */
+.bk-a__period:first-child { margin-top: 4px; }
 
 /* Sticky CTA */
 .bk-a__cta {
   position: sticky; bottom: 0;
   margin: -168px -20px 0;
-  padding: 14px 20px 18px;
-  background: linear-gradient(180deg, rgba(250,248,246,0) 0%, var(--mb-bg) 30%);
+  padding: 28px 20px 18px;
+  /* Gradiente más largo (0% → 60%) para que no se vea una línea recta
+     donde el fade termina. Antes el corte a 30% era abrupto y se notaba
+     como una "barra" sutil al borde superior del card. */
+  background: linear-gradient(180deg, rgba(250,248,246,0) 0%, var(--mb-bg) 60%);
+  pointer-events: none;
 }
+.bk-a__cta > * { pointer-events: auto; }
 .bk-a__cta-card {
   background: var(--mb-fg-strong); color: #fff;
   border-radius: var(--mb-radius-2xl);
@@ -440,25 +466,22 @@
 .bk-cf__ticket {
   background: linear-gradient(180deg, var(--mb-fg-strong) 0%, #2a1f18 100%);
   color: #fff; border-radius: var(--mb-radius-2xl);
-  padding: 18px 20px;
+  padding: 20px 22px;
   margin-bottom: 28px;
   position: relative;
+  /* Antes había ::before/::after con notches laterales que sobresalían
+     del card (transform translateX -9px). En viewports angostos esos
+     notches generaban scroll horizontal del body — se veían como
+     "barras feas" abajo. Quitados: el ticket se identifica por el
+     gradient negro + ::before del rule punteado interno. */
 }
-.bk-cf__ticket::before, .bk-cf__ticket::after {
-  content: ""; position: absolute; top: 50%;
-  width: 18px; height: 18px;
-  background: var(--mb-bg);
-  border-radius: 50%; transform: translateY(-50%);
-}
-.bk-cf__ticket::before { left: -9px; }
-.bk-cf__ticket::after { right: -9px; }
 .bk-cf__ticket-eyebrow {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em;
   color: var(--mb-brand-bright-gold); font-weight: 700; margin: 0 0 12px;
 }
 .bk-cf__ticket-h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
 .bk-cf__ticket-when { font-size: 13px; color: rgba(255,255,255,0.7); margin: 0 0 16px; text-transform: capitalize; }
-.bk-cf__ticket-rule { border: 0; height: 0; border-top: 1px dashed rgba(255,255,255,0.18); margin: 0 -20px 14px; }
+.bk-cf__ticket-rule { border: 0; height: 0; border-top: 1px dashed rgba(255,255,255,0.18); margin: 0 -22px 14px; }
 .bk-cf__ticket-rows { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; }
 .bk-cf__ticket-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
 .bk-cf__ticket-row dt { color: rgba(255,255,255,0.55); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
