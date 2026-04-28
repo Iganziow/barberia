@@ -20,7 +20,17 @@ const ClientImportItem = z.object({
   /** 9 dígitos sin prefijo +56 (ej "912345678"). Es la llave dedup. */
   phone: z.string().regex(/^[2-9]\d{8}$/, "Teléfono debe ser 9 dígitos chilenos válidos"),
   name: z.string().min(1).max(200).transform((s) => stripHtml(s.trim())),
-  email: z.string().email().optional().or(z.literal("")),
+  // Email es opcional. Aceptamos string vacío, null, y omitido para
+  // facilitar imports desde fuentes externas que pueden representar
+  // "sin email" de varias formas (email es UNIQUE en User, así que
+  // generamos uno sintético si no viene).
+  email: z.preprocess(
+    (v) => {
+      if (v === null || v === undefined || v === "") return undefined;
+      return v;
+    },
+    z.string().email().optional()
+  ),
 });
 
 const ImportSchema = z.object({
