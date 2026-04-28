@@ -2,8 +2,20 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { CreateClientInput } from "@/lib/validations/client";
 
+/**
+ * Scope: el cliente "pertenece" a la org si:
+ *   a) Tiene al menos una cita en una sucursal de esa org, O
+ *   b) Su User está vinculado directamente al org (caso típico de imports
+ *      bulk donde aún no hay citas, o de altas manuales sin cita inmediata).
+ *
+ * Antes solo (a) → los clientes recién importados quedaban invisibles
+ * hasta que reservaran su primera cita.
+ */
 const orgScope = (orgId: string) => ({
-  appointments: { some: { branch: { orgId } } },
+  OR: [
+    { appointments: { some: { branch: { orgId } } } },
+    { user: { orgId } },
+  ],
 });
 
 export async function searchClients(query: string, orgId: string) {

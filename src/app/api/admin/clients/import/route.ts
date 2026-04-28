@@ -37,7 +37,7 @@ const ImportSchema = z.object({
   clients: z.array(ClientImportItem).min(1).max(1000),
 });
 
-export const POST = withAdmin(async (req) => {
+export const POST = withAdmin(async (req, { orgId }) => {
   const json = await req.json().catch(() => null);
   const parsed = ImportSchema.safeParse(json);
   if (!parsed.success) {
@@ -88,7 +88,10 @@ export const POST = withAdmin(async (req) => {
         continue;
       }
 
-      // Crear User + Client en una transacción atómica
+      // Crear User + Client en una transacción atómica.
+      // Linkeamos el User al orgId del admin que importa para que los
+      // clientes aparezcan en /admin/clients aún sin citas (el listing
+      // filtra por orgScope que mira tanto appointments como user.orgId).
       await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
@@ -97,6 +100,7 @@ export const POST = withAdmin(async (req) => {
             phone: item.phone,
             password: randomBytes(32).toString("hex"),
             role: "CLIENT",
+            orgId,
           },
         });
         await tx.client.create({
