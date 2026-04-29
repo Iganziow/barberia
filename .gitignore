@@ -51,3 +51,9 @@ test-results/
 # Claude scheduling lock
 .claude/scheduled_tasks.lock
 
+.stryker-tmp/
+reports/
+
+# Coverage
+coverage/
+

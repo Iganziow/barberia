@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing — verifica que los tests detecten bugs reales. Stryker muta el código (cambia operadores, valores, etc) y corre los tests; si NINGÚN test falla con la mutación, el código no está suficientemente cubierto. Sólo apuntamos a helpers puros con suite dedicada — los servicios/endpoints son demasiado pesados para mutar (10x el tiempo de tests).",
+  "packageManager": "npm",
+  "reporters": ["html", "clear-text", "progress"],
+  "testRunner": "vitest",
+  "testRunnerNodeArgs": ["--experimental-vm-modules"],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/lib/phone.ts",
+    "src/lib/calendar-export.ts",
+    "src/lib/format.ts",
+    "src/lib/sanitize.ts",
+    "src/lib/rate-limit.ts"
+  ],
+  "thresholds": {
+    "high": 85,
+    "low": 70,
+    "break": 60
+  },
+  "incremental": true,
+  "incrementalFile": ".stryker-tmp/incremental.json",
+  "tempDirName": ".stryker-tmp",
+  "concurrency": 2,
+  "timeoutMS": 10000
+}
