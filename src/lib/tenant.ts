@@ -33,34 +33,36 @@ export async function getOrgIdFromHeaders(req?: Request): Promise<string> {
   const orgId = h.get("x-org-id");
   if (orgId) return orgId;
 
-  // 2. Slug from middleware header
+  // 2. Slug from middleware header — si VIENE pero NO resuelve, 404 inmediato
+  // (no caemos al env fallback que sería un leak entre tenants).
   const slugHeader = h.get("x-org-slug");
   if (slugHeader) {
     const resolved = await resolveOrgIdBySlug(slugHeader);
     if (resolved) return resolved;
+    throw AppError.notFound("Negocio no encontrado");
   }
 
-  // 3. Slug from query param (public pages pass ?slug=xxx)
+  // 3. Slug from query param (public pages pass ?slug=xxx) — misma regla:
+  // si vino slug query pero no resuelve, 404 — NO caer al env fallback.
+  // Antes caía y devolvía datos del default org → leak multi-tenant.
   if (req) {
     const url = new URL(req.url);
     const slugParam = url.searchParams.get("slug");
     if (slugParam) {
       const resolved = await resolveOrgIdBySlug(slugParam);
       if (resolved) return resolved;
+      throw AppError.notFound("Negocio no encontrado");
     }
   }
 
-  // 4. DEFAULT_ORG_SLUG env fallback
+  // 4. DEFAULT_ORG_SLUG env fallback — solo si NO vino ningún slug explícito.
+  // Útil para llamadas internas / dev tools que no pasan slug.
   const envSlug = process.env.DEFAULT_ORG_SLUG;
   if (envSlug) {
     const resolved = await resolveOrgIdBySlug(envSlug);
     if (resolved) return resolved;
   }
 
-  // No pudimos resolver un orgId. Si vino un slug en query/cookie pero no
-  // existe, devolvemos 404 para que el frontend muestre la página "Negocio
-  // no encontrado". Antes lanzábamos Error genérico → handleError lo
-  // convertía en 500 y el frontend no diferenciaba el caso.
   throw AppError.notFound("Negocio no encontrado");
 }
 

@@ -116,6 +116,21 @@ export async function middleware(req: NextRequest) {
   });
 }
 
+// `:path*` en Next.js NO matchea la ruta vacía ("/admin" exacto sin nada
+// después). Hay que listar la ruta exacta también, sino /admin sin auth
+// devuelve 200 al SSR del page (que después intenta cargar /api/admin/me
+// y rebota — pero eso es client-side, ya pasó la barrera del middleware).
+//
+// Listamos explícitamente cada raíz + sus subpaths para garantizar
+// auth-gating server-side completo.
 export const config = {
-  matcher: ["/admin/:path*", "/superadmin/:path*", "/barber/:path*", "/api/:path*"],
+  matcher: [
+    "/admin",
+    "/admin/:path*",
+    "/superadmin",
+    "/superadmin/:path*",
+    "/barber",
+    "/barber/:path*",
+    "/api/:path*",
+  ],
 };

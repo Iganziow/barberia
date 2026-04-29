@@ -44,3 +44,10 @@ next-env.d.ts
 
 # scratch / design-system zips
 /.tmp/
+
+# E2E test artifacts
+test-results/
+
+# Claude scheduling lock
+.claude/scheduled_tasks.lock
+
