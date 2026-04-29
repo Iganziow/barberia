@@ -3,6 +3,7 @@ import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { stripHtml } from "@/lib/sanitize";
+import { recordAudit } from "@/lib/audit-log";
 import bcrypt from "bcryptjs";
 
 export const GET = withAdmin(async (_req, { orgId }, { params }) => {
@@ -87,14 +88,24 @@ export const PATCH = withAdmin(async (req, { orgId }, { params }) => {
   return NextResponse.json({ ok: true });
 });
 
-export const DELETE = withAdmin(async (_req, { orgId }, { params }) => {
+export const DELETE = withAdmin(async (req, { orgId, userId, userEmail, userRole }, { params }) => {
   const { id: barberId } = await params;
 
-  const barber = await prisma.barber.findFirst({ where: { id: barberId, branch: { orgId } } });
+  const barber = await prisma.barber.findFirst({
+    where: { id: barberId, branch: { orgId } },
+    include: { user: { select: { name: true, email: true } } },
+  });
   if (!barber) throw AppError.notFound("Barbero no encontrado");
 
   // Soft delete: deactivate instead of deleting (preserves appointment history)
   await prisma.barber.update({ where: { id: barberId }, data: { active: false } });
+
+  await recordAudit(req, { userId, userEmail, userRole, orgId }, {
+    action: "barber.deactivate",
+    resource: "Barber",
+    resourceId: barberId,
+    metadata: { name: barber.user.name, email: barber.user.email },
+  });
 
   return NextResponse.json({ ok: true });
 });

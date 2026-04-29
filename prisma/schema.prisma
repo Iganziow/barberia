@@ -151,8 +151,10 @@ model User {
   orgId  String?
   org    Organization? @relation(fields: [orgId], references: [id])
 
-  barber Barber?
-  client Client?
+  barber    Barber?
+  client    Client?
+  sessions  Session[]
+  auditLogs AuditLog[]
 
   @@index([orgId])
   // Garantiza dedup por (teléfono, rol). Sin esto, un race condition
@@ -160,6 +162,54 @@ model User {
   // con el mismo phone normalizado → historial roto. Postgres permite
   // múltiples nulls, así que usuarios sin teléfono no chocan.
   @@unique([phone, role])
+}
+
+// ─── Session ────────────────────────────────────────────
+// Cada login crea un row aquí. El `id` es el JWT id (jti) que se
+// embebe en el token. En cada request validamos que la session
+// existe y NO está revocada. Eso permite invalidación server-side
+// inmediata: logout, "cerrar todas mis sesiones", cambio de password,
+// detección de robo de cookie, etc.
+
+model Session {
+  id        String   @id // jti del JWT — generado al firmar el token
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime? // null = sesión activa
+  ip        String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─── AuditLog ───────────────────────────────────────────
+// Registro append-only de acciones admin/superadmin sensibles. Sirve
+// para auditoría legal (GDPR), forense (quién borró qué), y debug
+// ("por qué este cliente desapareció ayer").
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?  // null si la acción es del sistema
+  userEmail  String?  // snapshot del email al momento (por si el user se borra)
+  userRole   String?
+  orgId      String?  // org afectada
+  action     String   // ej "barber.delete", "service.update", "apikey.create"
+  resource   String?  // entidad afectada, ej "Barber", "Service"
+  resourceId String?  // id de la entidad
+  metadata   Json?    // datos extra (cambios, motivo, etc)
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([userId])
+  @@index([action])
 }
 
 // ─── Client ─────────────────────────────────────────────

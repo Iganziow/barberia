@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from "crypto";
 import { withAdmin } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { stripHtml } from "@/lib/sanitize";
+import { recordAudit } from "@/lib/audit-log";
 
 /**
  * Bulk-import de clientes desde una fuente externa (ej: export de
@@ -36,7 +37,7 @@ const ImportSchema = z.object({
   clients: z.array(ClientImportItem).min(1).max(1000),
 });
 
-export const POST = withAdmin(async (req, { orgId }) => {
+export const POST = withAdmin(async (req, { orgId, userId, userEmail, userRole }) => {
   const json = await req.json().catch(() => null);
   const parsed = ImportSchema.safeParse(json);
   if (!parsed.success) {
@@ -116,6 +117,18 @@ export const POST = withAdmin(async (req, { orgId }) => {
       });
     }
   }
+
+  // Audit: bulk import es de alto volumen y forensic-relevant.
+  await recordAudit(req, { userId, userEmail, userRole, orgId }, {
+    action: "client.bulk_import",
+    resource: "Client",
+    metadata: {
+      total: results.total,
+      created: results.created,
+      skipped: results.skipped,
+      errorCount: results.errors.length,
+    },
+  });
 
   // Si hubo más errores que éxitos, devolvemos 207 (multi-status)
   // para que el caller pueda reaccionar. Si todo OK, 200.

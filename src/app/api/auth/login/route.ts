@@ -7,6 +7,7 @@ import {
   signSessionToken,
 } from "@/lib/auth";
 import { LoginSchema } from "@/lib/validations/auth";
+import { recordAudit } from "@/lib/audit-log";
 
 export async function POST(req: Request) {
   try {
@@ -61,13 +62,22 @@ export async function POST(req: Request) {
     );
   }
 
-  const token = await signSessionToken({
-    sub: user.id,
-    role: user.role,
-    email: user.email,
-    name: user.name,
-    orgId: orgId ?? "",
-  });
+  // signSessionToken ahora también crea una Session row en DB con un
+  // jti único. Esto permite invalidar el JWT server-side (logout,
+  // "cerrar todas mis sesiones", cambio de password) — antes el JWT
+  // robado vivía 7 días sin forma de revocarlo.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  const userAgent = req.headers.get("user-agent") || null;
+  const token = await signSessionToken(
+    {
+      sub: user.id,
+      role: user.role,
+      email: user.email,
+      name: user.name,
+      orgId: orgId ?? "",
+    },
+    { ip, userAgent }
+  );
 
   const res = NextResponse.json({
     message: "Login OK",
@@ -78,6 +88,18 @@ export async function POST(req: Request) {
     ...getCookieOptions(),
     maxAge: 60 * 60 * 24 * 7,
   });
+
+  // Auditar el login (forense — quién entró, cuándo, desde dónde).
+  await recordAudit(
+    req,
+    {
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      orgId: orgId ?? null,
+    },
+    { action: "auth.login" }
+  );
 
   return res;
   } catch (err) {

@@ -7,6 +7,11 @@ import type { JwtPayload } from "@/lib/auth";
 type AuthContext = {
   orgId: string;
   userId: string;
+  // Snapshot del JWT para audit log + analytics. Email y role pueden
+  // diferir del DB current si el user cambió, pero sirven para el momento
+  // exacto en que se ejecutó la acción.
+  userEmail: string;
+  userRole: string;
 };
 
 type RouteParams = { params: Promise<Record<string, string>> };
@@ -39,6 +44,8 @@ function withAuth(
       return await handler(req, {
         orgId: auth.payload.orgId,
         userId: auth.payload.sub,
+        userEmail: auth.payload.email,
+        userRole: auth.payload.role,
       }, routeParams);
     } catch (err: unknown) {
       return handleError(req, err);

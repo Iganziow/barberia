@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { AUTH_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { AUTH_COOKIE_NAME, verifyJwtSignature } from "@/lib/auth-edge";
 
 /**
  * Resolve org slug from:
@@ -39,7 +39,7 @@ export async function middleware(req: NextRequest) {
     }
 
     try {
-      const payload = await verifySessionToken(token);
+      const payload = await verifyJwtSignature(token);
       if (payload.role !== "ADMIN" && payload.role !== "SUPERADMIN") {
         const url = req.nextUrl.clone();
         url.pathname = "/login";
@@ -68,7 +68,7 @@ export async function middleware(req: NextRequest) {
     }
 
     try {
-      const payload = await verifySessionToken(token);
+      const payload = await verifyJwtSignature(token);
       if (payload.role !== "SUPERADMIN") {
         const url = req.nextUrl.clone();
         url.pathname = "/login";
@@ -93,7 +93,7 @@ export async function middleware(req: NextRequest) {
     }
 
     try {
-      const payload = await verifySessionToken(token);
+      const payload = await verifyJwtSignature(token);
       if (payload.role !== "BARBER") {
         const url = req.nextUrl.clone();
         url.pathname = "/login";
