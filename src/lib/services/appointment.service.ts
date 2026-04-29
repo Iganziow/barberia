@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { AppError } from "@/lib/api-error";
 import { dispatchWebhook } from "@/lib/services/webhook.service";
 import { sendStatusChangeEmail } from "@/lib/services/email.service";
 import type { UpdateStatusInput } from "@/lib/validations/appointment";
@@ -112,9 +113,11 @@ export async function updateAppointmentStatus(
     });
     if (!apt) return null;
 
-    // Si piden crear un payment pero ya existe uno, rechazamos (evita duplicados)
+    // Si piden crear un payment pero ya existe uno, rechazamos (evita duplicados).
+    // Antes era un Error genérico → handleError lo convertía a 500. Ahora
+    // AppError.conflict → 409 con mensaje claro al cliente.
     if (data.payment && apt.payment) {
-      throw new Error("Esta cita ya tiene un pago registrado");
+      throw AppError.conflict("Esta cita ya tiene un pago registrado");
     }
   }
 
@@ -203,11 +206,16 @@ export async function rescheduleAppointment(
   const targetBarberId = data.barberId || existing.barberId;
 
   // Lazy import para evitar ciclo (availability.service podría usar este file).
-  const { validateAppointmentSlot, slotConflictMessage } = await import(
+  const { validateAppointmentSlot, slotConflictMessage, acquireBarberLock } = await import(
     "@/lib/services/availability.service"
   );
 
   return prisma.$transaction(async (tx) => {
+    // Lock advisory por barbero (target). Si la cita cambia de barbero,
+    // bloqueamos el del destino — el del origen pierde el slot
+    // automáticamente porque la cita misma se está moviendo.
+    await acquireBarberLock(tx as unknown as typeof prisma, targetBarberId);
+
     const conflict = await validateAppointmentSlot(
       tx as unknown as typeof prisma,
       {

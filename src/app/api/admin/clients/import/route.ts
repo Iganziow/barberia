@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { randomBytes, randomUUID } from "crypto";
 import { withAdmin } from "@/lib/api-handler";
-import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { stripHtml } from "@/lib/sanitize";
 
@@ -125,7 +124,11 @@ export const POST = withAdmin(async (req, { orgId }) => {
   return NextResponse.json(results, { status });
 });
 
-// Endpoint solo para POST. Cualquier otro método responde 405.
+// Endpoint solo para POST. GET/PUT/etc responden 405 sin tirar error
+// (un throw aquí no estaría wrappeado por withAdmin → terminaría en 500).
 export function GET() {
-  throw AppError.badRequest("Use POST con un array de clientes");
+  return NextResponse.json(
+    { message: "Method Not Allowed. Use POST con un array de clientes." },
+    { status: 405, headers: { Allow: "POST" } }
+  );
 }

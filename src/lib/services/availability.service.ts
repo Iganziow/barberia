@@ -253,6 +253,31 @@ export async function getBarbersWithAvailability(
   });
 }
 
+/**
+ * Adquiere un advisory lock de Postgres scoped al barbero, valido por
+ * lo que dure la transacción. Sin esto, 3 requests simultáneos al mismo
+ * slot pasaban los 3 el check de overlap (porque cada transacción veía
+ * la DB pre-commit del otro) y se creaban 3 citas duplicadas.
+ *
+ * `pg_advisory_xact_lock(key)` bloquea hasta que la transacción haga
+ * commit/rollback. Si otra transacción ya tiene el lock, esta espera.
+ *
+ * Usamos `hashtextextended()` para hashear el string del barberId a un
+ * int8 estable. Distintos barberos = distintos locks → no se afectan
+ * entre sí (alta concurrencia con barberos distintos sigue siendo OK).
+ */
+export async function acquireBarberLock(
+  tx: typeof prisma,
+  barberId: string
+): Promise<void> {
+  // hashtextextended permite int8 (BIGINT) que es lo que pg_advisory_xact_lock
+  // acepta. El segundo arg es un seed; usamos 0 para determinismo.
+  await tx.$executeRawUnsafe(
+    `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+    `barber-booking:${barberId}`
+  );
+}
+
 type SlotConflict =
   | { kind: "barber_off" }
   | { kind: "branch_closed" }

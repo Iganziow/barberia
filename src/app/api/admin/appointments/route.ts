@@ -8,6 +8,7 @@ import {
 import {
   validateAppointmentSlot,
   slotConflictMessage,
+  acquireBarberLock,
 } from "@/lib/services/availability.service";
 import { CreateAppointmentSchema } from "@/lib/validations/appointment";
 import { parseDate } from "@/lib/sanitize";
@@ -107,6 +108,11 @@ export const POST = withAdmin(async (req, { orgId }) => {
   // para registrar walk-ins que olvidaron cargar — pero seguimos
   // bloqueando overlaps y horarios fuera de schedule.
   const appointment = await prisma.$transaction(async (tx) => {
+    // Lock advisory por barbero — previene race condition de inserts
+    // concurrentes (crítico para multi-staff admins reservando al mismo
+    // tiempo).
+    await acquireBarberLock(tx as unknown as typeof prisma, data.barberId);
+
     const conflict = await validateAppointmentSlot(
       tx as unknown as typeof prisma,
       {

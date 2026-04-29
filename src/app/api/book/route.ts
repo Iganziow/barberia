@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import {
   validateAppointmentSlot,
   slotConflictMessage,
+  acquireBarberLock,
 } from "@/lib/services/availability.service";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
 import { stripHtml } from "@/lib/sanitize";
@@ -123,6 +124,13 @@ export const POST = withPublic(async (req) => {
   // appointment overlap (un block creado entre el getAvailableSlots y
   // el commit no se detectaba).
   const result = await prisma.$transaction(async (tx) => {
+    // Lock advisory por barbero — serializa cualquier intento concurrente
+    // de reservar con el mismo barbero. Sin esto, 3 POSTs simultáneos al
+    // mismo slot pasaban los 3 el overlap check (cada transacción veía
+    // la DB pre-commit) → se creaban 3 citas duplicadas (race condition
+    // crítica detectada en e2e).
+    await acquireBarberLock(tx as unknown as typeof prisma, data.barberId);
+
     const conflict = await validateAppointmentSlot(
       tx as unknown as typeof prisma,
       {
