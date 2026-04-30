@@ -39,7 +39,7 @@ export function EmptyState({
 }: Props) {
   const baseClasses =
     variant === "card"
-      ? "rounded-xl border border-dashed border-[#e8e2dc] bg-white px-6 py-10 dark:border-stone-700 dark:bg-stone-900/40"
+      ? "rounded-xl border border-dashed border-[#e8e2dc] bg-white px-6 py-10"
       : "px-4 py-8";
 
   return (
@@ -49,13 +49,13 @@ export function EmptyState({
       className={`flex flex-col items-center text-center ${baseClasses} ${className}`}
     >
       {icon && (
-        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500">
+        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-stone-100 text-stone-400">
           {icon}
         </div>
       )}
-      <p className="text-sm font-bold text-stone-900 dark:text-stone-100">{title}</p>
+      <p className="text-sm font-bold text-stone-900">{title}</p>
       {description && (
-        <p className="mt-1 max-w-xs text-xs text-stone-500 dark:text-stone-400">
+        <p className="mt-1 max-w-xs text-xs text-stone-500">
           {description}
         </p>
       )}

@@ -101,17 +101,17 @@ export default function Breadcrumbs({
 
   return (
     <nav aria-label="breadcrumb" className={`text-xs ${className}`}>
-      <ol className="flex items-center gap-1.5 text-stone-500 dark:text-stone-400">
+      <ol className="flex items-center gap-1.5 text-stone-500">
         {computed.map((c, i) => {
           const isFirst = i === 0;
           const isLast = i === computed.length - 1;
           return (
             <li key={i} className="flex items-center gap-1.5 min-w-0">
-              {!isFirst && <span className="text-stone-300 dark:text-stone-600 shrink-0"><IconChevron /></span>}
+              {!isFirst && <span className="text-stone-300 shrink-0"><IconChevron /></span>}
               {c.href && !isLast ? (
                 <Link
                   href={c.href}
-                  className="flex items-center gap-1 hover:text-stone-900 dark:hover:text-stone-100 transition truncate"
+                  className="flex items-center gap-1 hover:text-stone-900 transition truncate"
                 >
                   {isFirst && <IconHome />}
                   <span className="truncate">{c.label}</span>
@@ -119,7 +119,7 @@ export default function Breadcrumbs({
               ) : (
                 <span
                   aria-current={isLast ? "page" : undefined}
-                  className="flex items-center gap-1 font-semibold text-stone-900 dark:text-stone-100 truncate"
+                  className="flex items-center gap-1 font-semibold text-stone-900 truncate"
                 >
                   {isFirst && <IconHome />}
                   <span className="truncate">{c.label}</span>

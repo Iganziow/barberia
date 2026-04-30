@@ -4,7 +4,6 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
-import ThemeToggle from "@/components/ui/ThemeToggle";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -159,12 +158,6 @@ export default function BarberShell({
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 mt-0.5">
                     Barbero
                   </p>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0ece8]">
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-                    Tema
-                  </span>
-                  <ThemeToggle variant="menu" />
                 </div>
                 <button
                   onClick={handleLogout}

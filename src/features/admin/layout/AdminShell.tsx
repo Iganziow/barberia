@@ -7,8 +7,6 @@ import { useAuthUser } from "@/hooks/use-auth-user";
 import { useToast } from "@/components/ui/Toast";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import TourOverlay from "@/components/ui/Tour";
-import { useTheme, type ThemeMode } from "@/hooks/use-theme";
-import { useIsClient } from "@/hooks/use-is-client";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -104,30 +102,6 @@ function IconBuilding({ className }: { className?: string }) {
   );
 }
 
-function IconSun({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-    </svg>
-  );
-}
-function IconMoon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-    </svg>
-  );
-}
-function IconAuto({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 3v18" />
-    </svg>
-  );
-}
-
 const NAV = [
   { href: "/admin", label: "Agenda", Icon: IconCalendar, tourId: "nav-agenda" },
   { href: "/admin/branches", label: "Sucursales", Icon: IconBuilding, tourId: "nav-sucursales" },
@@ -184,13 +158,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   );
   // Hover expande temporalmente el rail sin tocar la preferencia persistida
   const [navHovered, setNavHovered] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const themeMounted = useIsClient();
-  const NEXT_THEME: Record<ThemeMode, ThemeMode> = { light: "dark", dark: "system", system: "light" };
-  const THEME_LABEL: Record<ThemeMode, string> = { light: "Claro", dark: "Oscuro", system: "Sistema" };
-  // Hasta montar usamos IconAuto para evitar hydration mismatch (server snapshot = "system").
-  const displayTheme: ThemeMode = themeMounted ? theme : "system";
-  const ThemeIcon = displayTheme === "dark" ? IconMoon : displayTheme === "system" ? IconAuto : IconSun;
 
   const toggleCollapsed = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -360,29 +327,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               )}
             </button>
 
-            {/* Theme toggle: cicla light → dark → system */}
-            <button
-              onClick={() => setTheme(NEXT_THEME[displayTheme])}
-              title={`Tema: ${THEME_LABEL[displayTheme]} — clic para cambiar`}
-              aria-label={`Tema actual: ${THEME_LABEL[displayTheme]}`}
-              className={cn(
-                "flex items-center rounded-lg text-[13px] font-medium text-white/40 hover:bg-white/5 hover:text-white/70 transition overflow-hidden mt-2",
-                showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2 w-full"
-              )}
-            >
-              <ThemeIcon className="shrink-0 text-white/30" />
-              {!showCompact && (
-                <span className="whitespace-nowrap">Tema: {THEME_LABEL[displayTheme]}</span>
-              )}
-            </button>
-
             {/* Toggle collapse/expand (desktop only) */}
             <button
               onClick={toggleCollapsed}
               title={navCollapsed ? "Fijar menú abierto" : "Colapsar menú"}
               aria-label={navCollapsed ? "Fijar menú abierto" : "Colapsar menú"}
               className={cn(
-                "hidden lg:flex items-center rounded-lg text-[11px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition mt-2",
+                "hidden lg:flex items-center rounded-lg text-[11px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition mt-4",
                 showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-2 px-3 py-2 w-full"
               )}
             >
