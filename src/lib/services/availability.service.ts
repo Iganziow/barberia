@@ -1,4 +1,21 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import {
+  availabilityBranchTag,
+  availabilityBarberTag,
+} from "@/lib/cache/availability-cache";
+
+/**
+ * TTL del caché de availability. 30s es el sweet spot:
+ *  - Suficientemente largo para reducir DB load 30x cuando hay tráfico
+ *    sostenido (un usuario ve los slots → 30s después otro pide → hit).
+ *  - Suficientemente corto para que cambios "naturales" (sin trigger de
+ *    invalidación explícita) se reflejen rápido.
+ *
+ * Las mutaciones (booking, block, reschedule) llaman `invalidateAvailability`
+ * que marca el tag como stale → la próxima lectura va fresh sin esperar TTL.
+ */
+const AVAILABILITY_TTL_S = 30;
 
 type Slot = {
   start: string; // ISO
@@ -6,12 +23,16 @@ type Slot = {
 };
 
 /**
- * Get available time slots for a barber on a specific date.
- * Logic: barber schedule - existing appointments - block times = available slots
+ * Implementación interna que genera TODOS los slots disponibles del día
+ * (sin filtrar past slots). Pura en términos del estado de DB → cacheable.
+ *
+ * El filtro de past slots se aplica AFUERA del caché (`getAvailableSlots`)
+ * para que sea siempre fresh: con TTL de 30s, un slot que pasa a ser
+ * "pasado" durante la ventana del caché se filtra al servir.
  */
-export async function getAvailableSlots(
+async function _generateAvailableSlots(
   barberId: string,
-  date: string, // YYYY-MM-DD
+  date: string,
   durationMin: number
 ): Promise<Slot[]> {
   const dayDate = new Date(date + "T00:00:00");
@@ -108,7 +129,32 @@ export async function getAvailableSlots(
     cursor += slotStep * 60_000;
   }
 
-  // 7. Filter out past slots if date is today
+  return slots;
+}
+
+/**
+ * Get available time slots for a barber on a specific date.
+ * Logic: barber schedule - existing appointments - block times = available slots.
+ *
+ * Cacheado con `unstable_cache` (TTL 30s) tageado por barbero. Se invalida
+ * automáticamente cuando se crea/cancela una cita o un bloqueo del barbero.
+ */
+export async function getAvailableSlots(
+  barberId: string,
+  date: string, // YYYY-MM-DD
+  durationMin: number
+): Promise<Slot[]> {
+  const cached = unstable_cache(
+    () => _generateAvailableSlots(barberId, date, durationMin),
+    ["available-slots", barberId, date, String(durationMin)],
+    {
+      revalidate: AVAILABILITY_TTL_S,
+      tags: [availabilityBarberTag(barberId)],
+    }
+  );
+  const slots = await cached();
+
+  // Filtrar past slots AFUERA del caché — `Date.now()` siempre fresh.
   const now = Date.now();
   return slots.filter((s) => new Date(s.start).getTime() > now);
 }
@@ -121,29 +167,31 @@ function earlierTime(a: string, b: string): string {
   return a < b ? a : b;
 }
 
+type BarberAvailabilityRaw = {
+  id: string;
+  name: string;
+  color: string | null;
+  /** Lista cruda de timestamps (ms) de cada slot disponible. Filtrar past
+   *  fuera del caché para no quedar stale al cruzar la hora del slot. */
+  availableSlotStartsMs: number[];
+};
+
 /**
- * Get all barbers with availability status for a given date and service duration.
- *
- * Implementado con batch fetches para evitar N+1:
- * - 1 query para barberos
- * - 1 query para horarios de todos los barberos ese día
- * - 1 query para working hours de la sucursal
- * - 1 query para appointments de todos los barberos ese día
- * - 1 query para blocks de todos los barberos ese día
- *
- * Antes hacía 4*N queries (una llamada a getAvailableSlots por barbero).
+ * Implementación interna — genera availability cruda por barbero (lista
+ * de timestamps) para una sucursal/fecha/duración. Pura en términos de
+ * DB → cacheable. La filtrada por `nowMs` y el conteo final viven afuera
+ * del caché.
  */
-export async function getBarbersWithAvailability(
+async function _generateBarbersAvailability(
   branchId: string,
   date: string,
   durationMin: number,
   serviceId?: string
-) {
+): Promise<BarberAvailabilityRaw[]> {
   const dayDate = new Date(date + "T00:00:00");
   const dayOfWeek = dayDate.getDay();
   const dayStart = dayDate;
   const dayEnd = new Date(date + "T23:59:59");
-  const nowMs = Date.now();
 
   // Si vino un serviceId, filtramos los barberos que tengan ese servicio
   // asignado. Sin este filtro, el flujo de reserva permitía elegir un
@@ -196,7 +244,7 @@ export async function getBarbersWithAvailability(
       id: b.id,
       name: b.user.name,
       color: b.color,
-      availableSlots: 0,
+      availableSlotStartsMs: [],
     }));
   }
 
@@ -210,7 +258,7 @@ export async function getBarbersWithAvailability(
   return barbers.map((b) => {
     const sched = scheduleByBarber.get(b.id);
     if (!sched || !sched.isWorking) {
-      return { id: b.id, name: b.user.name, color: b.color, availableSlots: 0 };
+      return { id: b.id, name: b.user.name, color: b.color, availableSlotStartsMs: [] };
     }
     const workStart = laterTime(sched.startTime, branchHours.openTime);
     const workEnd = earlierTime(sched.endTime, branchHours.closeTime);
@@ -231,16 +279,13 @@ export async function getBarbersWithAvailability(
       if (blk.barberId === b.id) busy.push({ start: blk.start.getTime(), end: blk.end.getTime() });
     }
 
-    let available = 0;
+    const availableStarts: number[] = [];
     let cursor = windowStart.getTime();
     while (cursor + durationMin * 60_000 <= windowEnd.getTime()) {
       const slotStart = cursor;
       const slotEnd = cursor + durationMin * 60_000;
-      // Filtrar past slots si es hoy
-      if (slotStart > nowMs) {
-        const conflicts = busy.some((bu) => slotStart < bu.end && bu.start < slotEnd);
-        if (!conflicts) available++;
-      }
+      const conflicts = busy.some((bu) => slotStart < bu.end && bu.start < slotEnd);
+      if (!conflicts) availableStarts.push(slotStart);
       cursor += slotStep * 60_000;
     }
 
@@ -248,9 +293,51 @@ export async function getBarbersWithAvailability(
       id: b.id,
       name: b.user.name,
       color: b.color,
-      availableSlots: available,
+      availableSlotStartsMs: availableStarts,
     };
   });
+}
+
+/**
+ * Get all barbers with availability status for a given date and service duration.
+ *
+ * Implementado con batch fetches para evitar N+1:
+ * - 1 query para barberos
+ * - 1 query para horarios de todos los barberos ese día
+ * - 1 query para working hours de la sucursal
+ * - 1 query para appointments de todos los barberos ese día
+ * - 1 query para blocks de todos los barberos ese día
+ *
+ * Antes hacía 4*N queries (una llamada a getAvailableSlots por barbero).
+ *
+ * Cacheado con `unstable_cache` (TTL 30s) tageado por sucursal. Las
+ * mutaciones (cita nueva/cancelada/movida, bloqueo, schedule) llaman
+ * `invalidateAvailability({branchId})` para refresh inmediato.
+ */
+export async function getBarbersWithAvailability(
+  branchId: string,
+  date: string,
+  durationMin: number,
+  serviceId?: string
+) {
+  const cached = unstable_cache(
+    () => _generateBarbersAvailability(branchId, date, durationMin, serviceId),
+    ["barbers-availability", branchId, date, String(durationMin), serviceId ?? ""],
+    {
+      revalidate: AVAILABILITY_TTL_S,
+      tags: [availabilityBranchTag(branchId)],
+    }
+  );
+  const raw = await cached();
+
+  // Past-slot filter + conteo final fuera del caché → siempre fresh.
+  const nowMs = Date.now();
+  return raw.map((b) => ({
+    id: b.id,
+    name: b.name,
+    color: b.color,
+    availableSlots: b.availableSlotStartsMs.filter((t) => t > nowMs).length,
+  }));
 }
 
 /**
@@ -422,14 +509,27 @@ export type HeatmapDay = {
 };
 
 /**
- * Get availability heatmap for a branch across multiple days.
- * Returns slot counts and availability level per day.
+ * Implementación interna del heatmap — devuelve por día listas crudas de
+ * timestamps de slots (totales y disponibles). El past-slot filter, el
+ * conteo final y el cálculo del `level` se hacen afuera para no quedar
+ * stale al cruzar la hora de un slot durante la ventana del caché.
  */
-export async function getAvailabilityHeatmap(
+type HeatmapDayRaw = {
+  date: string;
+  totalSlotStartsMs: number[];
+  availableSlotStartsMs: number[];
+  waitlistCount: number;
+};
+
+async function _generateAvailabilityHeatmap(
   branchId: string,
   serviceId: string,
-  days: number = 14
-): Promise<HeatmapDay[]> {
+  days: number,
+  // Pasamos `todayStr` desde afuera para que dos llamadas del mismo día
+  // pero en horas distintas reusen el mismo cache key — sin esto el key
+  // cambiaría con el milisegundo y el caché nunca daría hit.
+  todayStr: string
+): Promise<HeatmapDayRaw[]> {
   // Get service duration
   const service = await prisma.service.findUnique({
     where: { id: serviceId },
@@ -452,11 +552,13 @@ export async function getAvailabilityHeatmap(
 
   const barberIds = barbers.map((b) => b.id);
 
-  // Generate date range
+  // Generate date range arrancando desde `todayStr` (fecha local del request)
+  // — usamos la string que vino de afuera para que el cache key sea estable
+  // durante todo el día y se reuse entre requests.
   const dates: string[] = [];
-  const now = new Date();
+  const baseDate = new Date(todayStr + "T00:00:00");
   for (let i = 0; i < days; i++) {
-    const d = new Date(now);
+    const d = new Date(baseDate);
     d.setDate(d.getDate() + i);
     dates.push(d.toISOString().split("T")[0]);
   }
@@ -518,10 +620,10 @@ export async function getAvailabilityHeatmap(
 
   const durationMin = service.durationMin;
   const slotStep = 30;
-  const nowMs = Date.now();
 
-  // Calculate per day
-  const result: HeatmapDay[] = dates.map((date) => {
+  // Por día: lista cruda de timestamps (totales + libres). El past-slot
+  // filter y el cálculo del level se aplican afuera del caché.
+  return dates.map((date) => {
     const dayDate = new Date(date + "T00:00:00");
     const dayOfWeek = dayDate.getDay();
     const dayStart = dayDate.getTime();
@@ -529,11 +631,16 @@ export async function getAvailabilityHeatmap(
 
     const branchDay = hoursMap.get(dayOfWeek);
     if (!branchDay || !branchDay.isOpen) {
-      return { date, totalSlots: 0, availableSlots: 0, level: "closed" as const, waitlistCount: waitlistMap.get(date) ?? 0 };
+      return {
+        date,
+        totalSlotStartsMs: [],
+        availableSlotStartsMs: [],
+        waitlistCount: waitlistMap.get(date) ?? 0,
+      };
     }
 
-    let totalSlots = 0;
-    let availableSlots = 0;
+    const totalStarts: number[] = [];
+    const availableStarts: number[] = [];
 
     for (const barberId of barberIds) {
       const sched = scheduleMap.get(`${barberId}_${dayOfWeek}`);
@@ -565,16 +672,59 @@ export async function getAvailabilityHeatmap(
         const slotStart = cursor;
         const slotEnd = cursor + durationMin * 60_000;
 
-        // Skip past slots for today
-        if (slotStart > nowMs || date !== dates[0]) {
-          totalSlots++;
-          const conflicts = busy.some((b) => slotStart < b.end && b.start < slotEnd);
-          if (!conflicts) availableSlots++;
-        }
+        totalStarts.push(slotStart);
+        const conflicts = busy.some((b) => slotStart < b.end && b.start < slotEnd);
+        if (!conflicts) availableStarts.push(slotStart);
 
         cursor += slotStep * 60_000;
       }
     }
+
+    return {
+      date,
+      totalSlotStartsMs: totalStarts,
+      availableSlotStartsMs: availableStarts,
+      waitlistCount: waitlistMap.get(date) ?? 0,
+    };
+  });
+}
+
+/**
+ * Get availability heatmap for a branch across multiple days.
+ * Returns slot counts and availability level per day.
+ *
+ * Cacheado con `unstable_cache` (TTL 30s) tageado por sucursal. El past-slot
+ * filter (sólo aplica al día 1 = hoy) se aplica afuera del caché.
+ */
+export async function getAvailabilityHeatmap(
+  branchId: string,
+  serviceId: string,
+  days: number = 14
+): Promise<HeatmapDay[]> {
+  // Fecha local "hoy" en YYYY-MM-DD: estable durante todo el día,
+  // permite que múltiples requests del mismo día compartan cache hit.
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const cached = unstable_cache(
+    () => _generateAvailabilityHeatmap(branchId, serviceId, days, todayStr),
+    ["availability-heatmap", branchId, serviceId, String(days), todayStr],
+    {
+      revalidate: AVAILABILITY_TTL_S,
+      tags: [availabilityBranchTag(branchId)],
+    }
+  );
+  const raw = await cached();
+
+  // Past-slot filter (solo aplica si el día === todayStr) + level final.
+  const nowMs = Date.now();
+  return raw.map((d) => {
+    const isToday = d.date === todayStr;
+    const totalSlots = isToday
+      ? d.totalSlotStartsMs.filter((t) => t > nowMs).length
+      : d.totalSlotStartsMs.length;
+    const availableSlots = isToday
+      ? d.availableSlotStartsMs.filter((t) => t > nowMs).length
+      : d.availableSlotStartsMs.length;
 
     const ratio = totalSlots > 0 ? availableSlots / totalSlots : 0;
     const level: HeatmapDay["level"] =
@@ -584,8 +734,12 @@ export async function getAvailabilityHeatmap(
             : ratio > 0.3 ? "medium"
               : "low";
 
-    return { date, totalSlots, availableSlots, level, waitlistCount: waitlistMap.get(date) ?? 0 };
+    return {
+      date: d.date,
+      totalSlots,
+      availableSlots,
+      level,
+      waitlistCount: d.waitlistCount,
+    };
   });
-
-  return result;
 }

@@ -3,6 +3,7 @@ import { withBarber } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 
 const CreateSchema = z.object({
   reason: z.string().min(1),
@@ -46,7 +47,11 @@ export const GET = withBarber(async (req, { userId }) => {
 });
 
 export const POST = withBarber(async (req, { userId }) => {
-  const barber = await prisma.barber.findUnique({ where: { userId } });
+  // Traemos branchId para invalidar caché por sucursal tras crear bloqueo.
+  const barber = await prisma.barber.findUnique({
+    where: { userId },
+    select: { id: true, branchId: true },
+  });
   if (!barber) throw AppError.notFound("Barbero no encontrado");
 
   const json = await req.json().catch(() => null);
@@ -64,6 +69,9 @@ export const POST = withBarber(async (req, { userId }) => {
       barberId: barber.id,
     },
   });
+
+  // Nuevo bloqueo del barbero = slots ocupados.
+  invalidateAvailability({ barberId: barber.id, branchId: barber.branchId });
 
   return NextResponse.json(
     {

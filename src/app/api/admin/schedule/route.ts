@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 import { UpdateBranchHoursSchema } from "@/lib/validations/schedule";
 
 export const GET = withAdmin(async (req, { orgId }) => {
@@ -54,6 +55,10 @@ export const PUT = withAdmin(async (req, { orgId }) => {
       })
     )
   );
+
+  // Cambian las horas de la sucursal → cambia el cómputo de slots disponibles
+  // para todos los barberos de esa sucursal. Invalidamos por sucursal.
+  invalidateAvailability({ branchId });
 
   return NextResponse.json({ ok: true });
 });

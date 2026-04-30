@@ -6,6 +6,7 @@ import {
   getBlockTimes,
   createBlockTime,
 } from "@/lib/services/block-time.service";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 import { CreateBlockTimeSchema } from "@/lib/validations/block-time";
 
 export const GET = withAdmin(async (req, { orgId }) => {
@@ -46,16 +47,20 @@ export const POST = withAdmin(async (req, { orgId }) => {
     );
   }
 
-  // Verify barber belongs to org
+  // Verify barber belongs to org. Traemos branchId también para
+  // invalidar el caché de availability tras crear el bloqueo.
   const barber = await prisma.barber.findFirst({
     where: { id: parsed.data.barberId, branch: { orgId } },
-    select: { id: true },
+    select: { id: true, branchId: true },
   });
   if (!barber) {
     throw AppError.notFound("Barbero no encontrado");
   }
 
   const block = await createBlockTime(parsed.data);
+
+  // Nuevo bloqueo = slots ocupados → invalidar disponibilidad.
+  invalidateAvailability({ barberId: barber.id, branchId: barber.branchId });
 
   return NextResponse.json({ blockTime: block }, { status: 201 });
 });

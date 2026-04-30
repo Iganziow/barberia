@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/api-error";
 import { dispatchWebhook } from "@/lib/services/webhook.service";
 import { sendStatusChangeEmail } from "@/lib/services/email.service";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 import type { UpdateStatusInput } from "@/lib/validations/appointment";
 
 export type AppointmentFilters = {
@@ -149,7 +150,9 @@ export async function updateAppointmentStatus(
           : {}),
       },
       include: {
-        branch: { select: { orgId: true } },
+        // Incluimos branch.id también — necesario para invalidar el caché
+        // de availability por sucursal después del status change.
+        branch: { select: { id: true, orgId: true } },
         service: { select: { name: true } },
         barber: { include: { user: { select: { name: true } } } },
       },
@@ -177,6 +180,15 @@ export async function updateAppointmentStatus(
   if (data.status === "CONFIRMED" || data.status === "CANCELED") {
     sendStatusChangeEmail(updated.id, data.status).catch(() => {});
   }
+
+  // Invalida availability cuando el cambio libera u ocupa un slot.
+  // CANCELED y NO_SHOW liberan; volver de CANCELED → RESERVED ocupa.
+  // Por simplicidad y baja frecuencia, invalidamos en cualquier cambio
+  // de status — barato (solo marca un tag) y evita olvidar casos.
+  invalidateAvailability({
+    barberId: updated.barberId,
+    branchId: updated.branch.id,
+  });
 
   return updated;
 }
@@ -210,7 +222,7 @@ export async function rescheduleAppointment(
     "@/lib/services/availability.service"
   );
 
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     // Lock advisory por barbero (target). Si la cita cambia de barbero,
     // bloqueamos el del destino — el del origen pierde el slot
     // automáticamente porque la cita misma se está moviendo.
@@ -238,4 +250,14 @@ export async function rescheduleAppointment(
       },
     });
   });
+
+  // Invalida availability del barbero origen y destino (si cambió). El
+  // origen libera su slot anterior, el destino lo ocupa. La sucursal es
+  // la misma porque rescheduleAppointment no cambia branchId.
+  invalidateAvailability({ barberId: existing.barberId, branchId: existing.branchId });
+  if (data.barberId && data.barberId !== existing.barberId) {
+    invalidateAvailability({ barberId: data.barberId });
+  }
+
+  return updated;
 }

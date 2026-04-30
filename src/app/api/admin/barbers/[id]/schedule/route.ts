@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 import { UpdateBarberScheduleSchema } from "@/lib/validations/schedule";
 
 export const GET = withAdmin(async (_req, { orgId }, { params }) => {
@@ -23,7 +24,10 @@ export const GET = withAdmin(async (_req, { orgId }, { params }) => {
 export const PUT = withAdmin(async (req, { orgId }, { params }) => {
   const { id: barberId } = await params;
 
-  const barber = await prisma.barber.findFirst({ where: { id: barberId, branch: { orgId } } });
+  const barber = await prisma.barber.findFirst({
+    where: { id: barberId, branch: { orgId } },
+    select: { id: true, branchId: true },
+  });
   if (!barber) throw AppError.notFound("Barbero no encontrado");
 
   const body = await req.json().catch(() => null);
@@ -45,6 +49,10 @@ export const PUT = withAdmin(async (req, { orgId }, { params }) => {
       })
     )
   );
+
+  // El schedule del barbero cambió → invalida tanto su cache personal
+  // como el de la sucursal (que itera todos los barberos en el heatmap).
+  invalidateAvailability({ barberId, branchId: barber.branchId });
 
   return NextResponse.json({ ok: true });
 });

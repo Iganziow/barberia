@@ -9,6 +9,7 @@ import {
   slotConflictMessage,
   acquireBarberLock,
 } from "@/lib/services/availability.service";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 import { getOrgIdFromHeaders } from "@/lib/tenant";
 import { stripHtml } from "@/lib/sanitize";
 import { rateLimit } from "@/lib/rate-limit";
@@ -215,6 +216,12 @@ export const POST = withPublic(async (req) => {
   if (!result) {
     throw AppError.conflict("Este horario ya no está disponible. Intenta otro.");
   }
+
+  // Invalida el caché de availability — el nuevo slot ocupado debe verse
+  // inmediatamente en `/api/book/availability` (no esperar TTL de 30s).
+  // Tageamos por barbero (filtra para getAvailableSlots) y por sucursal
+  // (filtra para getBarbersWithAvailability + heatmap).
+  invalidateAvailability({ barberId: data.barberId, branchId: data.branchId });
 
   // Send confirmation email (fire-and-forget)
   sendBookingConfirmation(result).catch((err) => console.error("Email failed:", err));

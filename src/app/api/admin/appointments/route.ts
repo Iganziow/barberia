@@ -10,6 +10,7 @@ import {
   slotConflictMessage,
   acquireBarberLock,
 } from "@/lib/services/availability.service";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 import { CreateAppointmentSchema } from "@/lib/validations/appointment";
 import { parseDate } from "@/lib/sanitize";
 
@@ -145,6 +146,10 @@ export const POST = withAdmin(async (req, { orgId }) => {
     }
     throw err;
   });
+
+  // Invalida availability — el slot ahora está ocupado, debe verse en
+  // el flujo público sin esperar TTL.
+  invalidateAvailability({ barberId: data.barberId, branchId: data.branchId });
 
   return NextResponse.json({ appointment }, { status: 201 });
 });

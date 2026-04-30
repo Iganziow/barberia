@@ -4,6 +4,7 @@ import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { stripHtml } from "@/lib/sanitize";
+import { invalidateAvailability } from "@/lib/cache/availability-cache";
 
 // El barbero puede avanzar su propio flujo de la cita con el mismo
 // conjunto de estados que el admin (Arrived / InProgress / Done), y
@@ -46,10 +47,11 @@ export const PATCH = withBarber(async (req, { userId }, { params }) => {
     throw AppError.notFound("Barbero no encontrado");
   }
 
-  // Verifica que la cita pertenezca a este barbero
+  // Verifica que la cita pertenezca a este barbero. Traemos branchId
+  // también para poder invalidar el caché de availability tras el cambio.
   const appointment = await prisma.appointment.findFirst({
     where: { id, barberId: barber.id },
-    select: { id: true, status: true, payment: { select: { id: true } } },
+    select: { id: true, status: true, branchId: true, payment: { select: { id: true } } },
   });
   if (!appointment) {
     throw AppError.notFound("Cita no encontrada");
@@ -99,6 +101,11 @@ export const PATCH = withBarber(async (req, { userId }, { params }) => {
       select: { id: true, status: true, cancelReason: true },
     });
   });
+
+  // Invalida availability — el cambio de status (especialmente CANCELED
+  // o NO_SHOW) libera/ocupa slots; debe verse en el flujo público sin
+  // esperar TTL.
+  invalidateAvailability({ barberId: barber.id, branchId: appointment.branchId });
 
   return NextResponse.json({ appointment: updated });
 });
