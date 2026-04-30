@@ -37,13 +37,38 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+/**
+ * Script inline que aplica el tema (light/dark) ANTES del primer paint
+ * para evitar el "flash de tema incorrecto" (FOUC).
+ *
+ * Lee localStorage["mb_theme"]:
+ *   - "dark" / "light" → fuerza ese tema
+ *   - "system" o ausente → sigue prefers-color-scheme del SO
+ *
+ * Aplica el resultado como `data-theme="dark"` o `data-theme="light"` en
+ * <html>, y setea `color-scheme` para que el navegador adapte form
+ * controls / scrollbars nativos.
+ */
+const themeInitScript = `
+(function(){try{
+  var s=localStorage.getItem('mb_theme');
+  var d=(s==='dark')||((s===null||s==='system')&&matchMedia('(prefers-color-scheme: dark)').matches);
+  var t=d?'dark':'light';
+  document.documentElement.dataset.theme=t;
+  document.documentElement.style.colorScheme=t;
+}catch(e){}})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

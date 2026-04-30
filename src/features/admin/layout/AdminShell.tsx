@@ -4,7 +4,11 @@ import { type ReactNode, useCallback, useState, useSyncExternalStore } from "rea
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useToast } from "@/components/ui/Toast";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import TourOverlay from "@/components/ui/Tour";
+import { useTheme, type ThemeMode } from "@/hooks/use-theme";
+import { useIsClient } from "@/hooks/use-is-client";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -84,10 +88,42 @@ function IconPlug({ className }: { className?: string }) {
   );
 }
 
+function IconShield({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
 function IconBuilding({ className }: { className?: string }) {
   return (
     <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
       <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 9h.01M15 9h.01M9 13h.01M15 13h.01" />
+    </svg>
+  );
+}
+
+function IconSun({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+function IconMoon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+    </svg>
+  );
+}
+function IconAuto({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v18" />
     </svg>
   );
 }
@@ -101,6 +137,7 @@ const NAV = [
   { href: "/admin/clients", label: "Clientes", Icon: IconUsers, tourId: "nav-clientes" },
   { href: "/admin/reports", label: "Reportes", Icon: IconChart, tourId: "nav-reportes" },
   { href: "/admin/integrations", label: "Integraciones", Icon: IconPlug, tourId: "nav-integraciones" },
+  { href: "/admin/audit", label: "Auditoría", Icon: IconShield, tourId: "nav-audit" },
   { href: "/admin/settings", label: "Configuración", Icon: IconGear, tourId: "nav-settings" },
   { href: "/admin/profile", label: "Mi Perfil", Icon: IconUser, tourId: "nav-perfil" },
 ];
@@ -137,6 +174,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthUser();
+  const toast = useToast();
   const [loggingOut, setLoggingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navCollapsed = useSyncExternalStore(
@@ -146,6 +184,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   );
   // Hover expande temporalmente el rail sin tocar la preferencia persistida
   const [navHovered, setNavHovered] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const themeMounted = useIsClient();
+  const NEXT_THEME: Record<ThemeMode, ThemeMode> = { light: "dark", dark: "system", system: "light" };
+  const THEME_LABEL: Record<ThemeMode, string> = { light: "Claro", dark: "Oscuro", system: "Sistema" };
+  // Hasta montar usamos IconAuto para evitar hydration mismatch (server snapshot = "system").
+  const displayTheme: ThemeMode = themeMounted ? theme : "system";
+  const ThemeIcon = displayTheme === "dark" ? IconMoon : displayTheme === "system" ? IconAuto : IconSun;
 
   const toggleCollapsed = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -182,11 +227,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         router.push("/login");
       } else {
         setLoggingOut(false);
-        alert("No se pudo cerrar sesión. Intenta de nuevo.");
+        toast.error("No se pudo cerrar sesión", { description: "Intenta de nuevo." });
       }
     } catch {
       setLoggingOut(false);
-      alert("Error de conexión al cerrar sesión.");
+      toast.error("Error de conexión", { description: "Revisa tu internet." });
     }
   }
 
@@ -315,13 +360,29 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               )}
             </button>
 
+            {/* Theme toggle: cicla light → dark → system */}
+            <button
+              onClick={() => setTheme(NEXT_THEME[displayTheme])}
+              title={`Tema: ${THEME_LABEL[displayTheme]} — clic para cambiar`}
+              aria-label={`Tema actual: ${THEME_LABEL[displayTheme]}`}
+              className={cn(
+                "flex items-center rounded-lg text-[13px] font-medium text-white/40 hover:bg-white/5 hover:text-white/70 transition overflow-hidden mt-2",
+                showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2 w-full"
+              )}
+            >
+              <ThemeIcon className="shrink-0 text-white/30" />
+              {!showCompact && (
+                <span className="whitespace-nowrap">Tema: {THEME_LABEL[displayTheme]}</span>
+              )}
+            </button>
+
             {/* Toggle collapse/expand (desktop only) */}
             <button
               onClick={toggleCollapsed}
               title={navCollapsed ? "Fijar menú abierto" : "Colapsar menú"}
               aria-label={navCollapsed ? "Fijar menú abierto" : "Colapsar menú"}
               className={cn(
-                "hidden lg:flex items-center rounded-lg text-[11px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition mt-4",
+                "hidden lg:flex items-center rounded-lg text-[11px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition mt-2",
                 showCompact ? "justify-center h-10 w-10 mx-auto" : "gap-2 px-3 py-2 w-full"
               )}
             >
@@ -356,7 +417,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               La agenda neutraliza este padding con negative margins para ir
               full-bleed (ver AdminAgenda.tsx: -mx-* -my-*). */}
           <main className="flex-1 px-4 py-4 lg:px-6 lg:py-6 xl:px-8">
-            <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+            <div className="mx-auto w-full max-w-[1400px]">
+              {/* Breadcrumbs auto-detect del pathname. NO mostramos en /admin
+                  raíz (es la home, breadcrumb redundante). */}
+              {pathname !== "/admin" && (
+                <Breadcrumbs className="mb-3 lg:mb-4" />
+              )}
+              {children}
+            </div>
           </main>
         </div>
 

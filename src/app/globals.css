@@ -1,5 +1,11 @@
 @import "tailwindcss";
 @import "./booking.css";
+@import "./toast.css";
+
+/* Dark mode manual: el variant `dark:` aplica cuando <html> (o cualquier
+   ancestro) tiene data-theme="dark". El script anti-flash en layout.tsx
+   setea ese atributo según localStorage["mb_theme"] o prefers-color-scheme. */
+@custom-variant dark (&:where([data-theme="dark"] *), &:where([data-theme="dark"]));
 
 :root {
   --background: #faf8f6;
@@ -15,17 +21,18 @@
   --muted-light: #a8a29e;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c0a09;
-    --foreground: #e7e5e4;
-    --sidebar-bg: #1c1917;
-    --surface: #1c1917;
-    --border: #2e2a27;
-    --card-bg: #1c1917;
-    --muted: #a8a29e;
-    --muted-light: #57534e;
-  }
+/* Dark mode: el script inline en layout.tsx setea data-theme="dark"
+   en <html> ANTES del primer paint (lee localStorage["mb_theme"] o
+   prefers-color-scheme). Toggle manual con useTheme() / <ThemeToggle/>. */
+[data-theme="dark"] {
+  --background: #0c0a09;
+  --foreground: #e7e5e4;
+  --sidebar-bg: #0a0807;
+  --surface: #1c1917;
+  --border: #2e2a27;
+  --card-bg: #1c1917;
+  --muted: #a8a29e;
+  --muted-light: #57534e;
 }
 
 @theme inline {
@@ -451,4 +458,108 @@ button {
     linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0)) 0 0 / 20px 100% no-repeat scroll,
     linear-gradient(to left, #ffffff, rgba(255, 255, 255, 0)) 100% 0 / 20px 100% no-repeat scroll,
     #ffffff;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Dark mode overrides — patches globales para colores hardcoded.
+
+   Muchos componentes usan literales como `bg-white`, `bg-[#faf8f6]`,
+   `border-[#e8e2dc]`, `text-stone-900`. Refactorizar todos a `dark:`
+   sería gigantesco; en vez de eso, parchamos los patrones más comunes
+   con CSS overrides bajo [data-theme="dark"].
+
+   Los componentes que YA tienen clases `dark:` (Toast, Skeleton,
+   Breadcrumbs, EmptyState, ThemeToggle) ganan sobre estos parches.
+   ────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Shells y fondos del layout */
+[data-theme="dark"] .bg-\[\#faf8f6\] { background-color: #0c0a09 !important; }
+[data-theme="dark"] .bg-\[\#1a1412\] { background-color: #0a0807 !important; }
+
+/* Bordes hardcoded */
+[data-theme="dark"] .border-\[\#e8e2dc\] { border-color: #2e2a27 !important; }
+[data-theme="dark"] .border-\[\#eae6e1\] { border-color: #2e2a27 !important; }
+[data-theme="dark"] .border-\[\#f0ece8\] { border-color: #1c1917 !important; }
+[data-theme="dark"] .border-\[\#ddd7d0\] { border-color: #2e2a27 !important; }
+[data-theme="dark"] .border-\[\#ebe7e2\] { border-color: #1c1917 !important; }
+
+/* Form / cards */
+[data-theme="dark"] .input-field {
+  background: #1c1917;
+  border-color: #2e2a27;
+  color: #e7e5e4;
+}
+[data-theme="dark"] .input-field::placeholder { color: #57534e; }
+[data-theme="dark"] .input-field:disabled {
+  background: #0c0a09;
+  color: #57534e;
+}
+[data-theme="dark"] .field-label { color: #a8a29e; }
+[data-theme="dark"] .btn-secondary {
+  background: #1c1917;
+  border-color: #2e2a27;
+  color: #d6d3d1;
+}
+[data-theme="dark"] .btn-secondary:hover { background: #2e2a27; }
+[data-theme="dark"] .premium-card {
+  background: linear-gradient(180deg, #1c1917 0%, #14110f 100%);
+  border-color: #2e2a27;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+[data-theme="dark"] .premium-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* FullCalendar — invertir tokens */
+[data-theme="dark"] .fc {
+  --fc-bg: #1c1917;
+  --fc-border: #2e2a27;
+  --fc-text: #e7e5e4;
+  --fc-muted: #78716c;
+  --fc-surface: #14110f;
+}
+[data-theme="dark"] .fc .fc-button-primary {
+  background: #1c1917 !important;
+  color: #d6d3d1 !important;
+  border-color: #2e2a27 !important;
+}
+[data-theme="dark"] .fc .fc-button-primary:hover { background: #2e2a27 !important; }
+[data-theme="dark"] .fc .fc-prev-button,
+[data-theme="dark"] .fc .fc-next-button {
+  background: #1c1917 !important;
+  color: #a8a29e !important;
+  border-color: #2e2a27 !important;
+}
+[data-theme="dark"] .fc .fc-prev-button:hover,
+[data-theme="dark"] .fc .fc-next-button:hover {
+  background: #2e2a27 !important;
+  color: #e7e5e4 !important;
+}
+[data-theme="dark"] .fc .fc-col-header-cell {
+  color: #a8a29e;
+}
+[data-theme="dark"] .fc .fc-day-today {
+  background-color: rgba(200, 121, 65, 0.08) !important;
+}
+
+/* Scroll-shadow blanco → oscuro */
+[data-theme="dark"] .scroll-shadow-x {
+  background:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 0%, transparent 12px) 0 0 / 12px 100% no-repeat local,
+    linear-gradient(to left, rgba(255, 255, 255, 0.06) 0%, transparent 12px) 100% 0 / 12px 100% no-repeat local,
+    linear-gradient(to right, #1c1917, rgba(28, 25, 23, 0)) 0 0 / 20px 100% no-repeat scroll,
+    linear-gradient(to left, #1c1917, rgba(28, 25, 23, 0)) 100% 0 / 20px 100% no-repeat scroll,
+    #1c1917;
+}
+
+/* Day grid scrollbar */
+[data-theme="dark"] .day-grid-scroll::-webkit-scrollbar-track {
+  background: #1c1917;
+}
+[data-theme="dark"] .day-grid-scroll::-webkit-scrollbar-thumb {
+  border-color: #1c1917;
 }

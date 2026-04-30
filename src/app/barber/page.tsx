@@ -13,6 +13,7 @@ const BarberCalendar = dynamic(() => import("@/features/barber/BarberCalendar"),
 
 import { formatCLP, formatTime } from "@/lib/format";
 import { STATUS_CONFIG } from "@/lib/constants";
+import { useToast } from "@/components/ui/Toast";
 
 type Stats = {
   totalToday: number;
@@ -89,6 +90,7 @@ function IconClock() { return <svg width="12" height="12" viewBox="0 0 24 24" fi
 
 // ─── Componente principal ───────────────────────────────────────────────
 export default function BarberPage() {
+  const toast = useToast();
   const [barber, setBarber] = useState<BarberInfo | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [monthStats, setMonthStats] = useState<MonthStats | null>(null);
@@ -385,12 +387,12 @@ export default function BarberPage() {
         setCalEvents(prevEvents);
         setSelectedEvent(prevSelected);
         const d = await res.json().catch(() => ({ message: "Error" }));
-        alert(d.message || "No se pudo actualizar. Intenta de nuevo.");
+        toast.error("No se pudo actualizar", { description: d.message || "Intenta de nuevo." });
       }
     } catch {
       setCalEvents(prevEvents);
       setSelectedEvent(prevSelected);
-      alert("Error de conexión al actualizar.");
+      toast.error("Error de conexión", { description: "Revisa tu internet." });
     } finally {
       setUpdatingId(null);
     }
