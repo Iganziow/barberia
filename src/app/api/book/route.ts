@@ -14,6 +14,7 @@ import { getOrgIdFromHeaders } from "@/lib/tenant";
 import { stripHtml } from "@/lib/sanitize";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendBookingConfirmation } from "@/lib/services/email.service";
+import { personName } from "@/lib/validations/_shared";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-().+]/g, "").replace(/^56/, "");
@@ -25,7 +26,7 @@ const BookingSchema = z.object({
   branchId: z.string().min(1),
   start: z.string().datetime(),
   end: z.string().datetime(),
-  clientName: z.string().min(2).max(200).transform((s) => stripHtml(s.trim())),
+  clientName: personName(),
   clientPhone: z
     .string()
     .min(8)

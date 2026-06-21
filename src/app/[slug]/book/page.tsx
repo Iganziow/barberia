@@ -42,7 +42,13 @@ const TIME_PERIODS = [
 
 // ─── Helpers de UI ──────────────────────────────────────────────────
 function fmtSlot(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+  // 24h: en Chile el estándar es "21:00", no "09:00 p. m.". Sin hour12:false
+  // toLocaleTimeString para "es-CL" devuelve am/pm por default.
+  return new Date(iso).toLocaleTimeString("es-CL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 function fmtDayLong(dateStr: string) {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("es-CL", {
@@ -518,9 +524,14 @@ export default function BookingPage() {
           <section>
             <p className="bk-cf__form-h">Tus datos</p>
 
+            {/* Labels asociados via htmlFor/id — sin esto el <label> visual
+                no se liga semánticamente al input y screen readers no anuncian
+                "Nombre completo, edit" sino solo "edit". Auditoría A11Y
+                2026-04-30 A11Y-1/A11Y-3. */}
             <div className="bk-cf__field">
-              <label className="bk-cf__field-label">Nombre completo</label>
+              <label className="bk-cf__field-label" htmlFor="bk-name">Nombre completo</label>
               <input
+                id="bk-name"
                 className="bk-cf__input"
                 type="text"
                 placeholder="Ej: Diego Rojas"
@@ -531,10 +542,11 @@ export default function BookingPage() {
             </div>
 
             <div className="bk-cf__field">
-              <label className="bk-cf__field-label">Teléfono</label>
+              <label className="bk-cf__field-label" htmlFor="bk-phone">Teléfono</label>
               <div className={`bk-cf__phone-wrap${phoneTouched && clientPhone && !phoneOk ? " is-error" : ""}`}>
-                <span className="bk-cf__phone-cc">🇨🇱 +56</span>
+                <span className="bk-cf__phone-cc" aria-hidden="true">🇨🇱 +56</span>
                 <input
+                  id="bk-phone"
                   className="bk-cf__phone-input"
                   type="tel"
                   inputMode="tel"
@@ -544,20 +556,23 @@ export default function BookingPage() {
                   onChange={(e) => setClientPhone(formatChileanPhone(e.target.value))}
                   onBlur={() => setPhoneTouched(true)}
                   maxLength={11}
+                  aria-describedby={phoneTouched && clientPhone && !phoneOk ? "bk-phone-error" : undefined}
+                  aria-invalid={phoneTouched && clientPhone && !phoneOk ? true : undefined}
                 />
               </div>
               {phoneTouched && clientPhone && !phoneOk && (
-                <p className="bk-cf__error">
+                <p id="bk-phone-error" className="bk-cf__error">
                   Ingresa un número chileno válido (9 dígitos, ej: 9 1234 5678)
                 </p>
               )}
             </div>
 
             <div className="bk-cf__field">
-              <label className="bk-cf__field-label">
+              <label className="bk-cf__field-label" htmlFor="bk-email">
                 Email <span style={{ color: "var(--mb-fg-subtle)", fontWeight: 400 }}>· opcional</span>
               </label>
               <input
+                id="bk-email"
                 className="bk-cf__input"
                 type="email"
                 placeholder="diego@ejemplo.cl"
@@ -1000,6 +1015,7 @@ export default function BookingPage() {
             </div>
             <textarea
               className="bk-a__note"
+              aria-label="Nota para el barbero (opcional)"
               placeholder="Ej: prefiero degradado bajo, vengo apurado, alérgico a ciertos productos"
               value={clientNote}
               onChange={(e) => setClientNote(e.target.value.slice(0, 500))}

@@ -340,7 +340,7 @@ export default function NewReservationModal({
             </select>
             <span className="text-stone-400 text-sm">a</span>
             <span className="rounded-lg border border-[#e8e2dc] bg-stone-50 px-3 py-2 text-sm text-stone-500">
-              {computedEndISO ? new Date(computedEndISO).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+              {computedEndISO ? new Date(computedEndISO).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }) : "--:--"}
             </span>
           </div>
         </div>

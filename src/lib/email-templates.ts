@@ -23,7 +23,8 @@ function formatDate(d: Date): string {
 }
 
 function formatTime(d: Date): string {
-  return d.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+  // 24h: estándar chileno. Sin hour12:false, "es-CL" devuelve "09:30 p. m.".
+  return d.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function mapsLink(address: string | null, lat?: number | null, lng?: number | null): string | null {

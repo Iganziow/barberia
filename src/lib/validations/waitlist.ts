@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { stripHtml } from "@/lib/sanitize";
+import { personName } from "./_shared";
 
 export const CreateWaitlistSchema = z.object({
-  clientName: z.string().min(2).max(200).transform(stripHtml),
+  clientName: personName(),
   clientPhone: z.string().min(8).max(20).regex(/^\+?[\d\s\-().]+$/, "Teléfono inválido"),
   serviceId: z.string().min(1),
   barberId: z.string().optional().or(z.literal("")),

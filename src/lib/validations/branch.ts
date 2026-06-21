@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { stripHtml } from "@/lib/sanitize";
+import { personName } from "./_shared";
 
 export const CreateBranchSchema = z.object({
-  name: z.string().min(1, "Nombre requerido").transform(stripHtml),
+  // min: 1 — sucursales pueden tener nombres muy cortos (ej. "A"). El personName
+  // helper default es min 2, así que pasamos override.
+  name: personName({ min: 1 }),
   address: z.string().transform(stripHtml).optional(),
   phone: z.string().transform(stripHtml).optional(),
   latitude: z.number().nullable().optional(),

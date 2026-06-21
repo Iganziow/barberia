@@ -168,7 +168,7 @@ function ConfirmationContent() {
       weekday: "long", day: "numeric", month: "long",
     });
     const timeStr = new Date(booking.start).toLocaleTimeString("es-CL", {
-      hour: "2-digit", minute: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
     });
     const shareData = {
       title: `Reserva en ${booking.branch.orgName || booking.branch.name}`,
@@ -218,7 +218,7 @@ function ConfirmationContent() {
   const monthShort = startD.toLocaleDateString("es-CL", { month: "short" }).replace(".", "");
   const dayNum = startD.getDate();
   const dowShort = startD.toLocaleDateString("es-CL", { weekday: "short" }).replace(".", "");
-  const timeStr = startD.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = startD.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
   const fullDateStr = startD.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
   const orgName = booking.branch.orgName || booking.branch.name;
   const firstName = booking.clientName.split(" ")[0];

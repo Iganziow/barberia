@@ -107,8 +107,20 @@ function TourTooltip({
       {/* Click blocker */}
       <div className="fixed inset-0 z-[9998]" onClick={onSkip} aria-hidden="true" />
 
-      {/* Tooltip */}
-      <div style={tooltipStyle} className="max-w-xs w-80" onClick={(e) => e.stopPropagation()}>
+      {/* Tooltip — semánticamente es un modal: bloquea interacción de fondo
+          y atrapa al usuario hasta que avance o salte. role="dialog" +
+          aria-modal le dicen al screen reader que es un overlay, y los
+          aria-labelledby/describedby ligan título + descripción para que
+          se anuncien al abrir. A11Y-2 audit 2026-04-30. */}
+      <div
+        style={tooltipStyle}
+        className="max-w-xs w-80"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mb-tour-title"
+        aria-describedby="mb-tour-desc"
+      >
         <div className="rounded-xl bg-white p-5 shadow-2xl border border-[#e8e2dc]">
           {isCenter && (
             <div className="flex justify-center mb-3">
@@ -117,10 +129,10 @@ function TourTooltip({
               </div>
             </div>
           )}
-          <h3 className={`font-bold text-stone-900 ${isCenter ? "text-center text-base" : "text-sm"}`}>
+          <h3 id="mb-tour-title" className={`font-bold text-stone-900 ${isCenter ? "text-center text-base" : "text-sm"}`}>
             {step.title}
           </h3>
-          <p className={`mt-2 text-xs text-stone-500 leading-relaxed ${isCenter ? "text-center" : ""}`}>
+          <p id="mb-tour-desc" className={`mt-2 text-xs text-stone-500 leading-relaxed ${isCenter ? "text-center" : ""}`}>
             {step.description}
           </p>
 
