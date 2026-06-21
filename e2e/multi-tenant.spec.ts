@@ -52,4 +52,33 @@ test.describe("Multi-tenant — aislamiento", () => {
     // futuro, este test fallará y revisamos la decisión.
     expect([200, 404]).toContain(res.status());
   });
+
+  test("IDOR P0 — /api/book/[id] requiere slug del org dueño", async ({ request }) => {
+    // Regresión del P0 detectado 2026-04-30: getAppointmentById se
+    // llamaba SIN orgId, permitiendo a cualquiera con un cuid válido
+    // leer citas de cualquier org. Ahora scopeamos al slug del request.
+
+    // 1. Login admin y traer una cita real del seed.
+    const loginRes = await request.post("/api/auth/login", {
+      data: { email: "admin@barberia.cl", password: "Admin1234!" },
+    });
+    if (!loginRes.ok()) test.skip(true, "Login de seed no disponible");
+
+    const aptsRes = await request.get("/api/admin/appointments");
+    if (!aptsRes.ok()) test.skip(true, "Admin appointments no accesible");
+    const { appointments } = await aptsRes.json();
+    if (!appointments?.length) test.skip(true, "Sin citas en seed para testear IDOR");
+    const aptId = appointments[0].id;
+
+    // 2. Con slug correcto → 200 + booking data del seed.
+    const ok = await request.get(`/api/book/${aptId}?slug=mi-barberia`);
+    expect(ok.status()).toBe(200);
+    const okData = await ok.json();
+    expect(okData.booking?.id).toBe(aptId);
+
+    // 3. Con slug de un org inexistente → 404 (no leak cross-tenant).
+    //    Antes del fix devolvía 200 con los datos de la cita.
+    const ghost = await request.get(`/api/book/${aptId}?slug=org-fantasma`);
+    expect(ghost.status()).toBe(404);
+  });
 });

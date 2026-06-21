@@ -2,10 +2,18 @@ import { NextResponse } from "next/server";
 import { withPublic } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { getAppointmentById } from "@/lib/services/appointment.service";
+import { getOrgIdFromHeaders } from "@/lib/tenant";
 
-export const GET = withPublic(async (_req, { params }) => {
+export const GET = withPublic(async (req, { params }) => {
   const { id } = await params;
-  const apt = await getAppointmentById(id);
+
+  // Scope la lookup al org del request (resuelto vía slug header/query).
+  // Sin esto cualquiera con un cuid válido podía leer citas de cualquier
+  // org — IDOR P0 detectado en auditoría 2026-04-30. La página de
+  // confirmación vive bajo `/[slug]/book/confirmation`, así que el slug
+  // viene naturalmente en los headers (middleware setea x-org-slug).
+  const orgId = await getOrgIdFromHeaders(req);
+  const apt = await getAppointmentById(id, orgId);
 
   if (!apt) {
     throw AppError.notFound("Reserva no encontrada");

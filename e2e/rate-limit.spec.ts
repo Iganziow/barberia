@@ -74,4 +74,60 @@ test.describe("Rate limiter", () => {
     // El mensaje debe ser de validación, no de rate limit
     expect(body.message).not.toMatch(/Demasiadas solicitudes/i);
   });
+
+  test("Login rate limit P0 — 6to intento con mismo email/IP → 429", async ({ request }) => {
+    // Regresión del P0 detectado 2026-04-30: /api/auth/login no tenía
+    // rate limit, permitiendo brute force ilimitado de passwords.
+    // Ahora: 20/15min por IP + 5/15min por email.
+    const ip = uniqueIp();
+    // Email random pero único para no contaminar buckets entre tests.
+    const email = `bruteforce-${Math.random().toString(36).slice(2, 10)}@test.local`;
+
+    const responses: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      const r = await request.post("/api/auth/login", {
+        data: { email, password: "wrong-password" },
+        headers: { "x-forwarded-for": ip },
+      });
+      responses.push(r.status());
+    }
+
+    // Los primeros 5 son 401 (credenciales inválidas — el email no existe
+    // pero el rate limit cuenta TODOS los intentos, no solo los fallidos
+    // por credencial). El 6to debe ser 429 (techo por-email = 5).
+    expect(responses.slice(0, 5).every((s) => s === 401)).toBe(true);
+    expect(responses[5]).toBe(429);
+  });
+
+  test("Login rate limit — emails distintos resetean el bucket por email", async ({ request }) => {
+    // El bucket per-email aísla cuentas — atacar a la cuenta A no debe
+    // bloquear intentos contra la cuenta B desde el mismo IP (hasta el
+    // techo más alto de IP=20).
+    const ip = uniqueIp();
+    const emailA = `a-${Math.random().toString(36).slice(2, 8)}@test.local`;
+    const emailB = `b-${Math.random().toString(36).slice(2, 8)}@test.local`;
+
+    // Saturar email A (5 intentos).
+    for (let i = 0; i < 5; i++) {
+      await request.post("/api/auth/login", {
+        data: { email: emailA, password: "wrong" },
+        headers: { "x-forwarded-for": ip },
+      });
+    }
+    // 6to intento contra A → bloqueado
+    const blockedA = await request.post("/api/auth/login", {
+      data: { email: emailA, password: "wrong" },
+      headers: { "x-forwarded-for": ip },
+    });
+    expect(blockedA.status()).toBe(429);
+
+    // 1er intento contra B desde mismo IP → debe pasar el bucket
+    // per-email (B tiene 0 intentos). El bucket per-IP lleva 6 intentos
+    // pero el techo es 20, así que también pasa.
+    const okB = await request.post("/api/auth/login", {
+      data: { email: emailB, password: "wrong" },
+      headers: { "x-forwarded-for": ip },
+    });
+    expect(okB.status()).toBe(401);
+  });
 });
