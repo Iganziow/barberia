@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import type { CreateWaitlistInput } from "@/lib/validations/waitlist";
+import { normalizeChileanLocal } from "@/lib/phone";
 
-function normalizePhone(phone: string): string {
-  return phone.replace(/[\s\-().+]/g, "").replace(/^56/, "");
-}
+// Antes había una `normalizePhone` local con regex propia, igual que en
+// /api/book/route.ts. Si la lógica cambiaba en un lado pero no en el otro,
+// el mismo cliente quedaba con dos representaciones distintas en DB.
+// Centralizado en lib/phone.ts (audit deuda técnica 2026-04-30).
+const normalizePhone = normalizeChileanLocal;
 
 export async function addToWaitlist(data: CreateWaitlistInput) {
   const normalizedPhone = normalizePhone(data.clientPhone);

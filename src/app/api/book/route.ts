@@ -15,10 +15,13 @@ import { stripHtml } from "@/lib/sanitize";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendBookingConfirmation } from "@/lib/services/email.service";
 import { personName } from "@/lib/validations/_shared";
+import { normalizeChileanLocal as normalizePhone } from "@/lib/phone";
 
-function normalizePhone(phone: string): string {
-  return phone.replace(/[\s\-().+]/g, "").replace(/^56/, "");
-}
+// Antes había una `normalizePhone` local con regex propia, igual que en
+// waitlist.service.ts. Si la lógica cambiaba en un lado pero no en el
+// otro, el mismo cliente quedaba con dos representaciones distintas en
+// DB (lookup por teléfono fallaba en uno y no en el otro). Centralizado
+// en lib/phone.ts (audit deuda técnica 2026-04-30).
 
 const BookingSchema = z.object({
   serviceId: z.string().min(1),
@@ -131,10 +134,10 @@ export const POST = withPublic(async (req) => {
     // mismo slot pasaban los 3 el overlap check (cada transacción veía
     // la DB pre-commit) → se creaban 3 citas duplicadas (race condition
     // crítica detectada en e2e).
-    await acquireBarberLock(tx as unknown as typeof prisma, data.barberId);
+    await acquireBarberLock(tx, data.barberId);
 
     const conflict = await validateAppointmentSlot(
-      tx as unknown as typeof prisma,
+      tx,
       {
         barberId: data.barberId,
         branchId: data.branchId,

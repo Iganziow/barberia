@@ -226,10 +226,10 @@ export async function rescheduleAppointment(
     // Lock advisory por barbero (target). Si la cita cambia de barbero,
     // bloqueamos el del destino — el del origen pierde el slot
     // automáticamente porque la cita misma se está moviendo.
-    await acquireBarberLock(tx as unknown as typeof prisma, targetBarberId);
+    await acquireBarberLock(tx, targetBarberId);
 
     const conflict = await validateAppointmentSlot(
-      tx as unknown as typeof prisma,
+      tx,
       {
         barberId: targetBarberId,
         branchId: existing.branchId,

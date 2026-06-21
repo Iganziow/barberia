@@ -1,9 +1,22 @@
 import { unstable_cache } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   availabilityBranchTag,
   availabilityBarberTag,
 } from "@/lib/cache/availability-cache";
+
+/**
+ * El callback de `prisma.$transaction(async tx => ...)` recibe un
+ * `Prisma.TransactionClient`, NO un `PrismaClient` — son tipos distintos
+ * (el transaction client carece de `$transaction`, `$connect`, `$on`).
+ * Antes los helpers tipaban `tx: typeof prisma` (= PrismaClient),
+ * obligando a cada caller a hacer `tx as unknown as typeof prisma`,
+ * un double-cast que silenciaba TODO el type-check del callsite.
+ * El alias acepta ambos para no romper callers que pasan el prisma
+ * global fuera de transacciones (no hay ninguno hoy, pero futuro-proof).
+ */
+type PrismaTx = Prisma.TransactionClient | typeof prisma;
 
 /**
  * TTL del caché de availability. 30s es el sweet spot:
@@ -354,7 +367,7 @@ export async function getBarbersWithAvailability(
  * entre sí (alta concurrencia con barberos distintos sigue siendo OK).
  */
 export async function acquireBarberLock(
-  tx: typeof prisma,
+  tx: PrismaTx,
   barberId: string
 ): Promise<void> {
   // hashtextextended permite int8 (BIGINT) que es lo que pg_advisory_xact_lock
@@ -397,7 +410,7 @@ export type ValidateSlotOptions = {
  * `tx`) — así el check es atómico con el INSERT que viene después.
  */
 export async function validateAppointmentSlot(
-  tx: typeof prisma,
+  tx: PrismaTx,
   args: {
     barberId: string;
     branchId: string;

@@ -112,10 +112,10 @@ export const POST = withAdmin(async (req, { orgId }) => {
     // Lock advisory por barbero — previene race condition de inserts
     // concurrentes (crítico para multi-staff admins reservando al mismo
     // tiempo).
-    await acquireBarberLock(tx as unknown as typeof prisma, data.barberId);
+    await acquireBarberLock(tx, data.barberId);
 
     const conflict = await validateAppointmentSlot(
-      tx as unknown as typeof prisma,
+      tx,
       {
         barberId: data.barberId,
         branchId: data.branchId,
