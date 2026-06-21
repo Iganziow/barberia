@@ -3,6 +3,7 @@ import { createHmac } from "crypto";
 import { withAdmin } from "@/lib/api-handler";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
+import { validateWebhookUrl, webhookUrlErrorMessage } from "@/lib/webhook-url";
 
 /**
  * POST /api/admin/integrations/webhooks/[id]/test
@@ -23,6 +24,14 @@ export const POST = withAdmin(async (_req, { orgId }, { params }) => {
     where: { id, orgId },
   });
   if (!wh) throw AppError.notFound("Webhook no encontrado");
+
+  // Revalidación defense-in-depth: aunque el POST de creación ya valida,
+  // un webhook creado ANTES de la validación (datos legacy) podría tener
+  // un URL malicioso persistido. Revalidamos antes de cada test fetch.
+  const urlError = validateWebhookUrl(wh.url);
+  if (urlError) {
+    throw AppError.badRequest(webhookUrlErrorMessage(urlError));
+  }
 
   const body = JSON.stringify({
     event: wh.event,

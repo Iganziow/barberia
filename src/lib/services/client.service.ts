@@ -200,9 +200,21 @@ export async function updateClient(
   orgId: string,
   data: { name?: string; email?: string | null; phone?: string | null; notes?: string | null }
 ) {
-  // Verify client belongs to org (via any appointment's branch, or via User.orgId)
+  // Verify client belongs to org. Scope ALINEADO con getClientDetail:
+  // un cliente "pertenece" al org si su User.orgId matchea (cliente
+  // creado por admin) O si tiene appointments en branches del org
+  // (cliente creado al reservar via /book público sin User.orgId).
+  // Antes solo chequeaba user.orgId → clientes creados via público
+  // (User.orgId = null) eran invisibles al update → "Cliente no
+  // encontrado" silencioso en la UI.
   const client = await prisma.client.findFirst({
-    where: { id, user: { orgId } },
+    where: {
+      id,
+      OR: [
+        { user: { orgId } },
+        { appointments: { some: { branch: { orgId } } } },
+      ],
+    },
     include: { user: true },
   });
   if (!client) return null;
