@@ -13,7 +13,12 @@ export async function getBranches(orgId: string) {
     include: {
       _count: {
         select: {
-          barbers: true,
+          // Solo barberos activos — antes contaba TODOS (incluyendo
+          // desactivados), así que la card mostraba "3 barberos" cuando
+          // la agenda y el booking público solo veían 2 (active: true).
+          // Bug fix audit 2026-04-30 #4: "cantidad de barberos en crear
+          // sucursales, no coincide".
+          barbers: { where: { active: true } },
           appointments: { where: { start: { gte: monthStart } } },
         },
       },

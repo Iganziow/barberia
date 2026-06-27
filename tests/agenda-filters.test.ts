@@ -62,21 +62,36 @@ describe("filterAgendaEvents", () => {
     ).toHaveLength(2);
   });
 
-  it("filters appointments by status set", () => {
+  it("filters appointments by status set — STATUS_ACTIVE incluye DONE", () => {
+    // DONE se incluye en ACTIVE: una cita pagada/terminada sigue visible
+    // en el panel diario. CANCELED queda fuera (en HISTORY).
+    // Bug fix audit 2026-04-30 #7: "reservas desaparecen al procesar pago".
     const events = [
       evt({ id: "res", status: "RESERVED" }),
       evt({ id: "can", status: "CANCELED" }),
       evt({ id: "done", status: "DONE" }),
     ];
     const result = filterAgendaEvents(events, { statuses: STATUS_ACTIVE });
-    expect(result.map((e) => e.id)).toEqual(["res"]);
+    expect(result.map((e) => e.id).sort()).toEqual(["done", "res"]);
+  });
+
+  it("STATUS_HISTORY ahora solo trae CANCELED y NO_SHOW (no DONE)", () => {
+    const events = [
+      evt({ id: "done", status: "DONE" }),
+      evt({ id: "can", status: "CANCELED" }),
+      evt({ id: "no", status: "NO_SHOW" }),
+    ];
+    const result = filterAgendaEvents(events, { statuses: STATUS_HISTORY });
+    expect(result.map((e) => e.id).sort()).toEqual(["can", "no"]);
   });
 
   it("BLOCK events pass when showBlocks is true (default)", () => {
     const events = [
       evt({ id: "block", kind: "BLOCK", status: "ACTIVE" }),
-      evt({ id: "appt", status: "DONE" }),
+      evt({ id: "appt", status: "CANCELED" }),
     ];
+    // Con DONE ahora en ACTIVE, este test usa CANCELED como el status
+    // "que no aparece" para validar el filtrado.
     const result = filterAgendaEvents(events, { statuses: STATUS_ACTIVE });
     expect(result.map((e) => e.id).sort()).toEqual(["block"]);
   });

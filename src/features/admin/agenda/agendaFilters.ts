@@ -4,15 +4,27 @@ import type {
   StatusPreset,
 } from "@/types/agenda";
 
+/**
+ * Statuses visibles en el preset "Reservas activas" (default).
+ * DONE se incluye acá: una cita ya pagada/finalizada sigue siendo info
+ * útil del día (cuántos cortes hizo el barbero, qué slots están
+ * ocupados). Antes DONE estaba en HISTORY y desaparecía de la agenda
+ * tras procesar pago — el usuario reportaba "se desaparecen las
+ * reservas" porque cambiaban de status. Bug audit 2026-04-30 #7.
+ *
+ * CANCELED y NO_SHOW siguen en HISTORY: son outcomes negativos que NO
+ * aportan al panel diario y los queremos ocultos por default
+ * (admin que canceló a propósito no quiere verlas todo el día).
+ */
 export const STATUS_ACTIVE: AppointmentStatusCode[] = [
   "RESERVED",
   "CONFIRMED",
   "ARRIVED",
   "IN_PROGRESS",
+  "DONE",
 ];
 
 export const STATUS_HISTORY: AppointmentStatusCode[] = [
-  "DONE",
   "CANCELED",
   "NO_SHOW",
 ];

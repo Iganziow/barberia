@@ -17,7 +17,8 @@ export default function SlotActionMenu({
   y: number;
   /** Hora del slot clickeado, ej: "10:30" */
   timeLabel?: string;
-  /** Si el slot ya pasó — deshabilita "Reservar" */
+  /** Si el slot ya pasó — admin puede reservar igual (walk-in olvidado),
+   *  pero mostramos warning visual para que no sea por accidente. */
   isPast?: boolean;
   onClose: () => void;
   onReserve: () => void;
@@ -68,22 +69,21 @@ export default function SlotActionMenu({
         </div>
 
         <div className="py-1">
+          {/* Reservar en hora pasada SÍ está permitido — el admin lo usa
+              para registrar walk-ins que olvidó cargar. Mantenemos el
+              warning visual ("hora pasada") para evitar clicks accidentales,
+              pero el botón queda habilitado. Bug fix audit 2026-04-30 #6. */}
           <button
-            className={`w-full text-left px-4 py-2.5 flex items-center gap-3 text-sm transition ${
-              isPast
-                ? "opacity-40 cursor-not-allowed"
-                : "hover:bg-brand/5"
-            }`}
-            onClick={() => { if (isPast) return; onReserve(); onClose(); }}
-            disabled={isPast}
+            className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-sm transition hover:bg-brand/5"
+            onClick={() => { onReserve(); onClose(); }}
             type="button"
-            title={isPast ? "No se puede reservar en horarios pasados" : undefined}
+            title={isPast ? "Reserva en hora pasada (walk-in olvidado)" : undefined}
           >
             <svg className="h-4 w-4 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
               <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
             <span>Reserva</span>
-            {isPast && <span className="ml-auto text-[10px] text-stone-400">hora pasada</span>}
+            {isPast && <span className="ml-auto text-[10px] font-medium text-amber-600">hora pasada</span>}
           </button>
 
           <button
