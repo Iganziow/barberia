@@ -8,7 +8,9 @@ export async function getBarbers(orgId: string, branchId?: string) {
       ...(branchId ? { branchId } : {}),
     },
     include: {
-      user: { select: { name: true, email: true, phone: true } },
+      // avatar = foto de perfil del barbero (reusa User.avatar, que estaba
+      // sin uso). Se expone como photoUrl en la API.
+      user: { select: { name: true, email: true, phone: true, avatar: true } },
     },
     orderBy: { user: { name: "asc" } },
   });
@@ -18,7 +20,7 @@ export async function getBarberById(id: string) {
   return prisma.barber.findUnique({
     where: { id },
     include: {
-      user: { select: { name: true, email: true, phone: true } },
+      user: { select: { name: true, email: true, phone: true, avatar: true } },
     },
   });
 }

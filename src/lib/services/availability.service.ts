@@ -184,6 +184,7 @@ type BarberAvailabilityRaw = {
   id: string;
   name: string;
   color: string | null;
+  photoUrl: string | null;
   /** Lista cruda de timestamps (ms) de cada slot disponible. Filtrar past
    *  fuera del caché para no quedar stale al cruzar la hora del slot. */
   availableSlotStartsMs: number[];
@@ -219,7 +220,7 @@ async function _generateBarbersAvailability(
     select: {
       id: true,
       color: true,
-      user: { select: { name: true } },
+      user: { select: { name: true, avatar: true } },
     },
   });
   if (barbers.length === 0) return [];
@@ -257,6 +258,7 @@ async function _generateBarbersAvailability(
       id: b.id,
       name: b.user.name,
       color: b.color,
+      photoUrl: b.user.avatar,
       availableSlotStartsMs: [],
     }));
   }
@@ -271,7 +273,7 @@ async function _generateBarbersAvailability(
   return barbers.map((b) => {
     const sched = scheduleByBarber.get(b.id);
     if (!sched || !sched.isWorking) {
-      return { id: b.id, name: b.user.name, color: b.color, availableSlotStartsMs: [] };
+      return { id: b.id, name: b.user.name, color: b.color, photoUrl: b.user.avatar, availableSlotStartsMs: [] };
     }
     const workStart = laterTime(sched.startTime, branchHours.openTime);
     const workEnd = earlierTime(sched.endTime, branchHours.closeTime);
@@ -306,6 +308,7 @@ async function _generateBarbersAvailability(
       id: b.id,
       name: b.user.name,
       color: b.color,
+      photoUrl: b.user.avatar,
       availableSlotStartsMs: availableStarts,
     };
   });
@@ -349,6 +352,7 @@ export async function getBarbersWithAvailability(
     id: b.id,
     name: b.name,
     color: b.color,
+    photoUrl: b.photoUrl,
     availableSlots: b.availableSlotStartsMs.filter((t) => t > nowMs).length,
   }));
 }

@@ -4,6 +4,7 @@ import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { getBarbers } from "@/lib/services/barber.service";
 import { stripHtml } from "@/lib/sanitize";
+import { validateImageUrl, imageUrlErrorMessage } from "@/lib/image-url";
 import bcrypt from "bcryptjs";
 
 export const GET = withAdmin(async (req, { orgId }) => {
@@ -18,6 +19,7 @@ export const GET = withAdmin(async (req, { orgId }) => {
       name: b.user.name,
       email: b.user.email,
       phone: b.user.phone,
+      photoUrl: b.user.avatar,
       color: b.color,
       active: b.active,
       commissionType: b.commissionType,
@@ -30,10 +32,17 @@ export const POST = withAdmin(async (req, { orgId }) => {
   const body = await req.json().catch(() => null);
   if (!body) throw AppError.badRequest("JSON inválido");
 
-  const { name, email, phone, password, color, branchId } = body;
+  const { name, email, phone, password, color, branchId, photoUrl } = body;
 
   if (!name?.trim() || !email?.trim() || !password?.trim()) {
     throw AppError.badRequest("Nombre, email y contraseña son requeridos");
+  }
+  // Foto opcional: si viene, validamos que sea https. Vacío/ausente = null.
+  let avatar: string | null = null;
+  if (photoUrl && String(photoUrl).trim()) {
+    const err = validateImageUrl(String(photoUrl).trim());
+    if (err) throw AppError.badRequest(imageUrlErrorMessage(err));
+    avatar = String(photoUrl).trim();
   }
   // Validaciones consistentes con /admin/profile (min 8). Bounds máximos
   // previenen payloads oversized.
@@ -63,6 +72,7 @@ export const POST = withAdmin(async (req, { orgId }) => {
         password: hash,
         role: "BARBER",
         orgId,
+        avatar,
       },
     });
     const barber = await tx.barber.create({

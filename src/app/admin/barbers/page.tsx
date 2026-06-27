@@ -5,6 +5,7 @@ import Link from "next/link";
 import InfoTip from "@/components/ui/InfoTip";
 import Modal from "@/components/ui/modal";
 import UserAvatarBadge from "@/components/ui/UserAvatarBadge";
+import BarberAvatar from "@/components/ui/BarberAvatar";
 import { formatCLP } from "@/lib/format";
 import { useQuickStats } from "@/hooks/use-quick-stats";
 
@@ -13,6 +14,7 @@ type Barber = {
   name: string;
   email: string;
   phone: string | null;
+  photoUrl: string | null;
   color: string;
   active: boolean;
   commissionType: "PERCENTAGE" | "FIXED";
@@ -59,15 +61,6 @@ function initBarberSchedule(existing: BarberDay[]): BarberDay[] {
       }
     );
   });
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 function firstName(name: string) {
@@ -177,6 +170,7 @@ export default function BarbersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editColor, setEditColor] = useState("#c87941");
+  const [editPhotoUrl, setEditPhotoUrl] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -311,6 +305,7 @@ export default function BarbersPage() {
       setEditEmail(b.email || "");
       setEditPhone(b.phone || "");
       setEditColor(b.color || "#c87941");
+      setEditPhotoUrl(b.photoUrl || "");
       setCommissionType(b.commissionType);
       setCommissionValue(String(b.commissionValue));
     }
@@ -330,6 +325,7 @@ export default function BarbersPage() {
           email: editEmail.trim(),
           phone: editPhone.trim() || null,
           color: editColor,
+          photoUrl: editPhotoUrl.trim(),
         }),
       });
       if (r.ok) {
@@ -337,7 +333,7 @@ export default function BarbersPage() {
         setBarbers((p) =>
           p.map((b) =>
             b.id === selectedBarber
-              ? { ...b, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() || null, color: editColor }
+              ? { ...b, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim() || null, color: editColor, photoUrl: editPhotoUrl.trim() || null }
               : b
           )
         );
@@ -655,12 +651,13 @@ export default function BarbersPage() {
                     onClick={() => selectBarber(b.id)}
                     className="flex items-center gap-3 flex-1 min-w-0 text-left"
                   >
-                    <div
-                      className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm"
-                      style={{ backgroundColor: b.color || "#c87941" }}
-                    >
-                      {initials(b.name)}
-                    </div>
+                    <BarberAvatar
+                      name={b.name}
+                      photoUrl={b.photoUrl}
+                      color={b.color}
+                      size={40}
+                      className="shadow-sm"
+                    />
                     <div className="min-w-0">
                       <p className={`font-semibold text-sm truncate ${isSelected ? "text-stone-900" : "text-stone-800"}`}>
                         {b.name}
@@ -766,12 +763,13 @@ export default function BarbersPage() {
                         }}
                       >
                         <div className="flex items-center gap-4">
-                          <div
-                            className="h-16 w-16 rounded-full flex items-center justify-center text-white font-extrabold text-xl shrink-0 shadow-lg"
-                            style={{ backgroundColor: editColor, boxShadow: `0 8px 20px -6px ${editColor}66` }}
-                          >
-                            {initials(editName || ab.name)}
-                          </div>
+                          <BarberAvatar
+                            name={editName || ab.name}
+                            photoUrl={editPhotoUrl}
+                            color={editColor}
+                            size={64}
+                            className="shadow-lg"
+                          />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-500">
                               Preview · como aparece en la agenda
@@ -872,6 +870,20 @@ export default function BarbersPage() {
                                 placeholder="+56 9 1234 5678"
                               />
                             </div>
+                          </div>
+                          <div>
+                            <label className="field-label">Foto (URL)</label>
+                            <input
+                              type="url"
+                              className="input-field"
+                              value={editPhotoUrl}
+                              onChange={(e) => { setEditPhotoUrl(e.target.value); setProfileSaved(false); }}
+                              placeholder="https://… (link a una imagen)"
+                              maxLength={2000}
+                            />
+                            <p className="text-[11px] text-stone-400 mt-1">
+                              Pegá el link de una foto (https). Si lo dejás vacío se muestran las iniciales.
+                            </p>
                           </div>
                         </div>
                       </div>

@@ -4,6 +4,7 @@ import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { stripHtml } from "@/lib/sanitize";
 import { recordAudit } from "@/lib/audit-log";
+import { validateImageUrl, imageUrlErrorMessage } from "@/lib/image-url";
 import bcrypt from "bcryptjs";
 
 export const GET = withAdmin(async (_req, { orgId }, { params }) => {
@@ -11,7 +12,7 @@ export const GET = withAdmin(async (_req, { orgId }, { params }) => {
 
   const barber = await prisma.barber.findFirst({
     where: { id, branch: { orgId } },
-    include: { user: { select: { name: true, email: true, phone: true } } },
+    include: { user: { select: { name: true, email: true, phone: true, avatar: true } } },
   });
   if (!barber) throw AppError.notFound("Barbero no encontrado");
 
@@ -21,6 +22,7 @@ export const GET = withAdmin(async (_req, { orgId }, { params }) => {
       name: barber.user.name,
       email: barber.user.email,
       phone: barber.user.phone,
+      photoUrl: barber.user.avatar,
       color: barber.color,
       active: barber.active,
       commissionType: barber.commissionType,
@@ -47,6 +49,17 @@ export const PATCH = withAdmin(async (req, { orgId }, { params }) => {
   // User fields
   if (body.name !== undefined) userUpdates.name = stripHtml(String(body.name).trim());
   if (body.phone !== undefined) userUpdates.phone = body.phone ? String(body.phone).trim() : null;
+  // Foto: string vacío o null limpia la foto; URL no-vacía se valida (https).
+  if (body.photoUrl !== undefined) {
+    const raw = body.photoUrl ? String(body.photoUrl).trim() : "";
+    if (!raw) {
+      userUpdates.avatar = null;
+    } else {
+      const err = validateImageUrl(raw);
+      if (err) throw AppError.badRequest(imageUrlErrorMessage(err));
+      userUpdates.avatar = raw;
+    }
+  }
   if (body.email !== undefined) {
     const newEmail = String(body.email).trim().toLowerCase();
     const existing = await prisma.user.findFirst({ where: { email: newEmail, id: { not: barber.userId } } });
