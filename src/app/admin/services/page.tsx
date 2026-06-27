@@ -168,6 +168,13 @@ export default function ServicesPage() {
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingCatName, setEditingCatName] = useState("");
 
+  // Creación inline de categoría DESDE el form de servicio — evita tener
+  // que abrir el modal aparte, crear, cerrar y volver al servicio.
+  const [inlineCatMode, setInlineCatMode] = useState(false);
+  const [inlineCatName, setInlineCatName] = useState("");
+  const [inlineCatSaving, setInlineCatSaving] = useState(false);
+  const [inlineCatError, setInlineCatError] = useState("");
+
   // ─── Data fetching ──────────────────────────────────────────────────
   const fetchServices = useCallback(() => {
     fetch("/api/admin/services?all=true")
@@ -185,29 +192,62 @@ export default function ServicesPage() {
   }, [fetchServices]);
 
   // ─── Category CRUD ──────────────────────────────────────────────────
+  // Helper compartido: hace el POST y devuelve el id creado (o un error).
+  // Lo usan tanto el modal de categorías como la creación inline del form.
+  async function postCategory(
+    name: string
+  ): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+    try {
+      const r = await fetch("/api/admin/services/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({ message: "Error al crear" }));
+        return { ok: false, message: d.message || "No se pudo crear la categoría" };
+      }
+      const d = await r.json();
+      return { ok: true, id: d.category.id };
+    } catch {
+      return { ok: false, message: "Error de conexión" };
+    }
+  }
+
   async function createCategory() {
     const trimmed = newCatName.trim();
     if (!trimmed) return;
     setSavingCat(true);
     setCatError("");
-    try {
-      const r = await fetch("/api/admin/services/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed }),
-      });
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({ message: "Error al crear" }));
-        setCatError(d.message || "No se pudo crear la categoría");
-        return;
-      }
+    const created = await postCategory(trimmed);
+    if (!created.ok) {
+      setCatError(created.message);
+    } else {
       setNewCatName("");
       fetchServices();
-    } catch {
-      setCatError("Error de conexión");
-    } finally {
-      setSavingCat(false);
     }
+    setSavingCat(false);
+  }
+
+  // Crea una categoría desde el form de servicio y la auto-selecciona.
+  // Optimistic: agregamos a `categories` local para que el <option> exista
+  // inmediatamente (sin esperar el refetch) y el select muestre la nueva.
+  async function createInlineCategory() {
+    const trimmed = inlineCatName.trim();
+    if (!trimmed) return;
+    setInlineCatSaving(true);
+    setInlineCatError("");
+    const created = await postCategory(trimmed);
+    if (!created.ok) {
+      setInlineCatError(created.message);
+      setInlineCatSaving(false);
+      return;
+    }
+    setCategories((prev) => [...prev, { id: created.id, name: trimmed }]);
+    setCategoryId(created.id);
+    setInlineCatName("");
+    setInlineCatMode(false);
+    setInlineCatSaving(false);
   }
 
   async function renameCategory(id: string) {
@@ -248,6 +288,10 @@ export default function ServicesPage() {
     setCategoryId("");
     setEditId(null);
     setShowForm(false);
+    // Limpiar también el modo inline de categoría por si quedó abierto.
+    setInlineCatMode(false);
+    setInlineCatName("");
+    setInlineCatError("");
   }
 
   function openNew() {
@@ -448,9 +492,53 @@ export default function ServicesPage() {
                 step={500}
               />
             </div>
-            {categories.length > 0 && (
-              <div className="sm:col-span-2">
-                <label className="field-label">Categoría</label>
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="field-label !mb-0">Categoría</label>
+                {!inlineCatMode && (
+                  <button
+                    type="button"
+                    onClick={() => { setInlineCatMode(true); setInlineCatError(""); }}
+                    className="text-[11px] font-semibold text-brand hover:text-brand-hover transition"
+                  >
+                    + Nueva categoría
+                  </button>
+                )}
+              </div>
+              {inlineCatMode ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      className="input-field flex-1"
+                      placeholder="Ej: Cortes, Barba, Tintura"
+                      value={inlineCatName}
+                      maxLength={80}
+                      onChange={(e) => setInlineCatName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); createInlineCategory(); }
+                        if (e.key === "Escape") { setInlineCatMode(false); setInlineCatName(""); setInlineCatError(""); }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={createInlineCategory}
+                      disabled={inlineCatSaving || !inlineCatName.trim()}
+                      className="btn-primary text-sm shrink-0 disabled:opacity-50"
+                    >
+                      {inlineCatSaving ? "..." : "Crear"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setInlineCatMode(false); setInlineCatName(""); setInlineCatError(""); }}
+                      className="btn-secondary text-sm shrink-0"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  {inlineCatError && <p className="text-[11px] text-red-600">{inlineCatError}</p>}
+                </div>
+              ) : (
                 <select
                   className="input-field"
                   value={categoryId}
@@ -461,8 +549,8 @@ export default function ServicesPage() {
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           <div className="flex gap-2 pt-1">
             <button
